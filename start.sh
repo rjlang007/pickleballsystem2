@@ -2,6 +2,7 @@
 set -e
 
 mkdir -p /app/uploads/activity_photos /app/logs /app/storage
+chown -R www-data:www-data /app/uploads /app/logs /app/storage
 chmod -R 775 /app/uploads /app/logs /app/storage
 
 mkdir -p /tmp/php-fpm.d
