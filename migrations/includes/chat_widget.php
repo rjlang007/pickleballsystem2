@@ -1,7 +1,7 @@
 <?php
 // ============================================================
 //  FILE: includes/chat_widget.php
-//  Falcon Court Chat Widget — AssistiveTouch Edition
+//  Padol Court Chat Widget — AssistiveTouch Edition
 //  FIX: Admin floating widget now shows player inbox list
 //       (sorted by most recent message) instead of self-chat.
 //       Admins can never message themselves.
@@ -438,8 +438,8 @@ $_currentIsAdmin = isLoggedIn() && isAdmin();
 <div id="fcb-dz">✕</div>
 
 <div id="fcb-wrap" style="display:none;" aria-hidden="true">
-  <div id="fcb-lbl">💬 <?= $_currentIsAdmin ? 'Player Messages' : 'Falcon Chat' ?></div>
-  <button id="fcb-btn" aria-label="Open Falcon Chat" aria-expanded="false">
+  <div id="fcb-lbl">💬 <?= $_currentIsAdmin ? 'Player Messages' : 'Padol Chat' ?></div>
+  <button id="fcb-btn" aria-label="Open Padol Chat" aria-expanded="false">
     <svg class="fcb-ball" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="24" r="20" fill="#05080f" stroke="rgba(5,8,15,.4)" stroke-width="1"/>
       <circle cx="24" cy="24" r="18" fill="#05080f"/>
@@ -460,7 +460,7 @@ $_currentIsAdmin = isLoggedIn() && isAdmin();
   </button>
 </div>
 
-<div id="fcb-panel" role="dialog" aria-label="Falcon Chat" aria-hidden="true">
+<div id="fcb-panel" role="dialog" aria-label="Padol Chat" aria-hidden="true">
   <div class="ph">
     <div class="ph-ico">
       <svg viewBox="0 0 28 28" width="20" height="20" fill="none">

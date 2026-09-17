@@ -27,7 +27,7 @@ SMTP_USER=youraccount@gmail.com
 SMTP_PASS=your-16-char-app-password   # NOT your normal Gmail password
 SMTP_ENCRYPT=tls
 FROM_EMAIL=noreply@yourdomain.com
-FROM_NAME=Falcon Pickleball Court
+FROM_NAME=Padol Pickleball Court
 ```
 Gmail App Passwords: https://myaccount.google.com/apppasswords
 (Requires 2-Step Verification enabled on the Gmail account.)

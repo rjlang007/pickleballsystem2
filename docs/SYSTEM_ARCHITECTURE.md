@@ -1,4 +1,4 @@
-# FALCON PICKLEBALL COURT
+# PADOL PICKLEBALL COURT
 ## System Architecture & Technical Reference
 **Version 1.0 | April 2026**
 
@@ -809,7 +809,7 @@ server {
 | Variable | Example | Purpose |
 |----------|---------|---------|
 | `APP_URL` | `https://falcon.railway.app` | Application root URL |
-| `APP_NAME` | `Falcon Pickleball Court` | Display name |
+| `APP_NAME` | `Padol Pickleball Court` | Display name |
 | `APP_ENV` | `production` | Environment mode |
 | `DATABASE_URL` | `postgresql://user:pass@host/db` | DB connection |
 | `PGHOST` | `postgres.railway.internal` | DB host |
@@ -1072,7 +1072,7 @@ At any given time:
 
 ### Scalability Limits
 
-**Current Setup (Falcon Basic):**
+**Current Setup (Padol Basic):**
 - **Max Players:** 10,000+
 - **Concurrent Users:** 100+
 - **Daily Transactions:** 1,000+

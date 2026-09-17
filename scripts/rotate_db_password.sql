@@ -1,5 +1,5 @@
 -- ============================================================
--- Rotate the Falcon DB credential and (recommended) move off
+-- Rotate the Padol DB credential and (recommended) move off
 -- the postgres superuser onto a scoped app role.
 --
 -- Run this against your ACTUAL live database (Railway / hosting

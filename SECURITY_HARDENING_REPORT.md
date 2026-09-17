@@ -1,4 +1,4 @@
-# Security Hardening Report — Falcon Pickleball Court
+# Security Hardening Report — Padol Pickleball Court
 
 Scope requested: CSRF / query consistency, rate limiting, secrets rotation plan.
 Audit date: 2026-08-17. Codebase: 215 PHP files.

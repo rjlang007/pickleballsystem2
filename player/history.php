@@ -249,7 +249,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="card" style="padding:16px 20px;">
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">📅 Member Since</div>
                 <div style="font-weight:700;font-size:16px;"><?= date('M d, Y', strtotime($allTime['first_game'])) ?></div>
-                <div style="font-size:12px;color:var(--muted);">First game at Falcon</div>
+                <div style="font-size:12px;color:var(--muted);">First game at Padol</div>
             </div>
         <?php endif; ?>
     </div>

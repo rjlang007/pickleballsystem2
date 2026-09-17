@@ -1,6 +1,6 @@
 -- ============================================================
 --  MIGRATION: v2_multi_court.sql
---  Expands Falcon Pickleball from 1 court to 6 courts
+--  Expands Padol Pickleball from 1 court to 6 courts
 --  Run this FIRST, then v2_fix_view_notx.sql
 -- ============================================================
 

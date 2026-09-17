@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_crm_unread
 -- ── 4. Seed the one community room if it doesn't exist ───────
 INSERT INTO falcon.chat_rooms (name, description, room_type, created_by, max_members, is_active)
 SELECT 'Community Court',
-       'Open chat for all Falcon players',
+       'Open chat for all Padol players',
        'community',
        0,
        9999,

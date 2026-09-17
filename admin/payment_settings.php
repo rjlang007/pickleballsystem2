@@ -693,7 +693,7 @@ $flash = getFlash();
                     <label>Account / Receiver Name <span style="color:var(--danger);">*</span></label>
                     <input type="text" name="account_name"
                            value="<?= clean($editRow['account_name'] ?? '') ?>"
-                           placeholder="e.g. Falcon Pickleball Court"
+                           placeholder="e.g. Padol Pickleball Court"
                            maxlength="150" required>
                 </div>
 

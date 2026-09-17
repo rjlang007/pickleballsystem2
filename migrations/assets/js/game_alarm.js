@@ -1,6 +1,6 @@
 // ============================================================
 //  FILE: includes/game_alarm.js
-//  Synthesized audio alarm system for Falcon Pickleball Court
+//  Synthesized audio alarm system for Padol Pickleball Court
 //  VERSION: 3.0 — Maximum Impact Edition
 //
 //  PHASES & SOUNDS:

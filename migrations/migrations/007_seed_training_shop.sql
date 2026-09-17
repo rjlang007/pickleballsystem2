@@ -15,9 +15,9 @@ WHERE NOT EXISTS (SELECT 1 FROM falcon.training_programs);
 
 INSERT INTO falcon.shop_items (name, category, price, badge, sort_order)
 SELECT * FROM (VALUES
-    ('Falcon Pro Paddle', 'Paddles', 2500.00, 'New', 1),
+    ('Padol Pro Paddle', 'Paddles', 2500.00, 'New', 1),
     ('Court Grip Overwrap', 'Accessories', 250.00, NULL, 2),
-    ('Falcon Team Jersey', 'Apparel', 850.00, NULL, 3),
+    ('Padol Team Jersey', 'Apparel', 850.00, NULL, 3),
     ('Outdoor Pickleball (3-pack)', 'Balls', 450.00, NULL, 4)
 ) AS seed(name, category, price, badge, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM falcon.shop_items);

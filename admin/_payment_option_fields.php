@@ -181,7 +181,7 @@
     <div>
         <label class="pof-label" for="pof-acct-name">Account Name</label>
         <input class="pof-input" type="text" id="pof-acct-name" name="opt_account_name"
-               placeholder="Falcon Pickleball Court"
+               placeholder="Padol Pickleball Court"
                autocomplete="off"/>
     </div>
 

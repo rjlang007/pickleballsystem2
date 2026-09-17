@@ -1,8 +1,8 @@
-# FALCON PICKLEBALL COURT
+# PADOL PICKLEBALL COURT
 ## Post-Deployment Support & Warranty Agreement
 
 **Date of Agreement:** April 2026
-**System:** Falcon Pickleball Management System
+**System:** Padol Pickleball Management System
 **Deployment Date:** April 2026
 
 ---

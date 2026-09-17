@@ -29,7 +29,7 @@ function alertOps(string $message, string $signature): void
 
     $env = defined('RAILWAY_ENVIRONMENT') ? RAILWAY_ENVIRONMENT : (getenv('RAILWAY_ENVIRONMENT') ?: 'unknown');
     $payload = json_encode([
-        'text' => "🔴 [{$env}] Falcon error: {$message}",
+        'text' => "🔴 [{$env}] Padol error: {$message}",
     ]);
 
     // Fire-and-forget: short timeout, and a failure here must never break

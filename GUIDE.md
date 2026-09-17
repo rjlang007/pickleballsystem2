@@ -1,4 +1,4 @@
-# Falcon Pickleball Court — Local Setup & Usage Guide
+# Padol Pickleball Court — Local Setup & Usage Guide
 
 ## 1. The one URL to always use
 

@@ -319,7 +319,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="auth-card">
 
         <h1>Welcome Back</h1>
-        <p class="subtitle">Sign in to your Falcon account.</p>
+        <p class="subtitle">Sign in to your Padol account.</p>
 
         <?php if (!empty($errors['general'])): ?>
             <div class="flash flash-error auth-alert">

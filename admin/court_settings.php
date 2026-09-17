@@ -497,13 +497,13 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="form-group">
                         <label>Court Name <span style="color:var(--danger);">*</span></label>
                         <input type="text" name="name" value="<?= clean($court['name']) ?>"
-                               maxlength="100" required placeholder="e.g. Falcon Court 1"/>
+                               maxlength="100" required placeholder="e.g. Padol Court 1"/>
                     </div>
                     <div class="form-group">
                         <label>Address / Venue</label>
                         <input type="text" name="address"
                                value="<?= clean($court['address'] ?? '') ?>"
-                               maxlength="255" placeholder="e.g. Falcon Sports Complex"/>
+                               maxlength="255" placeholder="e.g. Padol Sports Complex"/>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">

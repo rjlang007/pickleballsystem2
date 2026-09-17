@@ -2,7 +2,7 @@
 // ============================================================
 //  FILE: api/mobile.php
 //
-//  Mobile app API endpoints for Falcon Pickleball Court.
+//  Mobile app API endpoints for Padol Pickleball Court.
 //
 //  Endpoints:
 //  - GET /api/mobile.php/status  → Court status for mobile

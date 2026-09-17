@@ -558,7 +558,7 @@ INSERT INTO falcon.chat_rooms
     (id, room_type, name, description, created_by, max_members,
      is_locked, is_active, required_plan)
 VALUES
-    (1, 'community', 'Falcon Community', 'Main community chat for all Falcon Pickleball members.',
+    (1, 'community', 'Padol Community', 'Main community chat for all Padol Pickleball members.',
      NULL, NULL, false, true, 'basic')
 ON CONFLICT (id) DO NOTHING;
 

@@ -1,10 +1,10 @@
-# FALCON PICKLEBALL COURT
+# PADOL PICKLEBALL COURT
 ## Credentials & System Access Handover Guide
 
 **Date:** April 2026
 **From:** [FILL IN - Developer Name]
 **To:** [FILL IN - Client Name]
-**System:** Falcon Pickleball Management System
+**System:** Padol Pickleball Management System
 
 ---
 
@@ -140,7 +140,7 @@ postgres://[USERNAME]:[PASSWORD]@[HOST]:[PORT]/falcon?sslmode=require
 
 1. Go to pgAdmin 4: https://pgadmin.railway.app (or your provider)
 2. Click "Add Server"
-3. Name: "Falcon"
+3. Name: "Padol"
 4. Connection tab:
    - Host: [FILL IN]
    - Port: 5432
@@ -148,7 +148,7 @@ postgres://[USERNAME]:[PASSWORD]@[HOST]:[PORT]/falcon?sslmode=require
    - Username: [FILL IN]
    - Password: [FILL IN]
 5. Click Save
-6. Navigate: Servers → Falcon → Databases → falcon → Tables
+6. Navigate: Servers → Padol → Databases → falcon → Tables
 
 **Option B: Using Command Line (For Developers)**
 
@@ -192,7 +192,7 @@ Then enter password: [FILL IN]
 | Variable | Purpose | Value |
 |----------|---------|-------|
 | `DATABASE_URL` | PostgreSQL connection | `postgres://...` |
-| `APP_NAME` | System name | `Falcon Pickleball` |
+| `APP_NAME` | System name | `Padol Pickleball` |
 | `APP_URL` | Website base URL | `https://...railway.app` |
 | `ENVIRONMENT` | Dev/Staging/Production | `production` |
 | `SESSION_IDLE_TIMEOUT` | Minutes before logout | `20` |

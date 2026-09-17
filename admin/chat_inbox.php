@@ -314,7 +314,7 @@ require_once __DIR__ . '/../includes/header.php';
                 cb();
             } else if (attempts > 50) { // 5s timeout
                 clearInterval(check);
-                console.warn('FalconChat widget did not become ready in time.');
+                console.warn('PadolChat widget did not become ready in time.');
                 cb(); // proceed anyway, openConversation will show an error
             }
         }, 100);

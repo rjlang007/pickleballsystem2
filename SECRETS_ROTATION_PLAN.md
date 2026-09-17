@@ -1,4 +1,4 @@
-# Secrets Rotation Plan — Falcon Pickleball Court
+# Secrets Rotation Plan — Padol Pickleball Court
 
 ## 0. Do this first, today
 

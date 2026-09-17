@@ -1,4 +1,4 @@
-# FALCON PICKLEBALL COURT
+# PADOL PICKLEBALL COURT
 ## Owner's Manual — Complete Administrator Guide
 **Version 1.0 | Generated: April 2026**
 
@@ -25,9 +25,9 @@
 
 ## 1. System Overview
 
-### What is Falcon Pickleball Court?
+### What is Padol Pickleball Court?
 
-Falcon Pickleball Court is a complete management system for running a modern pickleball facility. It handles:
+Padol Pickleball Court is a complete management system for running a modern pickleball facility. It handles:
 
 - **Player Management** — Registration, verification, banning, account adjustments
 - **Credit Wallet System** — Players load credits (like prepaid cards) to play games
@@ -305,7 +305,7 @@ To export all player data for accounting:
 #### Basic Information
 
 **Court Name**
-- Default: "Falcon Court"
+- Default: "Padol Court"
 - Change to your facility name
 
 **Description**
@@ -596,7 +596,7 @@ Player goes to Dashboard
 2. Click **"Add Payment Method"**
 3. Fill in:
    - **Method Name:** "GCash" (or "GCash - Juan")
-   - **Account Name:** "Falcon Pickleball Court"
+   - **Account Name:** "Padol Pickleball Court"
    - **Account Number:** Your GCash mobile number (e.g., "09171234567")
    - **Instructions:** "Send ₱ to this GCash number. Text 'TOPUP' with screenshot."
    - **QR Code Image:** Upload a photo of your GCash QR code
@@ -610,7 +610,7 @@ Player goes to Dashboard
 1. Click **"Add Payment Method"**
 2. Fill in:
    - **Method Name:** "Bank Transfer" (or "BDO Transfer")
-   - **Account Name:** "Falcon Pickleball Court"
+   - **Account Name:** "Padol Pickleball Court"
    - **Account Number:** Your bank account number
    - **Instructions:** "Transfer to BDO 123-456-789. Reference: Your Username"
    - **QR Code Image:** (optional) Bank transfer QR
@@ -622,7 +622,7 @@ Player goes to Dashboard
 1. Click **"Add Payment Method"**
 2. Fill in:
    - **Method Name:** "Cash at Counter"
-   - **Account Name:** "Falcon Pickleball Court"
+   - **Account Name:** "Padol Pickleball Court"
    - **Account Number:** "In-Person Payment"
    - **Instructions:** "Visit the court and pay in cash to staff"
    - **Is Active:** ☑ Check
@@ -840,7 +840,7 @@ The scanner shows:
 
 #### Top Section: Court Status
 
-- **Court Name:** "Falcon Court"
+- **Court Name:** "Padol Court"
 - **Current Game Status:**
   - No game: "Waiting for players..."
   - Game active: "Game in progress — [X] minutes remaining"
@@ -1021,7 +1021,7 @@ When you change your password or reset a player's password:
 
 **Examples:**
 - ✅ `SecurePass123`
-- ✅ `Falcon2026Pro`
+- ✅ `Padol2026Pro`
 - ❌ `password123` (no uppercase)
 - ❌ `PassWord` (no number)
 - ❌ `Pass1` (too short)
@@ -1068,7 +1068,7 @@ If you need to export data manually:
 
 1. Go to Railway.app
 2. Login with your Railway account [FILL IN]
-3. Select "Falcon Pickleball" project
+3. Select "Padol Pickleball" project
 4. Go to "PostgreSQL" service
 5. Click "Connect" → "Terminal"
 6. Run command: `pg_dump -U [user] -d [database] > backup.sql`
@@ -1132,7 +1132,7 @@ Simple way to export **player data**:
 2. Try refreshing the page (Ctrl+R)
 3. Restart the application:
    - Go to Railway.app
-   - Click "Falcon Pickleball" project
+   - Click "Padol Pickleball" project
    - Click "Redeploy"
    - Wait 2 minutes
 
@@ -1240,7 +1240,7 @@ Simple way to export **player data**:
 **Solution:**
 1. Clear browser cache: Ctrl+Shift+Delete
 2. Check Railway dashboard:
-   - railway.app → Falcon Pickleball project
+   - railway.app → Padol Pickleball project
    - Look at CPU/Memory usage (should be <80%)
 3. If usage high, try restarting:
    - Click "Redeploy" in Railway

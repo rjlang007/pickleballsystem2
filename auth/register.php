@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['_last_activity'] = time();
                 stampSessionFingerprint();
 
-                setFlash('success', 'Account created successfully. Welcome to Falcon Pickleball Court!');
+                setFlash('success', 'Account created successfully. Welcome to Padol Pickleball Court!');
                 redirect('player/dashboard.php');
 } catch (Throwable $e) {
     $db->rollBack();

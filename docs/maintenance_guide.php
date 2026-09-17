@@ -331,7 +331,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="doc-hero">
         <div class="doc-hero-icon">🛠️</div>
         <h1>Maintenance Guide</h1>
-        <p>Daily, weekly, and monthly operational checklists to keep your Falcon Pickleball Court system running smoothly and securely.</p>
+        <p>Daily, weekly, and monthly operational checklists to keep your Padol Pickleball Court system running smoothly and securely.</p>
         <div class="doc-version-chip">📅 Version 1.0 &nbsp;·&nbsp; April 2026</div>
     </div>
 
@@ -678,14 +678,14 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="doc-callout-icon">🚨</div>
             <div class="doc-callout-text">
                 <strong>Contact immediately (24-hour response) if:</strong> Website completely down · Database offline · All player balances show ₱0 · Money being charged incorrectly · Security breach suspected (unauthorized access).
-                <br>Email subject: <code>[URGENT] Falcon System Issue — [Brief description]</code>
+                <br>Email subject: <code>[URGENT] Padol System Issue — [Brief description]</code>
             </div>
         </div>
         <div class="doc-callout amber">
             <div class="doc-callout-icon">📬</div>
             <div class="doc-callout-text">
                 <strong>Standard support (within 5 business days) for:</strong> Minor UI bugs · Feature questions · Performance optimization · New feature requests · System capacity planning.
-                <br>Email subject: <code>[STANDARD] Falcon Question — [Brief description]</code>
+                <br>Email subject: <code>[STANDARD] Padol Question — [Brief description]</code>
             </div>
         </div>
         <div style="margin-bottom:10px;font-weight:700;font-size:13px;color:var(--text);">Template for a Good Support Email:</div>

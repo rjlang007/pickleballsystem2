@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'amount'                => $amount,
                     'currency'              => 'PHP',
                     'description'           => $plan['name'] . ' Monthly Subscription',
-                    'statement_descriptor'  => 'FALCON PICKLEBALL',
+                    'statement_descriptor'  => 'PADOL PICKLEBALL',
                     'reference_number'      => $reference,
                     'success_url'           => $successUrl,
                     'failure_url'           => $failureUrl,
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'line_items'            => [
                         [
                             'name'        => $plan['name'] . ' Subscription',
-                            'description' => 'Monthly access to Falcon Pickleball system',
+                            'description' => 'Monthly access to Padol Pickleball system',
                             'amount'      => $amount,
                             'currency'    => 'PHP',
                             'quantity'    => 1,

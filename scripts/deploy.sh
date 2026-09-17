@@ -2,7 +2,7 @@
 # ============================================================
 #  FILE: scripts/deploy.sh
 #
-#  Deployment script for Falcon Pickleball Court.
+#  Deployment script for Padol Pickleball Court.
 # ============================================================
 
 set -e

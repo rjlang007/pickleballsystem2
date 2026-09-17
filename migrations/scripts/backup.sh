@@ -2,7 +2,7 @@
 # ============================================================
 #  FILE: scripts/backup.sh
 #
-#  Automated backup script for Falcon Pickleball Court.
+#  Automated backup script for Padol Pickleball Court.
 # ============================================================
 
 set -e

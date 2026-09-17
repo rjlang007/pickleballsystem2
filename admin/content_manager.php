@@ -792,7 +792,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="g2">
             <div class="fg"><label>Badge Text</label><input type="text" data-sec="hero" data-key="badge" value="<?= ev($hero['badge'] ?? 'Now Open · Polomolok, South Cotabato') ?>"></div>
             <div class="fg"><label>Title Line 1 (outline)</label><input type="text" data-sec="hero" data-key="title_line1" value="<?= ev($hero['title_line1'] ?? 'Play Like') ?>"></div>
-            <div class="fg"><label>Title Line 2 (accent)</label><input type="text" data-sec="hero" data-key="title_line2" value="<?= ev($hero['title_line2'] ?? 'A Falcon') ?>"></div>
+            <div class="fg"><label>Title Line 2 (accent)</label><input type="text" data-sec="hero" data-key="title_line2" value="<?= ev($hero['title_line2'] ?? 'A Padol') ?>"></div>
             <div class="fg full"><label>Hero Description</label><textarea data-sec="hero" data-key="description"><?= ev($hero['description'] ?? '') ?></textarea></div>
         </div>
         <div class="slbl">Stats</div>
@@ -813,7 +813,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <div class="spanel" id="sp-hero-ab">
         <div class="g2">
-            <div class="fg"><label>Section Tagline</label><input type="text" data-sec="about" data-key="tagline" value="<?= ev($about['tagline'] ?? 'About Falcon') ?>"></div>
+            <div class="fg"><label>Section Tagline</label><input type="text" data-sec="about" data-key="tagline" value="<?= ev($about['tagline'] ?? 'About Padol') ?>"></div>
             <div class="fg"><label>Section Heading</label><input type="text" data-sec="about" data-key="heading" value="<?= ev($about['heading'] ?? 'Where Champions Are Made') ?>"></div>
             <div class="fg full"><label>First Paragraph</label><textarea data-sec="about" data-key="description"><?= ev($about['description'] ?? '') ?></textarea></div>
             <div class="fg full"><label>Second Paragraph</label><textarea data-sec="about" data-key="description2"><?= ev($about['description2'] ?? '') ?></textarea></div>
@@ -1021,7 +1021,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <div class="spanel active" id="sp-ticker-tk">
         <div class="g2">
-            <div class="fg"><label>Item 1</label><input type="text" data-sec="ticker" data-key="item1" value="<?= ev($ticker['item1'] ?? 'Falcon Pickleball Court') ?>"></div>
+            <div class="fg"><label>Item 1</label><input type="text" data-sec="ticker" data-key="item1" value="<?= ev($ticker['item1'] ?? 'Padol Pickleball Court') ?>"></div>
             <div class="fg"><label>Item 2</label><input type="text" data-sec="ticker" data-key="item2" value="<?= ev($ticker['item2'] ?? 'Polomolok · South Cotabato') ?>"></div>
             <div class="fg"><label>Item 3</label><input type="text" data-sec="ticker" data-key="item3" value="<?= ev($ticker['item3'] ?? 'Tournament Registration Open') ?>"></div>
             <div class="fg"><label>Item 4</label><input type="text" data-sec="ticker" data-key="item4" value="<?= ev($ticker['item4'] ?? 'Professional Coaching Available') ?>"></div>
@@ -1127,7 +1127,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="mhead"><h3 id="m-event-title">Add Event</h3><button class="mclose" onclick="closeM('event')">✕</button></div>
     <input type="hidden" id="ev-id" value="0">
     <div class="g2">
-        <div class="fg full"><label>Title *</label><input type="text" id="ev-title" placeholder="Falcon Grand Slam 2026"></div>
+        <div class="fg full"><label>Title *</label><input type="text" id="ev-title" placeholder="Padol Grand Slam 2026"></div>
         <div class="fg"><label>Date *</label><input type="date" id="ev-date"></div>
         <div class="fg"><label>Tag / Category</label><input type="text" id="ev-tag" placeholder="Tournament · Open to All"></div>
     </div>
@@ -1239,7 +1239,7 @@ require_once __DIR__ . '/../includes/header.php';
     <input type="hidden" id="sh-id" value="0">
     <input type="hidden" id="sh-eimg" value="">
     <div class="g2">
-        <div class="fg full"><label>Item Name *</label><input type="text" id="sh-name" placeholder="Falcon Pro Paddle"></div>
+        <div class="fg full"><label>Item Name *</label><input type="text" id="sh-name" placeholder="Padol Pro Paddle"></div>
         <div class="fg"><label>Category</label><input type="text" id="sh-cat" placeholder="Paddles"></div>
         <div class="fg"><label>Price (₱) *</label><input type="number" id="sh-price" min="0" step="0.01"></div>
     </div>

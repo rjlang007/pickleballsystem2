@@ -153,7 +153,7 @@ function ensureCommunityRoom(PDO $db): int {
     $stmt = $db->prepare(
         "INSERT INTO falcon.chat_rooms
             (name, description, room_type, created_by, max_members, is_active)
-         VALUES ('Community Court', 'Open chat for all Falcon players', 'community', 0, 9999, TRUE)
+         VALUES ('Community Court', 'Open chat for all Padol players', 'community', 0, 9999, TRUE)
          RETURNING id"
     );
     $stmt->execute();
@@ -719,7 +719,7 @@ if ($action === 'pin_announce') {
 // ============================================================
 if ($action === 'game_invite') {
     $roomId    = (int)($body['room_id'] ?? 0);
-    $courtName = trim($body['court_name'] ?? 'Falcon Court');
+    $courtName = trim($body['court_name'] ?? 'Padol Court');
     $slotTime  = trim($body['slot_time'] ?? '');
     $slotDate  = trim($body['slot_date'] ?? date('Y-m-d'));
     $spotsLeft = max(1, (int)($body['spots_left'] ?? 1));

@@ -30,7 +30,7 @@ class Monitoring {
 
     public static function sendAlert(string $event, array $data): void {
         // Send email alert (placeholder - integrate with email service)
-        $subject = "CRITICAL: Falcon System Alert - {$event}";
+        $subject = "CRITICAL: Padol System Alert - {$event}";
         $body = "Event: {$event}\nData: " . json_encode($data, JSON_PRETTY_PRINT);
 
         // mail(getenv('ALERT_EMAIL'), $subject, $body);

@@ -303,7 +303,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="form-group">
                 <label>Address / Venue</label>
                 <input type="text" name="address" value="<?= $fv['address'] ?>"
-                       maxlength="255" placeholder="e.g. Falcon Sports Complex, Building A"/>
+                       maxlength="255" placeholder="e.g. Padol Sports Complex, Building A"/>
             </div>
         </div>
 

@@ -333,7 +333,7 @@ $badge = subscriptionBadge($sub);
 
 <div class="sub-page">
     <h1>Subscription</h1>
-    <p class="page-sub">Manage your Falcon Pickleball membership.</p>
+    <p class="page-sub">Manage your Padol Pickleball membership.</p>
 
     <!-- ── Top notice banner ──────────────────────────────────── -->
     <?php if ($bannerMsg): ?>

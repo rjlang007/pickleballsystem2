@@ -1,4 +1,4 @@
-# FALCON PICKLEBALL COURT
+# PADOL PICKLEBALL COURT
 ## Player Manual — Your Complete Guide to Playing
 **Version 1.0 | April 2026**
 
@@ -6,7 +6,7 @@
 
 ## TABLE OF CONTENTS
 
-1. [Welcome to Falcon Pickleball Court](#welcome)
+1. [Welcome to Padol Pickleball Court](#welcome)
 2. [How to Register Your Account](#register)
 3. [How to Login](#login)
 4. [Understanding Your Dashboard](#dashboard)
@@ -22,9 +22,9 @@
 
 ---
 
-## <a name="welcome"></a>Welcome to Falcon Pickleball Court 🏓
+## <a name="welcome"></a>Welcome to Padol Pickleball Court 🏓
 
-Hello! Welcome to **Falcon Pickleball Court** — the modern way to enjoy pickleball. Whether you're a casual player looking for a game or a serious enthusiast, this guide will help you get the most out of our facility.
+Hello! Welcome to **Padol Pickleball Court** — the modern way to enjoy pickleball. Whether you're a casual player looking for a game or a serious enthusiast, this guide will help you get the most out of our facility.
 
 ### What Makes Us Different?
 
@@ -86,7 +86,7 @@ Hello! Welcome to **Falcon Pickleball Court** — the modern way to enjoy pickle
 - Must include at least 1 NUMBER (0, 1, 2...9)
 - Examples:
   - ✅ `MyPassword123`
-  - ✅ `Player2026Falcon`
+  - ✅ `Player2026Padol`
   - ❌ `mypassword123` (no uppercase)
   - ❌ `MyPass1` (too short)
 - 💡 **Tip:** Write it down somewhere safe!
@@ -397,7 +397,7 @@ You'll see a list of payment options:
    - Make sure it shows: GCash logo, amount (₱100), reference number
    - Keep this screenshot!
 
-5. **Back in Falcon app:**
+5. **Back in Padol app:**
    - You'll see a form asking for proof
    - Enter **GCash Reference Number** (from your receipt, looks like: `P123456789X`)
    - Upload your screenshot
@@ -414,7 +414,7 @@ You'll see a list of payment options:
 1. Select **"Bank Transfer"** from payment options
 2. System shows:
    - Bank name: BDO / BPI / etc.
-   - Account name: "Falcon Pickleball Court"
+   - Account name: "Padol Pickleball Court"
    - Account number: `123456789`
    - Amount to transfer
 
@@ -431,7 +431,7 @@ You'll see a list of payment options:
    - Shows: Bank, amount, reference, transfer time
    - Save the receipt!
 
-5. **Back in Falcon app:**
+5. **Back in Padol app:**
    - Enter transfer details
    - Upload screenshot
    - Click **"Submit"**
@@ -1087,7 +1087,7 @@ A: Check with your court. Usually 13+ can play independently, younger kids need 
 
 ---
 
-**Thank you for playing at Falcon Pickleball Court!** 🏓
+**Thank you for playing at Padol Pickleball Court!** 🏓
 
 *For more info, visit our website or contact us at [FILL IN].*
 

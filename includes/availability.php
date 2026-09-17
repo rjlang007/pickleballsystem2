@@ -1,7 +1,7 @@
 <?php
 // ============================================================
 //  FILE: includes/availability.php
-//  CENTRALIZED Court Availability Engine — Falcon Pickleball
+//  CENTRALIZED Court Availability Engine — Padol Pickleball
 //  Single source of truth for all availability queries.
 //  Used by: index.php, player/dashboard.php, admin/schedule.php,
 //           admin/reservations.php, api/availability.php

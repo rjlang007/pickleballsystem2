@@ -1,7 +1,7 @@
 <?php
 // ============================================================
 //  FILE: includes/logo.php
-//  Single source of truth for the Falcon pickleball SVG logo.
+//  Single source of truth for the Padol pickleball SVG logo.
 //  Include this wherever you need the logo outside of header.php
 //  (header.php already defines pickleballLogo() itself).
 //

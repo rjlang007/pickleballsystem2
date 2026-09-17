@@ -45,7 +45,7 @@ $pageTitle = 'Court Kiosk';
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>🏓 <?= htmlspecialchars($court['name'] ?? 'Falcon Pickleball') ?> — Kiosk</title>
+<title>🏓 <?= htmlspecialchars($court['name'] ?? 'Padol Pickleball') ?> — Kiosk</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700;800&display=swap" rel="stylesheet"/>
 <style nonce="<?= getCspNonce() ?>">
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -455,7 +455,7 @@ html, body {
 <!-- FULLSCREEN PROMPT -->
 <div id="fs-prompt">
     <div style="font-size:clamp(48px,10vw,64px);">📺</div>
-    <h1>FALCON PICKLEBALL</h1>
+    <h1>PADOL PICKLEBALL</h1>
     <p>Tap the button below to start the court display.</p>
     <button id="fs-btn" onclick="startKiosk()">▶ START KIOSK DISPLAY</button>
     <div style="font-size:13px;color:var(--muted);">
@@ -493,7 +493,7 @@ html, body {
     <div id="topbar">
         <div id="court-name">
             <div class="live-dot" id="live-dot" style="display:none;"></div>
-            🏓 <?= htmlspecialchars($court['name'] ?? 'Falcon Pickleball') ?>
+            🏓 <?= htmlspecialchars($court['name'] ?? 'Padol Pickleball') ?>
         </div>
         <div id="topbar-right">
             <span id="paused-badge" style="display:none;">⏸ PAUSED</span>

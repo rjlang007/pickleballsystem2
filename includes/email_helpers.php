@@ -27,7 +27,7 @@ define('SMTP_USER',     getenv('SMTP_USER')     ?: '');
 define('SMTP_PASS',     getenv('SMTP_PASS')     ?: '');
 define('SMTP_ENCRYPT',  getenv('SMTP_ENCRYPT')  ?: 'tls'); // tls or ssl
 define('FROM_EMAIL',    getenv('FROM_EMAIL')    ?: 'noreply@pickleball.com');
-define('FROM_NAME',     getenv('FROM_NAME')     ?: 'Falcon Pickleball');
+define('FROM_NAME',     getenv('FROM_NAME')     ?: 'Padol Pickleball');
 define('EMAIL_ENABLED', getenv('EMAIL_ENABLED') ?: 'true');
 
 // Use SMTP if credentials provided, otherwise PHP mail()

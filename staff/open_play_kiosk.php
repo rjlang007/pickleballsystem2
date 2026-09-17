@@ -23,7 +23,7 @@ if (!$event) { redirect('staff/open_play_control.php'); }
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>🎲 <?= clean($event['name']) ?> — Open Play — Falcon Pickleball</title>
+<title>🎲 <?= clean($event['name']) ?> — Open Play — Padol Pickleball</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700;800&display=swap" rel="stylesheet"/>
 <style nonce="<?= clean(getCspNonce()) ?>">
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}

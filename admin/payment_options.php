@@ -376,7 +376,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="form-group" style="margin:0;">
                 <label>Account Name</label>
                 <input type="text" name="opt_account_name"
-                       placeholder="Falcon Pickleball Court"/>
+                       placeholder="Padol Pickleball Court"/>
             </div>
             <div class="form-group" style="margin:0;">
                 <label>Account Number / Phone</label>
@@ -533,7 +533,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <label>Account Name</label>
                         <input type="text" name="opt_account_name"
                                value="<?= clean($opt['account_name']) ?>"
-                               placeholder="Falcon Pickleball Court"/>
+                               placeholder="Padol Pickleball Court"/>
                     </div>
                     <div class="form-group" style="margin:0;">
                         <label>Account Number / Phone</label>

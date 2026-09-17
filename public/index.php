@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-//  FILE: index.php — Falcon Pickleball Court · Public Landing
+//  FILE: index.php — Padol Pickleball Court · Public Landing
 //  v5 — CSP-clean: no inline styles, no inline event handlers
 //  v6 — restored + fixed: defines $isOpenPlayTonight (was
 //  triggering an "Undefined variable" notice in the ticker),
@@ -54,7 +54,7 @@ $liveSession   = null;
 $queueCount    = 0;
 $todayGames    = 0;
 $courtIsOpen   = false;
-$courtName     = 'Falcon Court';
+$courtName     = 'Padol Court';
 $slotModeNow   = 'reservation';
 
 // ── Is tonight's 8PM slot an open-play session? ──────────────
@@ -101,8 +101,8 @@ function h(mixed $v, string $fallback = ''): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Falcon Pickleball Court — Polomolok, South Cotabato</title>
-<meta name="description" content="Falcon Pickleball Court — Premier pickleball facility in Polomolok, South Cotabato. Join, play, compete.">
+<title>Padol Pickleball Court — Polomolok, South Cotabato</title>
+<meta name="description" content="Padol Pickleball Court — Premier pickleball facility in Polomolok, South Cotabato. Join, play, compete.">
 <meta name="theme-color" content="#00e5a0">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦅</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -982,7 +982,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
     <div class="hero-badge"><?= h($hero['badge'] ?? 'Now Open · Polomolok, South Cotabato') ?></div>
     <h1 class="hero-title">
       <span class="outline-text"><?= h($hero['title_line1'] ?? 'Play Like') ?></span>
-      <span class="accent"><?= h($hero['title_line2'] ?? 'A Falcon') ?></span>
+      <span class="accent"><?= h($hero['title_line2'] ?? 'A Padol') ?></span>
     </h1>
     <p class="hero-desc"><?= h($hero['description'] ?? 'Premier pickleball facility in South Cotabato. Professional courts, competitive leagues, and a community built for players at every level.') ?></p>
     <div class="hero-actions">
@@ -1015,7 +1015,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   <div class="ticker-track">
     <?php
     $tItems = [
-        $ticker['item1'] ?? 'Falcon Pickleball Court',
+        $ticker['item1'] ?? 'Padol Pickleball Court',
         $ticker['item2'] ?? 'Polomolok · South Cotabato',
         h($location['hours'] ?? 'Open 10AM – Midnight'),
         $ticker['item3'] ?? 'Join Now · Limited Slots',
@@ -1100,10 +1100,10 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
         </div>
       </div>
       <div class="reveal delay-15">
-        <div class="section-label"><?= h($about['tagline'] ?? 'About Falcon') ?></div>
+        <div class="section-label"><?= h($about['tagline'] ?? 'About Padol') ?></div>
         <h2 class="section-title"><?= h($about['heading'] ?? 'Where Champions Are Made') ?></h2>
-        <p class="section-desc"><?= h($about['description'] ?? "Falcon Pickleball Court is South Cotabato's premier pickleball destination. Professional-grade courts, smart credit-based booking, and a passionate community — in the heart of Polomolok.") ?></p>
-        <p class="about-desc2"><?= h($about['description2'] ?? "Whether you're a beginner picking up your first paddle or a seasoned competitor, Falcon is your court. Our QR-powered access system means less waiting, more playing.") ?></p>
+        <p class="section-desc"><?= h($about['description'] ?? "Padol Pickleball Court is South Cotabato's premier pickleball destination. Professional-grade courts, smart credit-based booking, and a passionate community — in the heart of Polomolok.") ?></p>
+        <p class="about-desc2"><?= h($about['description2'] ?? "Whether you're a beginner picking up your first paddle or a seasoned competitor, Padol is your court. Our QR-powered access system means less waiting, more playing.") ?></p>
         <div class="about-features">
           <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Professional Courts</div>
           <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Smart QR Access</div>
@@ -1328,7 +1328,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
     <div class="events-header reveal">
       <div class="section-label">Upcoming Events</div>
       <h2 class="section-title">Compete &amp; Connect</h2>
-      <p class="section-desc">From weekly ladder leagues to grand slam tournaments — there's always something happening at Falcon.</p>
+      <p class="section-desc">From weekly ladder leagues to grand slam tournaments — there's always something happening at Padol.</p>
     </div>
     <?php if ($featuredEvent || count($sideEvents) > 0): ?>
     <div class="events-grid reveal delay-10">
@@ -1471,7 +1471,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
     <div class="activities-header reveal">
       <div class="section-label centered">Activity Center</div>
       <h2 class="section-title"><?= h($actSection['title'] ?? 'More Than Just Pickleball') ?></h2>
-      <p class="section-desc"><?= h($actSection['subtitle'] ?? 'We offer a range of activities beyond the court. From billiards to event hosting — Falcon is your all-in-one venue.') ?></p>
+      <p class="section-desc"><?= h($actSection['subtitle'] ?? 'We offer a range of activities beyond the court. From billiards to event hosting — Padol is your all-in-one venue.') ?></p>
     </div>
 
     <?php
@@ -1637,7 +1637,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   <div class="section-inner">
     <div class="shop-header reveal">
       <div>
-        <div class="section-label">Falcon Shop</div>
+        <div class="section-label">Padol Shop</div>
         <h2 class="section-title">Gear Up</h2>
       </div>
       <a href="#" class="btn btn-ghost btn-sm">View All →</a>
@@ -1704,7 +1704,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
       </div>
       <div class="reveal delay-10">
         <div class="map-container">
-          <div class="map-overlay-tag"><span class="map-dot"></span>Falcon Pickleball Court</div>
+          <div class="map-overlay-tag"><span class="map-dot"></span>Padol Pickleball Court</div>
           <div id="leaflet-map"></div>
         </div>
       </div>
@@ -1748,7 +1748,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
         </div>
         <div class="footer-brand-name">FALCON<span>.</span></div>
       </div>
-      <p class="footer-desc"><?= h($footerCont['tagline'] ?? 'Premier pickleball destination in Polomolok, South Cotabato. Play smarter, compete harder, and join the Falcon community today.') ?></p>
+      <p class="footer-desc"><?= h($footerCont['tagline'] ?? 'Premier pickleball destination in Polomolok, South Cotabato. Play smarter, compete harder, and join the Padol community today.') ?></p>
       <div class="footer-social">
         <a href="<?= h($social['facebook']??'#') ?>" target="_blank" rel="noopener" title="Facebook"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
         <a href="<?= h($social['instagram']??'#') ?>" target="_blank" rel="noopener" title="Instagram"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
@@ -1758,7 +1758,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
     <div>
       <div class="footer-col-title">Quick Links</div>
       <ul class="footer-links">
-        <li><a href="#about">About Falcon</a></li>
+        <li><a href="#about">About Padol</a></li>
         <li><a href="#membership">Membership</a></li>
         <li><a href="#schedule">Court Schedule</a></li>
         <li><a href="#activities">Activities</a></li>
@@ -1789,7 +1789,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   </div>
   <div class="footer-bottom">
     <div class="footer-copy">
-      © <?= date('Y') ?> <span>Falcon Pickleball Court</span>. All rights reserved. Polomolok, South Cotabato.<br>
+      © <?= date('Y') ?> <span>Padol Pickleball Court</span>. All rights reserved. Polomolok, South Cotabato.<br>
       <span class="dev-credit">Developed by <span>Engr. Randall James Oculam</span></span>
     </div>
     <div class="footer-legal">
@@ -1816,7 +1816,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
       <div class="act-modal-title-group">
         <div class="section-label">Activity Center</div>
         <h2>All Activities</h2>
-        <p><?= h($actSection['subtitle'] ?? 'From billiards to event hosting — Falcon is your all-in-one venue.') ?></p>
+        <p><?= h($actSection['subtitle'] ?? 'From billiards to event hosting — Padol is your all-in-one venue.') ?></p>
       </div>
       <button class="act-modal-close" id="close-activities-modal" aria-label="Close">✕</button>
     </div>
@@ -1844,7 +1844,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
     </div>
 
     <div class="act-modal-footer">
-      <a href="auth/register.php" class="btn btn-primary btn-md">Join Falcon · Access All Activities</a>
+      <a href="auth/register.php" class="btn btn-primary btn-md">Join Padol · Access All Activities</a>
       <p class="act-modal-footer-note">Members get priority booking and exclusive rates.</p>
     </div>
   </div>
@@ -2106,7 +2106,7 @@ window.addEventListener('load', () => {
     L.marker([lat, lng], { icon })
       .addTo(map)
       .bindPopup(
-        '<b>🦅 Falcon Pickleball Court</b><br>' +
+        '<b>🦅 Padol Pickleball Court</b><br>' +
         '<?= addslashes(h($location['address'] ?? 'Purok Sagrado Valencia Site, Polomolok')) ?><br>' +
         '🕐 <?= addslashes(h($location['hours'] ?? '10AM – 12MN Daily')) ?>'
       )

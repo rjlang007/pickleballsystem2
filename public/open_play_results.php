@@ -28,7 +28,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="container-md" style="padding:32px 0;">
   <div class="card" id="resultsCard">
     <div class="card-header" style="text-align:center;">
-      <div style="color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-size:12px;">Falcon Pickleball Court — Open Play</div>
+      <div style="color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-size:12px;">Padol Pickleball Court — Open Play</div>
       <h1 style="margin:6px 0;">🏆 <?= clean($event['name']) ?></h1>
       <p style="color:var(--muted);"><?= $event['status'] === 'completed' ? 'Final Results' : 'Standings So Far' ?></p>
     </div>

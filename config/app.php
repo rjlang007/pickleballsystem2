@@ -72,7 +72,7 @@ if ($_envUrl) {
     define('APP_URL', $scheme . '://' . $host . $appPath);
 }
 
-define('APP_NAME', getenv('APP_NAME') ?: 'Falcon Pickleball Court');
+define('APP_NAME', getenv('APP_NAME') ?: 'Padol Pickleball Court');
 
 if (!defined('IS_PRODUCTION')) {
     // RAILWAY_ENVIRONMENT is set to the environment's *name* (e.g.

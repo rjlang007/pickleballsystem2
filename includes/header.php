@@ -24,7 +24,7 @@ $_jsSecondsRemaining = isLoggedIn() ? sessionSecondsRemaining() : 0;
 // ── Chat dismissed state (read cookie server-side → zero flicker) ──
 $_chatDismissed = ($_COOKIE['fcb_dismissed'] ?? '') === '1';
 
-// ── Helper: renders the Falcon Chat navbar toggle button ──────────
+// ── Helper: renders the Padol Chat navbar toggle button ──────────
 function fcb_toggle_btn(bool $isOn, bool $mobile = false): string {
     $onClass = $isOn ? 'fcb-nt-on' : 'fcb-nt-off';
     $label   = $isOn ? 'Chat: ON'  : 'Chat: OFF';
@@ -1056,7 +1056,7 @@ if (isset($user) && $user) {
 
             <a href="<?= APP_URL ?>/admin/chat_inbox.php"
                class="fcp-nav-icon"
-               title="Falcon Chat — Player Messages">
+               title="Padol Chat — Player Messages">
                 💬
                 <span class="fcp-nav-badge" id="nav-chat-badge"></span>
             </a>
@@ -1133,7 +1133,7 @@ if (isset($user) && $user) {
 
             <button onclick="falconChat&&falconChat.openPanel()"
                     class="fcp-nav-icon"
-                    title="Falcon Chat — Talk to us">
+                    title="Padol Chat — Talk to us">
                 💬
                 <span class="fcp-nav-badge" id="nav-chat-badge"></span>
             </button>
@@ -1351,7 +1351,7 @@ if (isset($user) && $user) {
 
         <div class="mob-section-label">Chat</div>
         <a href="<?= APP_URL ?>/admin/chat_inbox.php">
-            💬 Falcon Chat Inbox
+            💬 Padol Chat Inbox
             <span class="fcp-nav-badge mob-chat-badge" id="nav-chat-badge-m"></span>
         </a>
         <?= fcb_toggle_btn(!$_chatDismissed, true) ?>
@@ -1438,7 +1438,7 @@ if (isset($user) && $user) {
 
         <div class="mob-section-label">Chat</div>
         <a href="#" onclick="event.preventDefault();closeMobileNav();setTimeout(function(){falconChat&&falconChat.openPanel();},150);">
-            💬 Open Falcon Chat
+            💬 Open Padol Chat
             <span class="fcp-nav-badge mob-chat-badge" id="nav-chat-badge-m"></span>
         </a>
         <?= fcb_toggle_btn(!$_chatDismissed, true) ?>

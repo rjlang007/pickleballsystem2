@@ -328,7 +328,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="page-header flex-between" style="margin-bottom:20px;">
     <div>
         <h1>Find Us</h1>
-        <p>Falcon Pickleball Court — Polomolok, South Cotabato</p>
+        <p>Padol Pickleball Court — Polomolok, South Cotabato</p>
     </div>
     <div class="map-header-actions">
         <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener" class="btn-primary btn-sm">
@@ -433,7 +433,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- Map -->
     <div class="map-right">
-        <div class="map-badge"><span class="badge-pulse"></span> Falcon Pickleball</div>
+        <div class="map-badge"><span class="badge-pulse"></span> Padol Pickleball</div>
 
         <iframe id="gmap-frame"
             src="https://maps.google.com/maps?q=<?= $lat ?>,<?= $lng ?>&z=17&output=embed"
@@ -456,7 +456,7 @@ require_once __DIR__ . '/../includes/header.php';
     <span class="map-nearby-text">
         Polomolok is in <strong class="city">South Cotabato, Mindanao</strong>.
         Nearest landmarks: Polomolok Public Market, St. Francis of Assisi Parish, Municipal Hall.
-        Look for the <strong class="brand">🏓 Falcon</strong> signage.
+        Look for the <strong class="brand">🏓 Padol</strong> signage.
     </span>
 </div>
 

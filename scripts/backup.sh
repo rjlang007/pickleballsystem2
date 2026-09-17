@@ -26,7 +26,7 @@ alert() {
     echo "${LOG_PREFIX} ${msg}" >&2
     if [ -n "${ALERT_WEBHOOK_URL:-}" ]; then
         curl -fsS -m 10 -X POST -H 'Content-Type: application/json' \
-            -d "{\"text\": \"🔴 Falcon backup FAILED: ${msg}\"}" \
+            -d "{\"text\": \"🔴 Padol backup FAILED: ${msg}\"}" \
             "${ALERT_WEBHOOK_URL}" > /dev/null 2>&1 || true
     fi
 }

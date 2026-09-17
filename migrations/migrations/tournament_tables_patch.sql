@@ -1,6 +1,6 @@
 -- ============================================================
 --  FILE: migrations/tournament_tables_patch.sql
---  Falcon Pickleball · Tournament Schema Patch
+--  Padol Pickleball · Tournament Schema Patch
 --
 --  Run this INSTEAD of tournament_tables.sql if you already
 --  ran a partial migration and got the bracket_section error.

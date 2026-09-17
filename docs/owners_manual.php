@@ -309,7 +309,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="doc-hero">
         <div class="doc-hero-icon">📘</div>
         <h1>Owner's Manual</h1>
-        <p>Complete administrator guide for running your Falcon Pickleball Court facility — player management, payments, court settings, and more.</p>
+        <p>Complete administrator guide for running your Padol Pickleball Court facility — player management, payments, court settings, and more.</p>
         <div class="doc-version-chip">📅 Version 1.0 &nbsp;·&nbsp; April 2026</div>
     </div>
 
@@ -337,13 +337,13 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="doc-section-icon green">🏓</div>
             <div>
                 <div class="doc-section-title">System Overview</div>
-                <div class="doc-section-sub">What Falcon Pickleball Court does</div>
+                <div class="doc-section-sub">What Padol Pickleball Court does</div>
             </div>
         </div>
         <div class="doc-callout green">
             <div class="doc-callout-icon">💡</div>
             <div class="doc-callout-text">
-                <strong>Falcon Pickleball Court</strong> is a complete management system for running a modern pickleball facility — from player registration and credit wallets to court reservations, live queues, and revenue reports.
+                <strong>Padol Pickleball Court</strong> is a complete management system for running a modern pickleball facility — from player registration and credit wallets to court reservations, live queues, and revenue reports.
             </div>
         </div>
         <div class="doc-info-grid">
@@ -390,7 +390,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="doc-step-num">3</div>
                 <div>
                     <div class="doc-step-title">Change Your Password Immediately</div>
-                    <div class="doc-step-desc">Go to <strong>Profile → Change Password</strong>. New password must be <strong>8+ characters</strong> with at least <strong>1 uppercase letter</strong> and <strong>1 number</strong>. Example: <code>Falcon2026Pro</code></div>
+                    <div class="doc-step-desc">Go to <strong>Profile → Change Password</strong>. New password must be <strong>8+ characters</strong> with at least <strong>1 uppercase letter</strong> and <strong>1 number</strong>. Example: <code>Padol2026Pro</code></div>
                 </div>
             </div>
             <div class="doc-step">
@@ -528,7 +528,7 @@ require_once __DIR__ . '/../includes/header.php';
             <table class="doc-table">
                 <thead><tr><th>Setting</th><th>Description</th><th>Example</th></tr></thead>
                 <tbody>
-                    <tr><td><strong>Court Name</strong></td><td>Your facility name</td><td><code>Falcon Court</code></td></tr>
+                    <tr><td><strong>Court Name</strong></td><td>Your facility name</td><td><code>Padol Court</code></td></tr>
                     <tr><td><strong>Credit Cost Per Game</strong></td><td>Credits each player pays per game</td><td><code>₱10.00</code> or <code>₱15.00</code></td></tr>
                     <tr><td><strong>Game Duration</strong></td><td>How long each game lasts</td><td><code>45</code>, <code>60</code>, or <code>90</code> min</td></tr>
                     <tr><td><strong>Warmup Time</strong></td><td>Grace period before game starts</td><td><code>5</code> min</td></tr>
@@ -745,7 +745,7 @@ December 25 · Whole Day · Reservation · "Holiday — reservations only"</div>
                 <div class="doc-step-num">✅</div>
                 <div>
                     <div class="doc-step-title">Valid Password Examples</div>
-                    <div class="doc-step-desc"><code>SecurePass123</code> &nbsp;·&nbsp; <code>Falcon2026Pro</code> &nbsp;·&nbsp; Must be 8+ characters with at least 1 uppercase letter (A–Z) and 1 number (0–9). Cannot be the same as your last 5 passwords.</div>
+                    <div class="doc-step-desc"><code>SecurePass123</code> &nbsp;·&nbsp; <code>Padol2026Pro</code> &nbsp;·&nbsp; Must be 8+ characters with at least 1 uppercase letter (A–Z) and 1 number (0–9). Cannot be the same as your last 5 passwords.</div>
                 </div>
             </div>
             <div class="doc-step">
@@ -805,7 +805,7 @@ December 25 · Whole Day · Reservation · "Holiday — reservations only"</div>
         <div class="doc-faq-list" id="doc-faq-list">
             <?php
             $faqs = [
-                ["Database Connection Error", "Go to Railway.app and check if the service is up. Try refreshing the page (Ctrl+R). If still down, go to Railway → Falcon Pickleball project → click Redeploy and wait 2 minutes."],
+                ["Database Connection Error", "Go to Railway.app and check if the service is up. Try refreshing the page (Ctrl+R). If still down, go to Railway → Padol Pickleball project → click Redeploy and wait 2 minutes."],
                 ["Player Can't Login", "Go to Admin → Players → search for the player. Check if they are Banned (✅ = yes, ❌ = no) or Unverified. Unban or verify as needed. If still failing, use Reset Password and send them a temporary password."],
                 ["QR Scanner Not Working", "Unplug and replug the USB scanner. Try a different USB port. Clean the phone screen. Improve lighting. Try holding the QR at a 45° angle. If using phone camera, ensure the camera is in focus before scanning."],
                 ["Player Balance Shows Wrong Amount", "Refresh the page first. If still wrong, go to Admin → Players → find the player → Adjust Balance → manually correct the amount → add reason 'Balance correction — sync issue'."],
