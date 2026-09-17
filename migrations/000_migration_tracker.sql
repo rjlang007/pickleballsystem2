@@ -5,6 +5,8 @@
 --  Safe to run any number of times.
 -- ============================================================
 
+CREATE SCHEMA IF NOT EXISTS falcon;
+
 CREATE TABLE IF NOT EXISTS falcon.schema_migrations (
     id          SERIAL PRIMARY KEY,
     filename    VARCHAR(255) NOT NULL UNIQUE,
