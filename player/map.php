@@ -60,7 +60,7 @@ $lng     = (float)($loc['lng']     ?? 125.076967);
 $address = $loc['address']         ?? 'Purok Sagrado Valencia Site, Polomolok, 9504 South Cotabato';
 $hours   = $loc['hours']           ?? '10:00 AM – 12:00 Midnight';
 $phone   = $loc['phone']           ?? '+63 912 345 6789';
-$email   = $loc['email']           ?? 'falconpickleball@gmail.com';
+$email   = $loc['email']           ?? 'padolpickleball@gmail.com';
 $courts  = $loc['courts']          ?? '1 Professional Court';
 $mapsUrl = $loc['maps_url']        ?? 'https://maps.google.com/?q=' . $lat . ',' . $lng;
 
