@@ -20,16 +20,14 @@ pm.max_children = 5
 pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 3
-env[PGHOST] = ${PGHOST}
-env[PGPORT] = ${PGPORT}
-env[PGDATABASE] = ${PGDATABASE}
-env[PGUSER] = ${PGUSER}
-env[PGPASSWORD] = ${PGPASSWORD}
-env[DATABASE_URL] = ${DATABASE_URL}
-env[APP_ENV] = ${APP_ENV}
-env[APP_URL] = ${APP_URL}
-env[APP_NAME] = ${APP_NAME}
 FPMCONF
+
+# PHP-FPM rejects empty env directives. Only forward variables that are set.
+for fpm_var in PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD DATABASE_URL APP_ENV APP_URL APP_NAME; do
+    if [ -n "${!fpm_var:-}" ]; then
+        printf 'env[%s] = %s\n' "$fpm_var" "${!fpm_var}" >> /tmp/php-fpm.conf
+    fi
+done
 
 # ── Find php-fpm binary ──────────────────────────────────────
 PHP_FPM_BIN=""
