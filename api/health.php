@@ -16,7 +16,29 @@ $overallStatus = 'healthy';
 try {
     $db = getDB();
     $db->query('SELECT 1');
-    $checks['database'] = ['status' => 'ok', 'message' => 'Database connection successful'];
+    $requiredTables = ['users', 'courts', 'game_queue'];
+    $missingTables = [];
+    $tableCheck = $db->prepare(
+        "SELECT 1 FROM information_schema.tables
+         WHERE table_schema = 'falcon' AND table_name = ?"
+    );
+    foreach ($requiredTables as $table) {
+        $tableCheck->execute([$table]);
+        if (!$tableCheck->fetchColumn()) {
+            $missingTables[] = $table;
+        }
+    }
+
+    if ($missingTables) {
+        $checks['database'] = [
+            'status' => 'error',
+            'message' => 'Database schema is not ready',
+            'missing_tables' => $missingTables,
+        ];
+        $overallStatus = 'unhealthy';
+    } else {
+        $checks['database'] = ['status' => 'ok', 'message' => 'Database connection and schema ready'];
+    }
 } catch (Exception $e) {
     error_log('[health] Database check failed: ' . $e->getMessage());
     $checks['database'] = ['status' => 'error', 'message' => 'Database connection failed'];
@@ -69,7 +91,7 @@ $response = [
     'status' => $overallStatus,
     'timestamp' => date('c'),
     'checks' => $checks,
-    'version' => '2.0.0', // Update as needed
+    'version' => '2.1.0',
 ];
 
 http_response_code($overallStatus === 'healthy' ? 200 : ($overallStatus === 'degraded' ? 200 : 503));
