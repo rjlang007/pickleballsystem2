@@ -349,7 +349,7 @@ require_once __DIR__ . '/../includes/header.php';
     <!-- Sidebar -->
     <aside class="map-sidebar">
         <div class="map-sidebar-head">
-            <h2>🦅 FALCON</h2>
+            <h2>🦅 PADOL</h2>
             <p>Pickleball Court · Polomolok</p>
         </div>
 

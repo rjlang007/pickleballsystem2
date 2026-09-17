@@ -368,7 +368,7 @@ if (isset($user) && $user) {
         @keyframes dotBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         /* ══════════════════════════════════════════════════════
-           FALCON CHAT NAVBAR TOGGLE
+           PADOL CHAT NAVBAR TOGGLE
            ══════════════════════════════════════════════════════ */
         .fcb-nav-toggle {
             position: relative;
@@ -1592,7 +1592,7 @@ if (typeof APP_URL === 'undefined') window.APP_URL = '<?= APP_URL ?>';
 <script src="<?= APP_URL ?>/assets/js/form-validation.js"></script>
 
 <!-- ============================================================
-     ✦ FALCON CHAT WIDGET — loaded on every page
+     ✦ PADOL CHAT WIDGET — loaded on every page
      ============================================================ -->
 <script nonce="<?= csrfNonce() ?>">
 if (typeof APP_URL === 'undefined') window.APP_URL = '<?= APP_URL ?>';

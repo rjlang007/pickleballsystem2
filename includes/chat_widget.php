@@ -477,7 +477,7 @@ $_currentIsAdmin = isLoggedIn() && isAdmin();
       </svg>
     </div>
     <div class="ph-inf">
-      <div class="ph-title" id="fcp-panel-title"><?= $_currentIsAdmin ? 'PLAYER MESSAGES' : 'FALCON CHAT' ?></div>
+      <div class="ph-title" id="fcp-panel-title"><?= $_currentIsAdmin ? 'PLAYER MESSAGES' : 'PADOL CHAT' ?></div>
       <div class="ph-sub"><span class="ph-dot"></span><span id="fcp-status"><?= $_currentIsAdmin ? 'Inbox' : 'Court Support' ?></span></div>
     </div>
     <button class="ph-back" id="fcp-ph-back" aria-label="Back to inbox">◀</button>
@@ -807,7 +807,7 @@ function closePanel(){
   if($ia) $ia.style.display='none';
   if($phBack) $phBack.classList.remove('on');
   var pt=document.getElementById('fcp-panel-title');
-  if(pt) pt.textContent= CURRENT_IS_ADMIN ? 'PLAYER MESSAGES' : 'FALCON CHAT';
+  if(pt) pt.textContent= CURRENT_IS_ADMIN ? 'PLAYER MESSAGES' : 'PADOL CHAT';
   if($st) $st.textContent= CURRENT_IS_ADMIN ? 'Inbox' : 'Court Support';
   $wrap.style.visibility='visible';
   $wrap.classList.remove('active');
@@ -981,7 +981,7 @@ function renderBody(){
     $body.innerHTML=
       '<div class="pg">'
       +'<div class="pg-ico">🏓</div>'
-      +'<div class="pg-title">FALCON CHAT</div>'
+      +'<div class="pg-title">PADOL CHAT</div>'
       +'<div class="pg-sub">Register or log in to chat with our court team.</div>'
       +'<div class="pg-btns">'
       +'<a href="<?= APP_URL ?>/auth/register.php" class="pg-btn p">📝 Register Free</a>'

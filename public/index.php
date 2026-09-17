@@ -906,7 +906,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
       <circle cx="75" cy="25" r="2.2" fill="#d4c820" opacity="0.8"/>
     </svg>
   </div>
-  <div class="splash-word">FALCON</div>
+  <div class="splash-word">PADOL</div>
   <div class="splash-sub">Pickleball Court · Polomolok</div>
   <div class="splash-bar"><div class="splash-bar-fill"></div></div>
 </div>
@@ -924,7 +924,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
         <circle cx="80" cy="18" r="14" fill="#f5e642" stroke="#00e5a0" stroke-width="2.5"/>
       </svg>
     </div>
-    <div class="nav-logo-text">FALCON<span>.</span></div>
+    <div class="nav-logo-text">PADOL<span>.</span></div>
   </a>
 
   <ul class="nav-links">
@@ -1746,7 +1746,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
             <circle cx="80" cy="18" r="14" fill="#f5e642" stroke="#00e5a0" stroke-width="2.5"/>
           </svg>
         </div>
-        <div class="footer-brand-name">FALCON<span>.</span></div>
+        <div class="footer-brand-name">PADOL<span>.</span></div>
       </div>
       <p class="footer-desc"><?= h($footerCont['tagline'] ?? 'Premier pickleball destination in Polomolok, South Cotabato. Play smarter, compete harder, and join the Padol community today.') ?></p>
       <div class="footer-social">
