@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-mkdir -p /app/uploads/activity_photos
-chmod -R 775 /app/uploads
+mkdir -p /app/uploads/activity_photos /app/logs /app/storage
+chmod -R 775 /app/uploads /app/logs /app/storage
 
 mkdir -p /tmp/php-fpm.d
 
