@@ -21,6 +21,10 @@ function getSiteContent(PDO $db, string $section): array {
 }
 
 $hero       = getSiteContent($db, 'hero');
+$heroLine1  = trim($hero['title_line1'] ?? '');
+$heroLine2  = trim($hero['title_line2'] ?? '');
+if ($heroLine1 === '' || strcasecmp($heroLine1, 'Play Like') === 0) $heroLine1 = 'Play the';
+if ($heroLine2 === '' || strcasecmp($heroLine2, 'A Padol') === 0) $heroLine2 = 'Padol Way';
 $about      = getSiteContent($db, 'about');
 $location   = getSiteContent($db, 'location');
 $social     = getSiteContent($db, 'social');
@@ -812,6 +816,10 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   .gallery-arrow svg { width:16px;height:16px; }
 }
 @media (max-width: 768px) {
+  #navbar { padding-left:max(16px,var(--safe-l));padding-right:max(16px,var(--safe-r)); }
+  .nav-logo { gap:7px; }
+  .nav-logo-icon { width:32px;height:32px; }
+  .nav-logo-text { font-size:20px; }
   .activities-grid      { display: none; }
   .activities-accordion { display: block; }
   #hero { padding:72px 20px 50px; }
@@ -836,10 +844,17 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   .gallery-arrow { display:none; }
   .act-modal-grid { grid-template-columns:1fr; }
   .tournaments-grid { grid-template-columns:1fr; }
+  .section-title { max-width:100%;overflow-wrap:anywhere; }
+  .hero-actions .btn { min-height:48px; }
 }
 @media (max-width: 600px) {
   .hero-actions { flex-direction:column; }
   .hero-actions .btn { width:100%;justify-content:center; }
+  .hero-content { width:100%; }
+  .hero-title { max-width:10ch; }
+  .hero-stats { width:100%;justify-content:space-between;gap:16px; }
+  .hero-stat { min-width:0; }
+  .hero-stat-label { letter-spacing:.08em; }
   .live-inner { grid-template-columns:1fr; }
   .social-icons { flex-direction:column;align-items:stretch;max-width:300px;margin:0 auto; }
   .social-btn { width:100%;justify-content:center; }
@@ -861,6 +876,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   .footer-grid { grid-template-columns:1fr;gap:24px; }
   .map-container { height:220px; }
   .gallery-cta-bar { flex-direction:column;align-items:flex-start; }
+  .nav-logo-text { font-size:18px; }
 }
 @media (max-width: 360px) {
   .shop-grid { grid-template-columns:1fr;max-width:260px;margin:0 auto; }
@@ -981,8 +997,8 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
   <div class="hero-content">
     <div class="hero-badge"><?= h($hero['badge'] ?? 'Now Open · Polomolok, South Cotabato') ?></div>
     <h1 class="hero-title">
-      <span class="outline-text"><?= h($hero['title_line1'] ?? 'Play Like') ?></span>
-      <span class="accent"><?= h($hero['title_line2'] ?? 'A Padol') ?></span>
+      <span class="outline-text"><?= h($heroLine1) ?></span>
+      <span class="accent"><?= h($heroLine2) ?></span>
     </h1>
     <p class="hero-desc"><?= h($hero['description'] ?? 'Premier pickleball facility in South Cotabato. Professional courts, competitive leagues, and a community built for players at every level.') ?></p>
     <div class="hero-actions">
