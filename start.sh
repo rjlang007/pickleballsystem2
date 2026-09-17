@@ -111,6 +111,10 @@ fastcgi_param QUERY_STRING       $query_string;
 fastcgi_param REQUEST_METHOD     $request_method;
 fastcgi_param CONTENT_TYPE       $content_type;
 fastcgi_param CONTENT_LENGTH     $content_length;
+fastcgi_param HTTP_COOKIE        $http_cookie;
+fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+fastcgi_param HTTP_X_FORWARDED_PROTO $http_x_forwarded_proto;
+fastcgi_param HTTP_X_FORWARDED_HOST  $http_x_forwarded_host;
 fastcgi_param SCRIPT_NAME        $fastcgi_script_name;
 fastcgi_param REQUEST_URI        $request_uri;
 fastcgi_param DOCUMENT_URI       $document_uri;
@@ -216,7 +220,6 @@ http {
             include /tmp/fastcgi_params;
             fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
             fastcgi_param PATH_INFO       \$fastcgi_path_info;
-            fastcgi_param HTTPS           off;
             fastcgi_read_timeout 120;
         }
 

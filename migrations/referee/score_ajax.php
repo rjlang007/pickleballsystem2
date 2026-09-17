@@ -95,5 +95,6 @@ try {
     }
 } catch (Throwable $e) {
     http_response_code(400);
-    echo json_encode(['ok' => false, 'message' => $e->getMessage()]);
+    error_log('[migrations/referee/score_ajax] ' . $e->getMessage());
+    echo json_encode(['ok' => false, 'message' => 'Unable to save the score.']);
 }

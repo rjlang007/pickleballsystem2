@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['status' => 'error', 'message' => 'POST required.']);
     exit;
 }
+verifySameOrigin();
 if (!isLoggedIn() || !isAdmin()) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'Forbidden.']);

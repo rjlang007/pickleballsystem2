@@ -493,7 +493,8 @@ try {
     error_log('[game_ticker] DB error: ' . $e->getMessage());
 
     if (!$_tickerInternal) {
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        error_log('[migrations/court/game_ticker] ' . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => 'Unable to load game status.']);
         exit;
     }
 

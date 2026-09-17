@@ -18,7 +18,8 @@ try {
     $db->query('SELECT 1');
     $checks['database'] = ['status' => 'ok', 'message' => 'Database connection successful'];
 } catch (Exception $e) {
-    $checks['database'] = ['status' => 'error', 'message' => 'Database connection failed: ' . $e->getMessage()];
+    error_log('[health] Database check failed: ' . $e->getMessage());
+    $checks['database'] = ['status' => 'error', 'message' => 'Database connection failed'];
     $overallStatus = 'unhealthy';
 }
 
@@ -35,7 +36,8 @@ if ($cache->isAvailable()) {
             $overallStatus = 'degraded';
         }
     } catch (Exception $e) {
-        $checks['cache'] = ['status' => 'error', 'message' => 'Cache connection failed: ' . $e->getMessage()];
+        error_log('[health] Cache check failed: ' . $e->getMessage());
+        $checks['cache'] = ['status' => 'error', 'message' => 'Cache connection failed'];
         $overallStatus = 'degraded';
     }
 } else {

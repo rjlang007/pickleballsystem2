@@ -31,7 +31,10 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? ''
         }
         $stmt->execute([':key' => 'maps_url', ':value' => $mapsUrlSave]);
         echo json_encode(['ok' => true, 'message' => '✅ Saved successfully.']);
-    } catch (PDOException $e) { echo json_encode(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()]); }
+    } catch (PDOException $e) {
+        error_log('[migrations/player/map] ' . $e->getMessage());
+        echo json_encode(['ok' => false, 'error' => 'Unable to save map data.']);
+    }
     exit;
 }
 

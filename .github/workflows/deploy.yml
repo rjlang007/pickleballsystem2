@@ -11,8 +11,30 @@ on:
         default: 'https://your-app.railway.app/api/health.php'
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+
+    - name: Check PHP syntax
+      shell: bash
+      run: |
+        set -euo pipefail
+        find . -type f -name '*.php' \
+          -not -path './.git/*' \
+          -not -path './vendor/*' \
+          -print0 | xargs -0 -n1 php -l
+
   deploy:
     runs-on: ubuntu-latest
+    needs: lint
 
     steps:
     - name: Checkout code
@@ -41,5 +63,7 @@ jobs:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
     - name: Health check
+      if: ${{ github.event_name == 'workflow_dispatch' || vars.APP_URL != '' }}
       run: |
-        curl -f "${{ github.event.inputs.app_url }}" || exit 1
+        health_url="${{ github.event.inputs.app_url || vars.APP_URL }}"
+        curl --fail --silent --show-error --retry 5 --retry-delay 10 "$health_url"

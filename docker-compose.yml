@@ -16,7 +16,7 @@ services:
       PGPORT: 5432
       PGDATABASE: falcon
       PGUSER: falcon_app
-      PGPASSWORD: bombit123
+      PGPASSWORD: ${POSTGRES_PASSWORD:-${DB_PASS:?Set POSTGRES_PASSWORD or DB_PASS in .env before starting Compose}}
       TRUSTED_PROXY_IPS: 127.0.0.1
     depends_on:
       - postgres
@@ -43,7 +43,7 @@ services:
     environment:
       POSTGRES_DB: falcon
       POSTGRES_USER: falcon_app
-      POSTGRES_PASSWORD: bombit123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${DB_PASS:?Set POSTGRES_PASSWORD or DB_PASS in .env before starting Compose}}
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:

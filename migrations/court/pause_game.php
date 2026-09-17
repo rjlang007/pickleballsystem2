@@ -137,5 +137,6 @@ try {
 } catch (PDOException $e) {
     error_log('pause_game: '.$e->getMessage());
     http_response_code(500);
-    echo json_encode(['status'=>'error','message'=>'Database error: '.$e->getMessage()]);
+    error_log('[migrations/court/pause_game] ' . $e->getMessage());
+    echo json_encode(['status'=>'error','message'=>'Unable to pause the game.']);
 }
