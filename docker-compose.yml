@@ -1,0 +1,63 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pickleball-php
+    container_name: pickleball_php
+    volumes:
+      - ./:/var/www/html
+    expose:
+      - "9000"
+    environment:
+      APP_ENV: local
+      APP_URL: http://localhost/pickleball
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: falcon
+      PGUSER: falcon_app
+      PGPASSWORD: bombit123
+      TRUSTED_PROXY_IPS: 127.0.0.1
+    depends_on:
+      - postgres
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: pickleball_nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - php
+    volumes:
+      - ./:/var/www/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - appnet
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: pickleball_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: falcon
+      POSTGRES_USER: falcon_app
+      POSTGRES_PASSWORD: bombit123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  redis:
+    image: redis:alpine
+    container_name: pickleball_redis
+    restart: unless-stopped
+    networks:
+      - appnet
+
+networks:
+  appnet:
+
+volumes:
+  pgdata:

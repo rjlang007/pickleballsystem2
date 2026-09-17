@@ -1,0 +1,33 @@
+Options -Indexes
+ServerSignature Off
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+<FilesMatch "(^\.env|composer\.(json|lock)|\.git|\.gitignore)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteRule ^config/ - [F,L]
+    RewriteRule ^includes/ - [F,L]
+    RewriteRule ^storage/ - [F,L]
+    RewriteRule ^vendor/ - [F,L]
+    RewriteRule ^migrations/ - [F,L]
+</IfModule>
+
+<FilesMatch "\.(sql|md|log|bak|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
+AddDefaultCharset UTF-8
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>

@@ -1,0 +1,45 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 'Frontend URL for health check'
+        required: true
+        default: 'https://your-app.railway.app/api/health.php'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Railway CLI
+      run: npm install -g @railway/cli
+
+    - name: Deploy to Railway
+      run: railway deploy --yes
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+    - name: Install PostgreSQL client
+      run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+    - name: Run database migrations
+      run: |
+        railway run -- bash -lc 'psql "$DATABASE_URL" -f migrations/v2_multi_court.sql'
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+    - name: Health check
+      run: |
+        curl -f "${{ github.event.inputs.app_url }}" || exit 1

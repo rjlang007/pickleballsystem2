@@ -1,0 +1,32 @@
+# Environment & credentials
+.env
+backup.bat
+
+# Logs
+storage/logs/
+*.log
+
+# User uploads
+uploads/
+screenshots/
+Uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies
+/vendor
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+public/test.php
+test_*.php
+*_test.php
+debug.php
+
+# Railway/deployment
+.railway/

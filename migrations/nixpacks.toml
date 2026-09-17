@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["php", "phpExtensions.pdo", "phpExtensions.pdo_pgsql", "phpExtensions.mbstring", "phpExtensions.gd", "phpExtensions.curl", "phpExtensions.openssl", "nginx"]
+
+[phases.build]
+cmds = ["chmod +x /app/start.sh"]
+
+[start]
+cmd = "bash /app/start.sh"
