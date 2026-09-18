@@ -478,7 +478,7 @@ html, body {
         <div class="alert-title">GAME OVER</div>
         <div class="alert-sub">
             Great game! Please exit the court 🏓<br>
-            <small style="opacity:.6;font-size:.6em;">Scan your QR code to re-join the queue</small>
+            <small style="opacity:.6;font-size:.6em;">Return to the Open Play page when you are ready for another game</small>
         </div>
     </div>
 
@@ -946,7 +946,7 @@ function renderS1() {
             `<div class="idle-center">
                <div class="idle-icon">🏟️</div>
                <div class="idle-title">COURT READY</div>
-               <div class="idle-sub">Scan QR to join the queue</div>
+               <div class="idle-sub">Join the continuous Open Play queue from the player page</div>
              </div>`;
     }
 

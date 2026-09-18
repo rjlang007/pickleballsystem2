@@ -77,6 +77,7 @@ class OpenPlayEngine
                                     ? $data['format'] : 'doubles',
             'game_duration'    => max(60, (int)($data['game_duration'] ?? 900)),
             'games_per_hour'   => max(1, (int)($data['games_per_hour'] ?? 4)),
+            'registration_closed' => false,
             'point_distribution' => $this->config['point_distribution'],
         ];
 
@@ -158,6 +159,66 @@ class OpenPlayEngine
      * brackets — mirrors that method's rules (can't cancel something
      * already completed).
      */
+    public function pauseEvent(int $tournamentId, int $actorId): array
+    {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        if (in_array($event['status'], ['completed', 'cancelled'], true)) {
+            throw new RuntimeException('This event is closed and cannot be paused.');
+        }
+        if ($event['status'] === 'paused') {
+            throw new RuntimeException('This event is already paused.');
+        }
+
+        $this->db->prepare(
+            "UPDATE falcon.tournaments SET status = 'paused' WHERE id = :id"
+        )->execute([':id' => $tournamentId]);
+        $this->logAudit($tournamentId, $actorId, 'pause_event', []);
+        return $this->getEvent($tournamentId);
+    }
+
+    public function resumeEvent(int $tournamentId, int $actorId): array
+    {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        if (in_array($event['status'], ['completed', 'cancelled'], true)) {
+            throw new RuntimeException('This event is closed and cannot be resumed.');
+        }
+        if ($event['status'] !== 'paused') {
+            throw new RuntimeException('Only a paused event can be resumed.');
+        }
+
+        $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+        $nextStatus = !empty($settings['registration_closed']) ? 'registration_closed' : 'in_progress';
+        $this->db->prepare(
+            "UPDATE falcon.tournaments SET status = :status WHERE id = :id"
+        )->execute([':status' => $nextStatus, ':id' => $tournamentId]);
+        $this->logAudit($tournamentId, $actorId, 'resume_event', []);
+        return $this->getEvent($tournamentId);
+    }
+
+    public function closeRegistration(int $tournamentId, int $actorId): array
+    {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        if (in_array($event['status'], ['completed', 'cancelled'], true)) {
+            throw new RuntimeException('This event is already closed.');
+        }
+        if (!in_array($event['status'], ['registration_open', 'in_progress'], true)) {
+            throw new RuntimeException('Registration is already closed or the event is paused.');
+        }
+
+        $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+        $settings['registration_closed'] = true;
+        $this->db->prepare(
+            "UPDATE falcon.tournaments
+                SET status = 'registration_closed', settings = :settings::jsonb
+              WHERE id = :id"
+        )->execute([':settings' => json_encode($settings), ':id' => $tournamentId]);
+        $this->logAudit($tournamentId, $actorId, 'close_registration', []);
+        return $this->getEvent($tournamentId);
+    }
+
     public function cancelEvent(int $tournamentId, int $actorId): void
     {
         $event = $this->getEvent($tournamentId);
@@ -298,7 +359,7 @@ class OpenPlayEngine
     {
         $event = $this->getEvent($tournamentId);
         if (!$event) throw new RuntimeException('Open play event not found.');
-        if (!in_array($event['status'], ['registration_open', 'in_progress'], true)) {
+        if (!in_array($event['status'], ['registration_open', 'in_progress', 'paused'], true)) {
             throw new RuntimeException('This Open Play event is no longer accepting join requests.');
         }
 
@@ -317,12 +378,14 @@ class OpenPlayEngine
 
         $this->db->prepare(
             "INSERT INTO falcon.tournament_players
-                 (tournament_id, player_id, status, skill_level, queue_status, arrived_at)
-             VALUES (:tid, :pid, 'pending_approval', :skill, 'pending_approval', NOW())
+                 (tournament_id, player_id, status, skill_level, queue_status, arrival_at, queued_at, arrived_at)
+             VALUES (:tid, :pid, 'pending_approval', :skill, 'pending_approval', NOW(), NOW(), NOW())
              ON CONFLICT (tournament_id, player_id) DO UPDATE SET
                  status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'active' ELSE 'pending_approval' END,
                  skill_level = :skill,
                  queue_status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'waiting' ELSE 'pending_approval' END,
+                 arrival_at = COALESCE(falcon.tournament_players.arrival_at, falcon.tournament_players.arrived_at, NOW()),
+                 queued_at = COALESCE(falcon.tournament_players.queued_at, NOW()),
                  arrived_at = COALESCE(falcon.tournament_players.arrived_at, NOW())"
         )->execute([':tid' => $tournamentId, ':pid' => $playerId, ':skill' => $skillLevel]);
     }
@@ -331,7 +394,10 @@ class OpenPlayEngine
     {
         $stmt = $this->db->prepare(
             "UPDATE falcon.tournament_players
-                SET status = 'active', queue_status = 'waiting', arrived_at = NOW()
+                SET status = 'active', queue_status = 'waiting',
+                    arrival_at = COALESCE(arrival_at, arrived_at, NOW()),
+                    queued_at = NOW(),
+                    arrived_at = COALESCE(arrived_at, NOW())
               WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending_approval'"
         );
         $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
@@ -375,11 +441,39 @@ class OpenPlayEngine
         if (!in_array($status, ['waiting', 'resting', 'left'], true)) {
             throw new RuntimeException('Invalid queue status.');
         }
+        $current = $this->db->prepare(
+            "SELECT status, queue_status FROM falcon.tournament_players
+              WHERE tournament_id = :tid AND player_id = :pid"
+        );
+        $current->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        $player = $current->fetch(PDO::FETCH_ASSOC);
+        if (!$player || $player['status'] === 'withdrawn') {
+            throw new RuntimeException('Player is not active in this Open Play session.');
+        }
+        if (in_array($player['queue_status'], ['queued', 'playing'], true)) {
+            throw new RuntimeException('A player already assigned to a game cannot be moved from the queue. Cancel or finish that game first.');
+        }
         $this->db->prepare(
-            "UPDATE falcon.tournament_players SET queue_status = :status
+            "UPDATE falcon.tournament_players
+                SET queue_status = :status,
+                    queued_at = CASE
+                        WHEN :status = 'waiting' THEN NOW()
+                        ELSE COALESCE(queued_at, NOW())
+                    END,
+                    arrival_at = COALESCE(arrival_at, arrived_at, NOW())
               WHERE tournament_id = :tid AND player_id = :pid"
         )->execute([':status' => $status, ':tid' => $tournamentId, ':pid' => $playerId]);
         $this->logAudit($tournamentId, $actorId, 'queue_status', ['player_id' => $playerId, 'status' => $status]);
+    }
+
+    public function markResting(int $tournamentId, int $playerId, int $actorId): void
+    {
+        $this->setQueueStatus($tournamentId, $playerId, 'resting', $actorId);
+    }
+
+    public function returnToQueue(int $tournamentId, int $playerId, int $actorId): void
+    {
+        $this->setQueueStatus($tournamentId, $playerId, 'waiting', $actorId);
     }
 
     /** Cross-event Open Play record for a player — for their profile / the join page. */
@@ -425,13 +519,15 @@ class OpenPlayEngine
             "SELECT tp.player_id,
                     COALESCE(u.display_name, u.full_name, u.username) AS display_name,
                     u.full_name, tp.skill_level, tp.games_played,
-                    tp.wins, tp.losses, EXTRACT(EPOCH FROM tp.arrived_at) AS arrived_epoch
+                    tp.wins, tp.losses,
+                    EXTRACT(EPOCH FROM COALESCE(tp.arrival_at, tp.arrived_at, NOW())) AS arrival_epoch,
+                    EXTRACT(EPOCH FROM COALESCE(tp.queued_at, tp.arrived_at, NOW())) AS queued_epoch
                FROM falcon.tournament_players tp
                JOIN falcon.users u ON u.id = tp.player_id
                             WHERE tp.tournament_id = :tid
                                 AND tp.status != 'withdrawn'
                                 AND tp.queue_status = 'waiting'
-              ORDER BY tp.arrived_at ASC"
+              ORDER BY COALESCE(tp.queued_at, tp.arrived_at, NOW()) ASC, COALESCE(tp.arrival_at, tp.arrived_at, NOW()) ASC"
         );
         $stmt->execute([':tid' => $tournamentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -465,14 +561,34 @@ class OpenPlayEngine
         return [$partners, $opponents];
     }
 
+    private function getRecentLineups(int $tournamentId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT team1_player1_id AS a, team1_player2_id AS b,
+                    team2_player1_id AS c, team2_player2_id AS d
+               FROM falcon.open_play_matches
+              WHERE tournament_id = :tid AND status = 'finished'
+              ORDER BY finished_at DESC LIMIT 60"
+        );
+        $stmt->execute([':tid' => $tournamentId]);
+        $lineups = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $m) {
+            $ids = array_values(array_unique(array_filter([$m['a'], $m['b'], $m['c'], $m['d']])));
+            if (count($ids) !== 4) continue;
+            sort($ids);
+            $key = implode('|', $ids);
+            $lineups[$key] = ($lineups[$key] ?? 0) + 1;
+        }
+        return $lineups;
+    }
+
     // ══════════════════════════════════════════════════════════
     // MATCHMAKING ("spin the wheel")
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Draw as many new games as there are free courts (or up to
-     * $maxGames if given). Returns the freshly created match rows
-     * so the caller (the staff console) can animate the reveal.
+     * Fill free courts and maintain a small courtless upcoming buffer.
+     * Existing ready and in-progress games are never rebuilt.
      */
     public function drawRound(int $tournamentId, int $actorId, ?int $maxGames = null): array
     {
@@ -499,14 +615,13 @@ class OpenPlayEngine
         if (in_array($event['status'], ['completed', 'cancelled'], true)) {
             throw new RuntimeException('This event is closed — no more rounds can be drawn.');
         }
+        if ($event['status'] === 'paused') {
+            throw new RuntimeException('Matchmaking is paused for this event. Resume it to draw the next game.');
+        }
         $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
         $format   = $settings['format'] ?? 'doubles';
         $duration = (int)($settings['game_duration'] ?? 900);
         $gph      = (float)($settings['games_per_hour'] ?? 4);
-
-        $freeCourts = $this->getFreeCourtIds($tournamentId);
-        $slots      = $maxGames !== null ? min($maxGames, count($freeCourts)) : count($freeCourts);
-        if ($slots <= 0) return [];
 
         // First draw of the event moves it out of "registration_open" so it
         // shows up under "Happening Now" for players instead of "Open for Signup".
@@ -518,24 +633,36 @@ class OpenPlayEngine
 
         $pool = $this->getWaitingPool($tournamentId);
         [$partners, $opponents] = $this->getRecentLinks($tournamentId);
+        $recentLineups = $this->getRecentLineups($tournamentId);
         $now = time();
+        $freeCourts = $this->getFreeCourtIds($tournamentId);
+        $need = $format === 'singles' ? 2 : 4;
+        $extraBuffer = min(2, intdiv(max(0, count($pool) - ($need * 2)), $need));
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM falcon.open_play_matches
+              WHERE tournament_id = :tid AND status = 'ready' AND court_id IS NULL"
+        );
+        $stmt->execute([':tid' => $tournamentId]);
+        $courtlessReady = (int)$stmt->fetchColumn();
+        $slots = max(0, count($freeCourts) + $extraBuffer - $courtlessReady);
+        if ($maxGames !== null) $slots = min($slots, max(0, $maxGames));
+        if ($slots <= 0 || count($pool) < $need) return [];
 
         $pace = function (array $p) use ($now, $gph) {
-            $hours = max(1 / $gph, ($now - (float)$p['arrived_epoch']) / 3600);
-            return (int)$p['games_played'] / $hours;
+            $arrivalEpoch = (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? $now);
+            $hours        = max(1 / $gph, ($now - $arrivalEpoch) / 3600);
+            return (float)$p['games_played'] / $hours;
         };
 
         $created = [];
-        $need    = $format === 'singles' ? 2 : 4;
-
         while (count($created) < $slots && count($pool) >= $need) {
             $game = $format === 'singles'
-                ? $this->buildSinglesGame($pool, $pace, $opponents)
-                : $this->buildDoublesGame($pool, $pace, $partners, $opponents);
+                ? $this->buildSinglesGame($pool, $pace, $opponents, $recentLineups)
+                : $this->buildDoublesGame($pool, $pace, $partners, $opponents, $recentLineups);
 
             if ($game === null) break;
 
-            $courtId = array_shift($freeCourts);
+            $courtId = array_shift($freeCourts) ?: null;
             $matchId = $this->insertMatch($tournamentId, $courtId, $game, $duration, $actorId);
             $created[] = $this->getMatch($matchId);
 
@@ -562,7 +689,7 @@ class OpenPlayEngine
      * partner/opponent — with genuine randomness breaking any remaining
      * tie. This mirrors the standalone Open Play app's algorithm.
      */
-    private function buildDoublesGame(array $pool, callable $pace, array $partners, array $opponents): ?array
+    private function buildDoublesGame(array $pool, callable $pace, array $partners, array $opponents, array $recentLineups = []): ?array
     {
         $shuffled = $pool;
         shuffle($shuffled);
@@ -581,13 +708,15 @@ class OpenPlayEngine
                         $teamB = [$shuffled[$c], $shuffled[$d]];
                         $all   = array_merge($teamA, $teamB);
 
-                        $maxPace   = max(array_map($pace, $all));
-                        $totalPace = array_sum(array_map($pace, $all));
-                        $diff      = abs($this->teamSkill($teamA) - $this->teamSkill($teamB));
-                        $repeat    = $this->repeatPenalty($teamA, $teamB, $partners, $opponents);
-                        $waitTime  = min(array_column($all, 'arrived_epoch'));
+                        $maxPace     = max(array_map($pace, $all));
+                        $totalPace   = array_sum(array_map($pace, $all));
+                        $diff        = abs($this->teamSkill($teamA) - $this->teamSkill($teamB));
+                        $repeat      = $this->repeatPenalty($teamA, $teamB, $partners, $opponents);
+                        $lineupRepeat = $this->lineupRepeatPenalty($teamA, $teamB, $recentLineups);
+                        $waitTime    = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $all));
+                        $arrivalAge  = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $all));
 
-                        $cand = compact('teamA', 'teamB', 'maxPace', 'totalPace', 'diff', 'repeat', 'waitTime');
+                        $cand = compact('teamA', 'teamB', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge');
                         $cand['rand'] = mt_rand();
 
                         if ($best === null || $this->betterCandidate($cand, $best)) {
@@ -608,7 +737,7 @@ class OpenPlayEngine
         ];
     }
 
-    private function buildSinglesGame(array $pool, callable $pace, array $opponents): ?array
+    private function buildSinglesGame(array $pool, callable $pace, array $opponents, array $recentLineups = []): ?array
     {
         $shuffled = $pool;
         shuffle($shuffled);
@@ -618,13 +747,15 @@ class OpenPlayEngine
         $best = null;
         for ($a = 0; $a < $n; $a++) {
             for ($b = $a + 1; $b < $n; $b++) {
-                $pair      = [$shuffled[$a], $shuffled[$b]];
-                $maxPace   = max(array_map($pace, $pair));
-                $totalPace = array_sum(array_map($pace, $pair));
-                $diff      = abs(self::SKILL_SCORE[$pair[0]['skill_level']] - self::SKILL_SCORE[$pair[1]['skill_level']]);
-                $repeat    = isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']]) ? 1 : 0;
-                $waitTime  = min(array_column($pair, 'arrived_epoch'));
-                $cand = compact('pair', 'maxPace', 'totalPace', 'diff', 'repeat', 'waitTime');
+                $pair       = [$shuffled[$a], $shuffled[$b]];
+                $maxPace    = max(array_map($pace, $pair));
+                $totalPace  = array_sum(array_map($pace, $pair));
+                $diff       = abs(self::SKILL_SCORE[$pair[0]['skill_level']] - self::SKILL_SCORE[$pair[1]['skill_level']]);
+                $repeat     = isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']]) ? 1 : 0;
+                $lineupRepeat = $this->lineupRepeatPenalty($pair, [], $recentLineups);
+                $waitTime   = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
+                $arrivalAge = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
+                $cand = compact('pair', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge');
                 $cand['rand'] = mt_rand();
                 if ($best === null || $this->betterCandidate($cand, $best, true)) $best = $cand;
             }
@@ -639,14 +770,16 @@ class OpenPlayEngine
         ];
     }
 
-    /** Priority: fairness (pace) > skill balance > freshness (no repeats) > longest wait > random. */
+    /** Priority: fairness (pace) > skill balance > freshness (no repeats) > exact lineup repetition > longest wait > earlier arrival > random. */
     private function betterCandidate(array $cand, array $best, bool $singles = false): bool
     {
         if ($cand['maxPace']   !== $best['maxPace'])   return $cand['maxPace']   < $best['maxPace'];
         if ($cand['totalPace'] !== $best['totalPace']) return $cand['totalPace'] < $best['totalPace'];
         if ($cand['repeat']    !== $best['repeat'])    return $cand['repeat']    < $best['repeat'];
+        if (($cand['lineupRepeat'] ?? 0) !== ($best['lineupRepeat'] ?? 0)) return ($cand['lineupRepeat'] ?? 0) < ($best['lineupRepeat'] ?? 0);
         if ($cand['diff']      !== $best['diff'])      return $cand['diff']      < $best['diff'];
-        if ($cand['waitTime']  !== $best['waitTime'])  return $cand['waitTime']  < $best['waitTime'];
+        if ($cand['waitTime']  !== $best['waitTime'])  return $cand['waitTime']  > $best['waitTime'];
+        if (($cand['arrivalAge'] ?? 0) !== ($best['arrivalAge'] ?? 0)) return ($cand['arrivalAge'] ?? 0) < ($best['arrivalAge'] ?? 0);
         return $cand['rand'] < $best['rand'];
     }
 
@@ -666,6 +799,18 @@ class OpenPlayEngine
             if (isset($opponents[$a['player_id']][$b['player_id']])) $penalty += 1;
         }
         return $penalty;
+    }
+
+    private function lineupRepeatPenalty(array $teamA, array $teamB, array $recentLineups): int
+    {
+        $ids = array_values(array_unique(array_filter(array_merge(
+            array_map(fn($p) => (int)$p['player_id'], $teamA),
+            array_map(fn($p) => (int)$p['player_id'], $teamB)
+        ))));
+        if (count($ids) !== 4) return 0;
+        sort($ids);
+        $key = implode('|', $ids);
+        return (int)($recentLineups[$key] ?? 0) * 20;
     }
 
     /** Ping each player in a newly-drawn match so they don't have to babysit the live board. */
@@ -894,8 +1039,8 @@ class OpenPlayEngine
     {
         $m = $this->getMatch($matchId);
         if (!$m) throw new RuntimeException('Match not found.');
-        if (in_array($m['status'], ['finished', 'cancelled'], true)) {
-            throw new RuntimeException('Match already closed.');
+        if ($m['status'] !== 'in_progress') {
+            throw new RuntimeException("Only an in-progress match can be finished (currently '{$m['status']}').");
         }
         if ($scoreA === $scoreB) {
             throw new RuntimeException('A pickleball game cannot end in a tie — enter a final score.');
@@ -907,6 +1052,14 @@ class OpenPlayEngine
 
         $this->db->beginTransaction();
         try {
+            $stmt = $this->db->prepare(
+                "SELECT status FROM falcon.open_play_matches WHERE id = :id FOR UPDATE"
+            );
+            $stmt->execute([':id' => $matchId]);
+            if ($stmt->fetchColumn() !== 'in_progress') {
+                throw new RuntimeException('Match was already finished or cancelled.');
+            }
+
             $this->db->prepare(
                 "UPDATE falcon.open_play_matches
                     SET status = 'finished', score_team1 = :a, score_team2 = :b,
@@ -996,6 +1149,14 @@ class OpenPlayEngine
 
         $this->db->beginTransaction();
         try {
+            $stmt = $this->db->prepare(
+                "SELECT status FROM falcon.open_play_matches WHERE id = :id FOR UPDATE"
+            );
+            $stmt->execute([':id' => $matchId]);
+            if ($stmt->fetchColumn() !== 'finished') {
+                throw new RuntimeException('Only a finished match can have its score corrected.');
+            }
+
             // Undo the old result.
             foreach ($teamA as $pid) $this->applyResult((int)$m['tournament_id'], (int)$pid, $oldWinner === 1, -(int)$m['score_team1'], -(int)$m['score_team2'], -$oldCapped, true);
             foreach ($teamB as $pid) $this->applyResult((int)$m['tournament_id'], (int)$pid, $oldWinner === 2, -(int)$m['score_team2'], -(int)$m['score_team1'], $oldCapped, true);
@@ -1048,11 +1209,28 @@ class OpenPlayEngine
         if (!in_array($m['status'], ['ready', 'in_progress', 'paused'], true)) {
             throw new RuntimeException('Only an open match can be cancelled.');
         }
-        $this->db->prepare(
-            "UPDATE falcon.open_play_matches SET status = 'cancelled' WHERE id = :id"
-        )->execute([':id' => $matchId]);
-        $this->setPlayersQueueStatus($m, 'waiting');
-        $this->logAudit((int)$m['tournament_id'], $actorId, 'cancel_match', ['match_id' => $matchId]);
+
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT status FROM falcon.open_play_matches WHERE id = :id FOR UPDATE"
+            );
+            $stmt->execute([':id' => $matchId]);
+            if (!in_array($stmt->fetchColumn(), ['ready', 'in_progress', 'paused'], true)) {
+                throw new RuntimeException('Match was already finished or cancelled.');
+            }
+
+            $this->db->prepare(
+                "UPDATE falcon.open_play_matches SET status = 'cancelled' WHERE id = :id"
+            )->execute([':id' => $matchId]);
+            $this->setPlayersQueueStatus($m, 'waiting');
+            $this->logAudit((int)$m['tournament_id'], $actorId, 'cancel_match', ['match_id' => $matchId]);
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
         $this->assignFreeCourts((int)$m['tournament_id'], $actorId);
     }
 
@@ -1181,24 +1359,55 @@ class OpenPlayEngine
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Ranking: wins desc → win% desc → losses asc →
-     * points conceded while losing desc (fewer blowout losses ranks
-     * higher) → point differential desc (each game capped ±5, same as
-     * the scoring above, so no single game can dominate the ranking).
+     * Ranking order for continuous Open Play:
+     * 1) qualified players before provisional players
+     * 2) wins
+     * 3) win percentage
+     * 4) fewest losses
+     * 5) point differential
+     * 6) points scored
+     * 7) games played as a final stability tie-breaker
+     *
+     * Arrival time affects queue fairness for matchmaking only. It does not
+     * determine leaderboard ranking strength.
      */
     public function computeLeaderboard(int $tournamentId): array
     {
+        $minQualifiedGames = 3;
+
         $stmt = $this->db->prepare(
             "SELECT tp.player_id,
                     COALESCE(u.display_name, u.full_name, u.username) AS display_name,
                     u.full_name, tp.skill_level,
-                    tp.wins, tp.losses, tp.games_played, tp.points_for, tp.points_against
+                    tp.wins, tp.losses, tp.games_played, tp.points_for, tp.points_against,
+                    tp.queue_status,
+                    EXTRACT(EPOCH FROM COALESCE(tp.arrival_at, tp.arrived_at, NOW())) AS arrival_epoch
                FROM falcon.tournament_players tp
                JOIN falcon.users u ON u.id = tp.player_id
               WHERE tp.tournament_id = :tid AND tp.status != 'withdrawn'"
         );
         $stmt->execute([':tid' => $tournamentId]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $matchStmt = $this->db->prepare(
+            "SELECT team1_player1_id, team1_player2_id,
+                    team2_player1_id, team2_player2_id, winner_team
+               FROM falcon.open_play_matches
+              WHERE tournament_id = :tid AND status = 'finished'
+              ORDER BY finished_at DESC, id DESC"
+        );
+        $matchStmt->execute([':tid' => $tournamentId]);
+        $resultsByPlayer = [];
+        foreach ($matchStmt->fetchAll(PDO::FETCH_ASSOC) as $match) {
+            $teamA = array_filter([$match['team1_player1_id'], $match['team1_player2_id']]);
+            $teamB = array_filter([$match['team2_player1_id'], $match['team2_player2_id']]);
+            foreach ($teamA as $playerId) {
+                $resultsByPlayer[(string)$playerId][] = (int)$match['winner_team'] === 1;
+            }
+            foreach ($teamB as $playerId) {
+                $resultsByPlayer[(string)$playerId][] = (int)$match['winner_team'] === 2;
+            }
+        }
 
         // Sum of finished-match point diffs (each already capped ±5 when recorded).
         $diffStmt = $this->db->prepare(
@@ -1224,14 +1433,77 @@ class OpenPlayEngine
             $r['games_played'] = (int)$r['games_played'];
             $r['win_pct']      = $r['games_played'] > 0 ? round($r['wins'] / $r['games_played'] * 1000) / 10 : 0.0;
             $r['point_diff']   = $diffs[$r['player_id']] ?? 0;
-            $r['loss_points']  = $r['losses'] > 0 ? (int)$r['points_for'] : 0;
+            $r['points_scored']= (int)$r['points_for'];
+            $r['points_conceded'] = (int)$r['points_against'];
+            $r['arrival_epoch'] = (float)$r['arrival_epoch'];
+            $availableHours = max(1 / 60, (time() - $r['arrival_epoch']) / 3600);
+            $r['time_since_arrival'] = max(0, time() - (int)$r['arrival_epoch']);
+            $r['games_per_hour'] = round($r['games_played'] / $availableHours, 2);
+            $r['status'] = $r['queue_status'] ?: 'waiting';
+            $results = $resultsByPlayer[(string)$r['player_id']] ?? [];
+            $currentStreak = 0;
+            $streakType = null;
+            foreach ($results as $won) {
+                $type = $won ? 'win' : 'loss';
+                if ($streakType === null) $streakType = $type;
+                if ($type !== $streakType) break;
+                $currentStreak++;
+            }
+            $bestStreak = 0;
+            $run = 0;
+            foreach ($results as $won) {
+                $run = $won ? $run + 1 : 0;
+                $bestStreak = max($bestStreak, $run);
+            }
+            $r['current_streak'] = $currentStreak;
+            $r['streak_type'] = $streakType;
+            $r['best_streak'] = $bestStreak;
+            $r['qualified']    = $r['games_played'] >= $minQualifiedGames;
+            $r['games_needed'] = max(0, $minQualifiedGames - $r['games_played']);
+            $r['rank_label']   = $r['qualified'] ? 'Qualified' : 'Provisional';
         }
         unset($r);
 
         usort($rows, function ($a, $b) {
-            return [$b['wins'], $b['win_pct'], -$a['losses'], $b['loss_points'], $b['point_diff']]
-                 <=> [$a['wins'], $a['win_pct'], -$b['losses'], $a['loss_points'], $a['point_diff']];
+            $aQualified = (int)$a['qualified'];
+            $bQualified = (int)$b['qualified'];
+
+            if ($aQualified !== $bQualified) {
+                return $bQualified <=> $aQualified;
+            }
+
+            return [
+                $b['wins'],
+                $b['win_pct'],
+                -$a['losses'],
+                $b['point_diff'],
+                $b['points_scored'],
+                $b['games_played'],
+            ] <=> [
+                $a['wins'],
+                $a['win_pct'],
+                -$b['losses'],
+                $a['point_diff'],
+                $a['points_scored'],
+                $b['games_played'],
+            ];
         });
+
+        $rank = 0;
+        $previousKey = null;
+        foreach ($rows as $index => &$row) {
+            $key = implode('|', [
+                (int)$row['qualified'], $row['wins'], $row['win_pct'],
+                $row['losses'], $row['point_diff'], $row['points_scored'], $row['games_played'],
+            ]);
+            if ($key !== $previousKey) {
+                $rank = $index + 1;
+                $previousKey = $key;
+            }
+            $row['rank'] = $rank;
+            $row['is_tied'] = $index > 0 && $rank === $rows[$index - 1]['rank'];
+        }
+        unset($row);
 
         return $rows;
     }

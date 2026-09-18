@@ -71,6 +71,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('staff/open_play_control.php');
                 break;
 
+            case 'pause_event':
+                $engine->pauseEvent($tid, (int)$user['id']);
+                setFlash('success', '⏸️ Matchmaking paused — current games can finish.');
+                break;
+
+            case 'resume_event':
+                $engine->resumeEvent($tid, (int)$user['id']);
+                setFlash('success', '▶️ Matchmaking resumed.');
+                break;
+
+            case 'close_registration':
+                $engine->closeRegistration($tid, (int)$user['id']);
+                setFlash('success', '🚪 Registration closed — already queued players may continue.');
+                break;
+
             case 'finalize':
                 $engine->finalizeEvent($tid, (int)$user['id']);
                 setFlash('success', '🏆 Event finalized — leaderboard updated.');
@@ -90,7 +105,7 @@ $events   = $engine->listEvents();
 $selected = (int)($_GET['tournament_id'] ?? 0);
 if (!$selected) {
     foreach ($events as $e) {
-        if (in_array($e['status'], ['registration_open', 'in_progress'], true)) { $selected = (int)$e['id']; break; }
+        if (in_array($e['status'], ['registration_open', 'in_progress', 'registration_closed', 'paused'], true)) { $selected = (int)$e['id']; break; }
     }
 }
 $event    = $selected ? $engine->getEvent($selected) : null;
@@ -167,7 +182,29 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endif; ?>
     </div>
     <?php if (!$isClosed): ?>
-    <div style="display:flex;gap:10px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <?php if (in_array($event['status'], ['registration_open', 'in_progress'], true)): ?>
+            <form method="POST">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="close_registration"/>
+                <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+                <button type="submit" class="btn">🚪 Close Registration</button>
+            </form>
+        <?php elseif ($event['status'] === 'paused'): ?>
+            <form method="POST">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="resume_event"/>
+                <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+                <button type="submit" class="btn btn-primary">▶️ Resume Matchmaking</button>
+            </form>
+        <?php elseif (!in_array($event['status'], ['completed','cancelled'], true)): ?>
+            <form method="POST">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="pause_event"/>
+                <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+                <button type="submit" class="btn">⏸️ Pause Matchmaking</button>
+            </form>
+        <?php endif; ?>
         <form method="POST" onsubmit="return confirm('Cancel this entire event? In-progress games will be stopped and this cannot be undone.');">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="cancel_event"/>

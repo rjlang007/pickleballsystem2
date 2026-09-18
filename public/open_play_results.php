@@ -18,8 +18,16 @@ $engine = new OpenPlayEngine();
 $event  = $tid ? $engine->getEvent($tid) : null;
 if (!$event) { redirect('public/open_play.php'); }
 
+$myId      = (int)($_SESSION['user_id'] ?? 0);
 $standings = $engine->computeLeaderboard($tid);
 $ties      = $engine->detectPodiumTies($standings);
+$myRow     = null;
+foreach ($standings as $standing) {
+  if ((int)$standing['player_id'] === $myId) {
+    $myRow = $standing;
+    break;
+  }
+}
 
 $pageTitle = $event['name'] . ' — Results';
 require_once __DIR__ . '/../includes/header.php';
@@ -40,6 +48,14 @@ require_once __DIR__ . '/../includes/header.php';
       </div>
     <?php endif; ?>
 
+    <?php if ($myRow): ?>
+      <div class="alert alert-info" style="margin:12px 0;display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+        <strong>My Position: #<?= (int)$myRow['rank'] ?></strong>
+        <span><?= $myRow['qualified'] ? 'Qualified ranking' : 'Provisional ranking — ' . (int)$myRow['games_needed'] . ' more games to rank' ?></span>
+        <span><?= ucfirst(clean($myRow['status'])) ?> · <?= (int)$myRow['current_streak'] ?>-game <?= clean($myRow['streak_type'] ?? 'starting') ?> streak</span>
+      </div>
+    <?php endif; ?>
+
     <?php if (count($standings) >= 1): ?>
     <div style="display:flex;justify-content:center;align-items:flex-end;gap:16px;margin:28px 0;flex-wrap:wrap;">
       <?php
@@ -52,35 +68,44 @@ require_once __DIR__ . '/../includes/header.php';
           <div style="font-size:32px;"><?= $medals[$i] ?></div>
           <div style="font-weight:800;font-size:14px;margin:4px 0;"><?= clean($s['display_name'] ?? $s['full_name'] ?? 'Player') ?></div>
           <div style="color:var(--muted);font-size:12px;"><?= (int)$s['wins'] ?>W - <?= (int)$s['losses'] ?>L</div>
+          <?php if (!$s['qualified']): ?>
+            <div style="font-size:11px;color:var(--warning);margin-top:4px;"><?= (int)$s['games_needed'] ?> more games to rank</div>
+          <?php endif; ?>
           <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px 8px 0 0;
                       height:<?= $heights[$i] ?>px;display:flex;align-items:flex-start;justify-content:center;
                       padding-top:8px;margin-top:8px;font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);">
-            <?= $i + 1 ?>
+            #<?= (int)$s['rank'] ?>
           </div>
         </div>
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
 
+    <div style="overflow-x:auto;">
     <table class="table">
-      <thead><tr><th>#</th><th>Player</th><th>Skill</th><th>W</th><th>L</th><th>Win%</th><th>Diff</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th><th>Status</th><th>W-L</th><th>Win%</th><th>Diff</th><th>Streak</th><th>Games/hr</th></tr></thead>
       <tbody>
       <?php foreach ($standings as $i => $s): ?>
-        <tr>
-          <td><?= $i + 1 ?></td>
+        <tr style="<?= (int)$s['player_id'] === $myId ? 'background:var(--surface2);font-weight:700;' : '' ?>">
+          <td><?= (int)$s['rank'] ?><?= $s['is_tied'] ? 'T' : '' ?></td>
           <td><?= clean($s['display_name'] ?? $s['full_name'] ?? 'Player') ?></td>
-          <td><span class="badge badge-info"><?= ucfirst($s['skill_level']) ?></span></td>
-          <td><?= (int)$s['wins'] ?></td>
-          <td><?= (int)$s['losses'] ?></td>
+          <td>
+            <span class="badge <?= $s['qualified'] ? 'badge-success' : 'badge-warning' ?>"><?= $s['qualified'] ? 'Qualified' : 'Provisional' ?></span>
+            <small style="display:block;color:var(--muted);margin-top:3px;"><?= ucfirst(clean($s['status'])) ?></small>
+          </td>
+          <td><?= (int)$s['wins'] ?>-<?= (int)$s['losses'] ?></td>
           <td><?= $s['win_pct'] ?>%</td>
           <td><?= $s['point_diff'] > 0 ? '+' : '' ?><?= $s['point_diff'] ?></td>
+          <td><?= (int)$s['current_streak'] ?><?= $s['streak_type'] === 'win' ? 'W' : ($s['streak_type'] === 'loss' ? 'L' : '') ?></td>
+          <td><?= number_format((float)$s['games_per_hour'], 2) ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if (empty($standings)): ?>
-        <tr><td colspan="7" class="text-muted">No games recorded yet.</td></tr>
+        <tr><td colspan="8" class="text-muted">No games recorded yet.</td></tr>
       <?php endif; ?>
       </tbody>
     </table>
+    </div>
   </div>
 
   <div style="text-align:center;margin-top:16px;">

@@ -27,6 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'leave') {
             $engine->leaveEvent($tid, $myId);
             setFlash('success', 'You left the event.');
+        } elseif ($action === 'rest') {
+            $engine->markResting($tid, $myId, $myId);
+            setFlash('success', 'You took a break and left the active queue.');
+        } elseif ($action === 'return') {
+            $engine->returnToQueue($tid, $myId, $myId);
+            setFlash('success', 'You rejoined the queue.');
         }
     } catch (Throwable $e) {
         setFlash('error', '⚠️ ' . $e->getMessage());
@@ -35,10 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $tab    = $_GET['tab'] ?? 'open';
-$status = ['live' => 'in_progress', 'done' => 'completed'][$tab] ?? null;
-$events = $status ? $engine->listEvents(['status' => $status]) : array_values(array_filter(
-  $engine->listEvents(), static fn($event) => in_array($event['status'], ['registration_open', 'in_progress'], true)
-));
+$allEvents = $engine->listEvents();
+if ($tab === 'done') {
+  $events = array_values(array_filter($allEvents, static fn($event) => $event['status'] === 'completed'));
+} elseif ($tab === 'live') {
+  $events = array_values(array_filter($allEvents, static fn($event) => in_array($event['status'], ['in_progress', 'registration_closed', 'paused'], true)));
+} else {
+  $events = array_values(array_filter($allEvents, static fn($event) => in_array($event['status'], ['registration_open', 'in_progress', 'registration_closed'], true)));
+}
 
 // Which of these has the current player already joined, and with what queue status?
 $myRows = [];
@@ -79,7 +89,7 @@ require_once __DIR__ . '/../includes/header.php';
   <div class="card">
     <div class="card-header">
       <h1 style="margin:0 0 6px;">🎲 Open Play</h1>
-      <p style="color:var(--muted);margin:0;">Skill-balanced random pairing — join the pool and the system draws fair, mixed games for you as courts free up.</p>
+      <p style="color:var(--muted);margin:0;">Continuous walk-in session — join the queue at any time, get considered with the current wait and arrival fairness, and play as courts free up.</p>
     </div>
 
     <div style="display:flex;gap:8px;margin:16px 0;">
@@ -127,7 +137,23 @@ require_once __DIR__ . '/../includes/header.php';
                 <?= $mine['queue_status'] === 'pending_approval' ? 'Join request pending approval' : "You're " . clean($queueLabels[$mine['queue_status']] ?? ucfirst($mine['queue_status'])) ?> · <?= ucfirst($mine['skill_level']) ?>
               </span>
               <?php if ($mine['queue_status'] === 'pending_approval'): ?><span class="text-muted">Admin approval required</span><?php endif; ?>
-              <?php if ($mine['queue_status'] !== 'pending_approval'): ?><a class="btn" href="<?= APP_URL ?>/public/open_play_live.php?tournament_id=<?= (int)$e['id'] ?>">📺 Live Board</a><?php endif; ?>
+              <?php if ($mine['queue_status'] === 'waiting'): ?>
+                <form method="POST">
+                  <?= csrfField() ?>
+                  <input type="hidden" name="action" value="rest"/>
+                  <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
+                  <button type="submit" class="btn btn-sm">Take Break</button>
+                </form>
+              <?php elseif ($mine['queue_status'] === 'resting'): ?>
+                <form method="POST">
+                  <?= csrfField() ?>
+                  <input type="hidden" name="action" value="return"/>
+                  <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
+                  <button type="submit" class="btn btn-sm btn-primary">Return to Queue</button>
+                </form>
+              <?php elseif ($mine['queue_status'] !== 'pending_approval'): ?>
+                <a class="btn" href="<?= APP_URL ?>/public/open_play_live.php?tournament_id=<?= (int)$e['id'] ?>">📺 Live Board</a>
+              <?php endif; ?>
               <form method="POST" onsubmit="return confirm('Cancel this join request?');">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="leave"/>
@@ -145,7 +171,7 @@ require_once __DIR__ . '/../includes/header.php';
                   <option value="average" selected>Average</option>
                   <option value="advance">Advanced</option>
                 </select>
-                <button type="submit" class="btn btn-primary">Request to Join</button>
+                <button type="submit" class="btn btn-primary">Join Queue</button>
               </form>
             <?php endif; ?>
           </div>

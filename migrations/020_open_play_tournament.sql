@@ -32,8 +32,10 @@ BEGIN
             ADD COLUMN points_for      INTEGER NOT NULL DEFAULT 0,
             ADD COLUMN points_against  INTEGER NOT NULL DEFAULT 0,
             ADD COLUMN games_played    INTEGER NOT NULL DEFAULT 0,
+            ADD COLUMN arrival_at      TIMESTAMPTZ DEFAULT NOW(),
+            ADD COLUMN queued_at       TIMESTAMPTZ DEFAULT NOW(),
             ADD COLUMN arrived_at      TIMESTAMPTZ DEFAULT NOW();
-        RAISE NOTICE 'Added open-play columns to tournament_players.';
+        RAISE NOTICE 'Added continuous walk-in queue columns to tournament_players.';
     ELSE
         RAISE NOTICE 'open-play columns already exist on tournament_players — skipping.';
     END IF;
