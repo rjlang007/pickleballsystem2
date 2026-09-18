@@ -68,18 +68,18 @@ if (!$blocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($password)) $errors['password'] = 'Please enter your password.';
 
         if (empty($errors)) {
-            $avatarColumn = 'avatar_path';
+            $avatarColumn = null;
             try {
-                $colCheck = $db->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = 'falcon' AND table_name = 'users' AND column_name = ? LIMIT 1");
-                if (!$colCheck->execute(['avatar_path']) || !$colCheck->fetchColumn()) {
-                    $avatarColumn = 'avatar_url';
+                $colCheck = $db->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = 'falcon' AND table_name = 'users' AND column_name IN ('avatar_path', 'avatar_url', 'avatar') ORDER BY CASE column_name WHEN 'avatar_path' THEN 1 WHEN 'avatar_url' THEN 2 ELSE 3 END LIMIT 1");
+                if ($colCheck->execute()) {
+                    $avatarColumn = $colCheck->fetchColumn() ?: null;
                 }
             } catch (Throwable $e) {
                 error_log('[LOGIN] Column check failed: ' . $e->getMessage());
             }
 
             $sql = "SELECT id, username, full_name, email, phone, "
-                 . "password_hash, role, " . $avatarColumn . " AS avatar_path, "
+                 . "password_hash, role, " . ($avatarColumn ?: 'NULL') . " AS avatar_path, "
                  . "is_active, is_banned, NULL AS ban_reason, must_change_password, email_verified "
                  . "FROM falcon.users "
                  . "WHERE (username = ? OR phone = ? OR email = ?) "

@@ -109,9 +109,9 @@ $relPath = 'uploads/avatars/' . $newFilename;   // relative to APP_ROOT, for URL
 
 $db->prepare("
     UPDATE falcon.users
-    SET avatar_path = ?, updated_at = NOW()
+    SET avatar_path = ?, avatar_url = ?, updated_at = NOW()
     WHERE id = ?
-")->execute([$relPath, $userId]);
+")->execute([$relPath, $relPath, $userId]);
 
 // Update session so header nav reflects new avatar immediately
 $_SESSION['avatar'] = $relPath;

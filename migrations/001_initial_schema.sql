@@ -12,6 +12,8 @@ CREATE TABLE falcon.users (
     full_name VARCHAR(255),
     phone VARCHAR(20),
     avatar VARCHAR(255),
+    avatar_path VARCHAR(255),
+    avatar_url VARCHAR(255),
     role VARCHAR(50) NOT NULL DEFAULT 'player',
     is_active BOOLEAN DEFAULT TRUE,
     is_banned BOOLEAN DEFAULT FALSE,
