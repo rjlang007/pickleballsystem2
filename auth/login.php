@@ -143,6 +143,10 @@ if (!$blocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 auditLog($db, 'login', $user['id'], 'users', $user['id'], null, null, 'success', 'Login successful');
                 logActivity('Login', 'auth', 'normal', 'Logged in successfully', $user['id']);
 
+                if (!empty($user['must_change_password'])) {
+                    redirect('player/change_password.php?first_login=1');
+                }
+
                 // ── STEP 4: Subscription check ────────────────────────────
                 // Superadmins bypass entirely. Everyone else must have an
                 // active (or grace-period) subscription to reach their dash.

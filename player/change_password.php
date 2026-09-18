@@ -33,6 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $db->prepare("UPDATE falcon.users SET password_hash = ?, updated_at = NOW() WHERE id = ?")
            ->execute([password_hash($new, PASSWORD_BCRYPT), $uid]);
+                $db->prepare("UPDATE falcon.users SET must_change_password = FALSE WHERE id = ?")
+                     ->execute([$uid]);
+                unset($_SESSION['force_pw_change']);
         $success = true;
     }
 }
