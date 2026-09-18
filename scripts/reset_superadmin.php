@@ -8,7 +8,7 @@
  *   Remove-Item Env:SUPERADMIN_PASSWORD
  */
 
-require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../config/db.php';
 
 $password = getenv('SUPERADMIN_PASSWORD') ?: '';
 if (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
@@ -50,6 +50,8 @@ try {
         "INSERT INTO falcon.wallets (user_id, balance, updated_at)
          VALUES (?, 0, NOW()) ON CONFLICT (user_id) DO NOTHING"
     )->execute([$id]);
+
+    $db->exec("UPDATE falcon.blocked_ips SET is_active = FALSE WHERE is_active = TRUE");
 
     $db->commit();
     echo "Superadmin account repaired. Login as 'superadmin' with the supplied password.\n";
