@@ -331,6 +331,39 @@ SQL
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_achievements_player_type ON falcon.achievements(player_id, achievement_type)");
 }
 
+function ensureFoodOrderingSchema(PDO $pdo): void
+{
+    try {
+        $pdo->exec("CREATE SEQUENCE IF NOT EXISTS falcon.food_order_number_seq START WITH 1 INCREMENT BY 1");
+        $pdo->exec(<<<'SQL'
+            ALTER TABLE falcon.food_orders
+                ADD COLUMN IF NOT EXISTS order_number VARCHAR(20),
+                ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                ADD COLUMN IF NOT EXISTS payment_method VARCHAR(10) NOT NULL DEFAULT 'wallet',
+                ADD COLUMN IF NOT EXISTS payment_status VARCHAR(10) NOT NULL DEFAULT 'unpaid',
+                ADD COLUMN IF NOT EXISTS fulfillment_type VARCHAR(10) NOT NULL DEFAULT 'pickup',
+                ADD COLUMN IF NOT EXISTS court_id INTEGER REFERENCES falcon.courts(id) ON DELETE SET NULL,
+                ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10,2) NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS notes VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+SQL
+        );
+        $pdo->exec(<<<'SQL'
+            ALTER TABLE falcon.food_order_items
+                ADD COLUMN IF NOT EXISTS food_item_id INTEGER REFERENCES falcon.food_items(id) ON DELETE SET NULL,
+                ADD COLUMN IF NOT EXISTS item_name VARCHAR(200),
+                ADD COLUMN IF NOT EXISTS unit_price NUMERIC(8,2),
+                ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1,
+                ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10,2)
+SQL
+        );
+    } catch (PDOException $e) {
+        error_log('[DB] food ordering schema: ' . $e->getMessage());
+    }
+}
+
 // ── PDO singleton ─────────────────────────────────────────────
 function getDB(): PDO {
     static $pdo = null;
@@ -369,6 +402,7 @@ function getDB(): PDO {
                 ensureUserAvatarColumns($pdo);
                 ensureTransactionCompatibilityColumns($pdo);
                 ensureAchievementsTable($pdo);
+                ensureFoodOrderingSchema($pdo);
                 repairSerialSequence($pdo, 'falcon.transactions', 'id');
                 break;
             } catch (PDOException $e) {
