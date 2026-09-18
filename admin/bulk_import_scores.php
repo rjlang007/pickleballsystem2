@@ -161,7 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bulk Import Scores</title>
     <link rel="stylesheet" href="/assets/css/app.css">
-    <link rel="stylesheet" href="/assets/css/admin.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/app.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_theme.css">
     <style nonce="<?= getCspNonce() ?>">
         .import-container {
             max-width: 900px;

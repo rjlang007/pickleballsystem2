@@ -52,8 +52,8 @@ if (!$error) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bracket Editor - <?php echo htmlspecialchars($tournament['name'] ?? 'Tournament'); ?></title>
-    <link rel="stylesheet" href="/assets/css/app.css">
-    <link rel="stylesheet" href="/assets/css/admin.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/app.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_theme.css">
     <style nonce="<?= getCspNonce() ?>">
         .bracket-editor-container {
             max-width: 900px;

@@ -36,7 +36,10 @@ if ($token) {
             $db->prepare("INSERT INTO falcon.transactions (user_id, type, amount, description, reference_id) VALUES (?, 'topup', ?, ?, ?)")->execute([$uid, $amount, 'In-person top-up (QR)', $qr['id']]);
             $passCheck = $db->prepare("SELECT id FROM falcon.player_passes WHERE user_id = ? AND is_active = TRUE AND expires_at > NOW()");
             $passCheck->execute([$uid]);
-            if (!$passCheck->fetch()) { $db->prepare("INSERT INTO falcon.player_passes (user_id, expires_at) VALUES (?, NOW() + INTERVAL '8 hours')")->execute([$uid]); }
+            if (!$passCheck->fetch()) {
+                $db->prepare("INSERT INTO falcon.player_passes (user_id, qr_token, expires_at) VALUES (?, ?, NOW() + INTERVAL '8 hours')")
+                   ->execute([$uid, bin2hex(random_bytes(24))]);
+            }
             $db->prepare("INSERT INTO falcon.notifications (user_id, title, message, type) VALUES (?, '₱' || ? || ' Credits Added 💰', ?, 'success')")->execute([$uid, $amount, "₱{$amount} was added to your account via in-person top-up."]);
             $db->commit();
             $balStmt = $db->prepare("SELECT balance FROM falcon.wallets WHERE user_id = ?");

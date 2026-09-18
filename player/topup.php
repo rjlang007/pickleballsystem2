@@ -457,10 +457,7 @@ function showPreview(input, idx) {
 <?php endforeach; ?>
 
 // Submit guard — disable button to prevent double-submit
-document.querySelectorAll('.topup-form-0, <?php
-    $classSelectors = array_map(fn($i) => ".topup-form-{$i}", array_keys($paymentOptions));
-    echo implode(', ', $classSelectors);
-?>').forEach(function(form) {
+document.querySelectorAll('form[class*="topup-form-"]').forEach(function(form) {
     form.addEventListener('submit', function() {
         const btn = form.querySelector('.submit-btn');
         if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }

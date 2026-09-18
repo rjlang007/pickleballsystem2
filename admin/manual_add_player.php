@@ -188,12 +188,12 @@ if ($action === 'add') {
         try {
             $db->prepare("
                 INSERT INTO falcon.player_passes
-                    (user_id, expires_at, is_active, issued_at, created_at)
-                VALUES (?, '2099-12-31 23:59:59+00', TRUE, NOW(), NOW())
+                    (user_id, qr_token, expires_at, is_active, issued_at, created_at)
+                VALUES (?, ?, '2099-12-31 23:59:59+00', TRUE, NOW(), NOW())
                 ON CONFLICT (user_id) DO UPDATE
                     SET is_active  = TRUE,
                         expires_at = '2099-12-31 23:59:59+00'
-            ")->execute([$userId]);
+            ")->execute([$userId, bin2hex(random_bytes(24))]);
             $db->exec('RELEASE SAVEPOINT upsert_pass');
         } catch (PDOException $e) {
             // ON CONFLICT syntax may vary — fall back to two-step upsert
@@ -211,9 +211,9 @@ if ($action === 'add') {
             } else {
                 $db->prepare("
                     INSERT INTO falcon.player_passes
-                        (user_id, expires_at, is_active, issued_at, created_at)
-                    VALUES (?, '2099-12-31 23:59:59+00', TRUE, NOW(), NOW())
-                ")->execute([$userId]);
+                        (user_id, qr_token, expires_at, is_active, issued_at, created_at)
+                    VALUES (?, ?, '2099-12-31 23:59:59+00', TRUE, NOW(), NOW())
+                ")->execute([$userId, bin2hex(random_bytes(24))]);
             }
         }
 

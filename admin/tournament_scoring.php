@@ -73,8 +73,9 @@ $allTournaments = $engine->listTournaments(['status' => 'in_progress']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Score Entry — <?= $tournament ? htmlspecialchars($tournament['name']) : 'Select Tournament' ?></title>
-    <link rel="stylesheet" href="/pickleball/assets/css/tournament.css">
-    <link rel="stylesheet" href="/pickleball/assets/css/leaderboard.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/app.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_theme.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_mobile.css">
 </head>
 <body class="admin-body">
 <div class="admin-wrap">

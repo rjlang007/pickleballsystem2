@@ -68,8 +68,8 @@ $top_performers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tournament Reports</title>
-    <link rel="stylesheet" href="/assets/css/app.css">
-    <link rel="stylesheet" href="/assets/css/admin.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/app.css">
+    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_theme.css">
     <style nonce="<?= getCspNonce() ?>">
         .reports-container {
             max-width: 1200px;

@@ -112,10 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_id'],
         ]);
 
-        // ── FIXED: single ON CONFLICT, use table DEFAULT for qr_token ──
+        // Ensure the player has a permanent QR token before activating it.
         $db->prepare("
-            INSERT INTO falcon.player_passes (user_id, expires_at, is_active)
-            VALUES (?, '2099-12-31 23:59:59+00', TRUE)
+            INSERT INTO falcon.player_passes (user_id, qr_token, expires_at, is_active)
+            VALUES (?, ?, '2099-12-31 23:59:59+00', TRUE)
             ON CONFLICT (user_id) DO UPDATE
                 SET is_active  = TRUE,
                     expires_at = CASE
@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         THEN '2099-12-31 23:59:59+00'::timestamptz
                         ELSE falcon.player_passes.expires_at
                     END
-        ")->execute([$playerId]);
+        ")->execute([$playerId, bin2hex(random_bytes(24))]);
 
         // Notify player
         $db->prepare("
