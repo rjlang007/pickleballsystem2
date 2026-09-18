@@ -288,24 +288,28 @@ SQL
 
 function ensureTransactionCompatibilityColumns(PDO $pdo): void
 {
-    $pdo->exec(<<<'SQL'
-        ALTER TABLE falcon.transactions
-            ADD COLUMN IF NOT EXISTS method VARCHAR(50),
-            ADD COLUMN IF NOT EXISTS note VARCHAR(500),
-            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'approved',
-            ADD COLUMN IF NOT EXISTS processed_by INTEGER REFERENCES falcon.users(id) ON DELETE SET NULL,
-            ADD COLUMN IF NOT EXISTS reference_no VARCHAR(100),
-            ADD COLUMN IF NOT EXISTS reference_number VARCHAR(100)
+    try {
+        $pdo->exec(<<<'SQL'
+            ALTER TABLE falcon.transactions
+                ADD COLUMN IF NOT EXISTS method VARCHAR(50),
+                ADD COLUMN IF NOT EXISTS note VARCHAR(500),
+                ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'approved',
+                ADD COLUMN IF NOT EXISTS processed_by INTEGER REFERENCES falcon.users(id) ON DELETE SET NULL,
+                ADD COLUMN IF NOT EXISTS reference_no VARCHAR(100),
+                ADD COLUMN IF NOT EXISTS reference_number VARCHAR(100)
 SQL
-    );
+        );
 
-    $pdo->exec(<<<'SQL'
-        UPDATE falcon.transactions
-           SET reference_no = COALESCE(reference_no, reference_number),
-               reference_number = COALESCE(reference_number, reference_no)
-         WHERE reference_no IS NULL OR reference_number IS NULL
+        $pdo->exec(<<<'SQL'
+            UPDATE falcon.transactions
+               SET reference_no = COALESCE(reference_no, reference_number),
+                   reference_number = COALESCE(reference_number, reference_no)
+             WHERE reference_no IS NULL OR reference_number IS NULL
 SQL
-    );
+        );
+    } catch (PDOException $e) {
+        error_log('[DB] transaction compatibility columns: ' . $e->getMessage());
+    }
 }
 
 // ── PDO singleton ─────────────────────────────────────────────
