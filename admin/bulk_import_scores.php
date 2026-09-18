@@ -11,6 +11,7 @@ require_once(__DIR__ . '/../config/security.php');
 require_once(__DIR__ . '/../includes/security_helpers.php');
 
 requireAdmin();
+$db = getDB();
 
 $message = '';
 $message_type = '';
@@ -78,14 +79,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
             if (!empty($_POST['confirm_import']) && empty($errors)) {
                 // Execute import
-                $pdo->beginTransaction();
+                $db->beginTransaction();
                 try {
                     $imported_count = 0;
                     $updated_leaderboard = false;
 
                     foreach ($valid_rows as $row) {
                         // Check if match already exists
-                        $stmt = $pdo->prepare("
+                        $stmt = $db->prepare("
                             SELECT id FROM tournament_matches 
                             WHERE tournament_id = ? AND player1_id = ? AND player2_id = ?
                         ");
@@ -94,17 +95,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
 
                         if ($existing) {
                             // Update existing match
-                            $stmt = $pdo->prepare("
+                            $stmt = $db->prepare("
                                 UPDATE tournament_matches 
-                                SET winner_id = ?, score1 = ?, score2 = ?, status = 'completed', updated_at = NOW()
+                                SET winner_id = ?, score_player1 = ?, score_player2 = ?, status = 'completed', completed_at = NOW()
                                 WHERE id = ?
                             ");
                             $stmt->execute([$row['winner_id'], $row['score1'], $row['score2'], $existing['id']]);
                         } else {
                             // Insert new match
-                            $stmt = $pdo->prepare("
+                            $stmt = $db->prepare("
                                 INSERT INTO tournament_matches 
-                                (tournament_id, player1_id, player2_id, winner_id, score1, score2, status, created_at)
+                                (tournament_id, player1_id, player2_id, winner_id, score_player1, score_player2, status, created_at)
                                 VALUES (?, ?, ?, ?, ?, ?, 'completed', NOW())
                             ");
                             $stmt->execute([
@@ -134,18 +135,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                         'rows_imported' => $imported_count,
                         'timestamp' => date('Y-m-d H:i:s')
                     ];
-                    $stmt = $pdo->prepare("
-                        INSERT INTO audit_log (admin_id, action, details, created_at)
+                    $stmt = $db->prepare("
+                        INSERT INTO falcon.audit_log (user_id, action, notes, created_at)
                         VALUES (?, ?, ?, NOW())
                     ");
                     $stmt->execute([$_SESSION['user_id'], 'bulk_import', json_encode($audit_data)]);
 
-                    $pdo->commit();
+                    $db->commit();
                     $message = "Successfully imported $imported_count match results!";
                     $message_type = 'success';
                     $import_preview = null;
                 } catch (Exception $e) {
-                    $pdo->rollBack();
+                    $db->rollBack();
                     $message = 'Import failed: ' . $e->getMessage();
                     $message_type = 'error';
                 }

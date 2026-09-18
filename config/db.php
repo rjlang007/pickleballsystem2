@@ -71,6 +71,12 @@ function repairSerialSequence(PDO $pdo, string $qualifiedTable, string $column):
 function ensureCourtStatusView(PDO $pdo): void {
     // v2: also recreate if the view predates the is_queueable /
     // manual_status-aware live_status computation (court activation fix).
+    $requiredCourtColumns = ['court_type', 'is_maintenance', 'manual_status', 'max_queue', 'credit_cost', 'game_duration', 'warmup_mins', 'pass_hours', 'sort_order', 'color', 'short_code', 'address', 'photo'];
+    $columnStmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = 'falcon' AND table_name = 'courts' AND column_name = ANY(?)");
+    $columnStmt->execute(['{' . implode(',', $requiredCourtColumns) . '}']);
+    if (count($columnStmt->fetchAll(PDO::FETCH_COLUMN)) !== count($requiredCourtColumns)) {
+        return;
+    }
     $missing = !$pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = 'falcon' AND table_name = 'v_court_status' AND column_name = 'is_queueable'")->fetchColumn();
     if (!$missing) {
         return;
@@ -316,6 +322,9 @@ SQL
 
 function ensureAchievementsTable(PDO $pdo): void
 {
+    if (!$pdo->query("SELECT to_regclass('falcon.tournaments')")->fetchColumn()) {
+        return;
+    }
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS falcon.achievements (
             id SERIAL PRIMARY KEY,

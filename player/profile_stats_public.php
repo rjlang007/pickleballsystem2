@@ -9,6 +9,8 @@ require_once(__DIR__ . '/../config/app.php');
 require_once(__DIR__ . '/../config/db.php');
 require_once(__DIR__ . '/../config/session.php');
 
+$db = getDB();
+
 $player_id = $_GET['id'] ?? $_GET['player_id'] ?? null;
 
 if (!$player_id || !is_numeric($player_id)) {
@@ -17,9 +19,9 @@ if (!$player_id || !is_numeric($player_id)) {
 }
 
 // Get player info
-$stmt = $pdo->prepare("
-    SELECT id, name, avatar_url, email, created_at 
-    FROM users 
+$stmt = $db->prepare("
+    SELECT id, full_name AS name, avatar_url, email, created_at
+    FROM falcon.users
     WHERE id = ?
 ");
 $stmt->execute([$player_id]);
@@ -31,16 +33,19 @@ if (!$player) {
 }
 
 // Get player stats
-$stmt = $pdo->prepare("
+$stmt = $db->prepare("
     SELECT 
-        l.ranking,
-        l.points,
-        (SELECT COUNT(*) FROM tournament_matches WHERE winner_id = ? AND YEAR(created_at) = YEAR(CURDATE())) as wins,
-        (SELECT COUNT(*) FROM tournament_matches WHERE 
-            (winner_id = ? OR loser_id = ?) AND YEAR(created_at) = YEAR(CURDATE())) as total_matches,
-        (SELECT COUNT(DISTINCT tournament_id) FROM tournament_players WHERE player_id = ? AND YEAR(created_at) = YEAR(CURDATE())) as tournament_count
-    FROM leaderboard l
-    WHERE l.player_id = ? AND YEAR(l.season) = YEAR(CURDATE())
+        l.rank AS ranking,
+        l.total_points AS points,
+        (SELECT COUNT(*) FROM falcon.tournament_matches
+         WHERE winner_id = ? AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)) AS wins,
+        (SELECT COUNT(*) FROM falcon.tournament_matches
+         WHERE (player1_id = ? OR player2_id = ?)
+           AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)) AS total_matches,
+        (SELECT COUNT(DISTINCT tournament_id) FROM falcon.tournament_players
+         WHERE player_id = ? AND EXTRACT(YEAR FROM joined_at) = EXTRACT(YEAR FROM CURRENT_DATE)) AS tournament_count
+    FROM falcon.leaderboard l
+    WHERE l.player_id = ? AND l.season = EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER
 ");
 $stmt->execute([$player_id, $player_id, $player_id, $player_id, $player_id]);
 $stats = $stmt->fetch(PDO::FETCH_ASSOC) ?? [];
@@ -51,16 +56,16 @@ $win_rate = isset($stats['total_matches']) && $stats['total_matches'] > 0
     : 0;
 
 // Get recent tournaments
-$stmt = $pdo->prepare("
+    $stmt = $db->prepare("
     SELECT 
         t.id,
         t.name,
         t.bracket_type,
         ts.placement,
-        ts.points_earned,
+        ts.points AS points_earned,
         t.created_at
-    FROM tournament_scores ts
-    JOIN tournaments t ON ts.tournament_id = t.id
+    FROM falcon.tournament_scores ts
+    JOIN falcon.tournaments t ON ts.tournament_id = t.id
     WHERE ts.player_id = ?
     ORDER BY t.created_at DESC
     LIMIT 5
@@ -69,11 +74,11 @@ $stmt->execute([$player_id]);
 $recent_tournaments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get achievements
-$stmt = $pdo->prepare("
-    SELECT type, unlocked_at 
-    FROM player_achievements 
+$stmt = $db->prepare("
+    SELECT achievement_type AS type, achieved_at AS unlocked_at
+    FROM falcon.achievements
     WHERE player_id = ?
-    ORDER BY unlocked_at DESC
+    ORDER BY achieved_at DESC
 ");
 $stmt->execute([$player_id]);
 $achievements = $stmt->fetchAll(PDO::FETCH_ASSOC);
