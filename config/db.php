@@ -268,6 +268,24 @@ SQL
     }
 }
 
+function ensureUserAvatarColumns(PDO $pdo): void
+{
+    $pdo->exec(<<<'SQL'
+        ALTER TABLE falcon.users
+            ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255)
+SQL
+    );
+
+    $pdo->exec(<<<'SQL'
+        UPDATE falcon.users
+           SET avatar_path = COALESCE(avatar_path, avatar),
+               avatar_url = COALESCE(avatar_url, avatar_path, avatar)
+         WHERE avatar_path IS NULL OR avatar_url IS NULL
+SQL
+    );
+}
+
 // ── PDO singleton ─────────────────────────────────────────────
 function getDB(): PDO {
     static $pdo = null;
@@ -303,6 +321,7 @@ function getDB(): PDO {
                 ensureCourtStatusView($pdo);
                 ensureLeaderboardTable($pdo);
                 ensureAnnouncementsTable($pdo);
+                ensureUserAvatarColumns($pdo);
                 repairSerialSequence($pdo, 'falcon.transactions', 'id');
                 break;
             } catch (PDOException $e) {
