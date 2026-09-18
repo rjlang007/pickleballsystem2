@@ -229,11 +229,11 @@ function _autoend_run(): void {
         try {
             $txnStmt = $db->prepare("
                 INSERT INTO falcon.transactions
-                    (user_id, type, method, amount, note, status,
-                     balance_before, balance_after, reference_id, processed_by)
+                    (user_id, type, amount, reason, related_table,
+                     related_id, balance_before, balance_after)
                 VALUES
-                    (:uid, 'deduction', 'game_session', :amt, :note, 'approved',
-                     :before, :after, :ref_id, NULL)
+                    (:uid, 'deduction', :amt, :note, 'game_sessions',
+                     :ref_id, :before, :after)
             ");
         } catch (Throwable $e) {
             error_log('[auto_end_games] txn stmt prep: ' . $e->getMessage());

@@ -247,12 +247,12 @@ if ($method === 'PATCH') {
             // Log the transaction
             $db->prepare(
     "INSERT INTO falcon.transactions
-        (user_id, type, amount, note,
-         reference_id,
+        (user_id, type, amount, reason,
+         related_table, related_id,
          balance_before, balance_after)
      VALUES
         (:uid, 'deduction', :amt, :note,
-         :rid,
+         'withdrawal_requests', :rid,
          :before, :after)"
 )->execute([
     ':uid'    => $playerId,

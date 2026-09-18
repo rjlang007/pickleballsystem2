@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->prepare("
             INSERT INTO falcon.transactions
                 (user_id, type, method, amount, note, status,
-                 balance_before, balance_after, reference_no, processed_by)
+                 balance_before, balance_after, reference_number, processed_by)
             VALUES (?, 'topup', 'admin', ?, ?, 'approved', ?, ?, ?, ?)
         ")->execute([
             $playerId,

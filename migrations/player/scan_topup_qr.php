@@ -33,7 +33,7 @@ if ($token) {
             $amount = $qr['amount'];
             $db->prepare("UPDATE falcon.topup_qr_codes SET is_used = TRUE, used_at = NOW() WHERE id = ?")->execute([$qr['id']]);
             $db->prepare("INSERT INTO falcon.wallets (user_id, balance) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET balance = falcon.wallets.balance + EXCLUDED.balance, updated_at = NOW()")->execute([$uid, $amount]);
-            $db->prepare("INSERT INTO falcon.transactions (user_id, type, amount, description, reference_id) VALUES (?, 'topup', ?, ?, ?)")->execute([$uid, $amount, 'In-person top-up (QR)', $qr['id']]);
+            $db->prepare("INSERT INTO falcon.transactions (user_id, type, amount, reason, related_table, related_id) VALUES (?, 'topup', ?, ?, 'topup_qr_codes', ?)")->execute([$uid, $amount, 'In-person top-up (QR)', $qr['id']]);
             $passCheck = $db->prepare("SELECT id FROM falcon.player_passes WHERE user_id = ? AND is_active = TRUE AND expires_at > NOW()");
             $passCheck->execute([$uid]);
             if (!$passCheck->fetch()) {

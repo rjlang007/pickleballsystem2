@@ -144,13 +144,13 @@ try {
 
     // Column names match falcon.transactions schema:
     //   type, method, amount, note, status,
-    //   balance_before, balance_after, reference_id, processed_by
+    //   balance_before, balance_after, related_table, related_id
 $txnStmt = $db->prepare("
     INSERT INTO falcon.transactions
         (user_id, type, method, amount, balance_before, balance_after,
-         reference_no, status, reference_id, processed_by)
+         reason, related_table, related_id)
     VALUES (?, 'deduction', 'game_session', ?, ?, ?,
-            ?, 'approved', ?, ?)
+            ?, 'game_sessions', ?)
 ");
 
     $walletUpdateStmt = $db->prepare("
@@ -185,8 +185,7 @@ $txnStmt->execute([
     $balanceBefore,
     $balanceAfter,
     "Game #{$sessionId} on {$session['court_name']} ({$actualMins} min)",  // → reference_no
-    $sessionId,    // → reference_id
-    $adminUserId,  // → processed_by
+    $sessionId,
 ]);
                 } catch (PDOException $txnEx) {
                     error_log('[end_game] transactions insert failed (non-fatal): ' . $txnEx->getMessage());
