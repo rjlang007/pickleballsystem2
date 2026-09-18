@@ -9,13 +9,13 @@
 //  GET  ?courts=1                  → any logged-in user: active courts (for "deliver to court")
 //  GET  ?order=<id>                → owner or admin: single order + items
 //  GET  ?orders=1                  → player: my order history
-//  GET  ?orders=1&queue=1          → admin/staff: live queue (pending/preparing/ready)
+//  GET  ?orders=1&queue=1          → admin/staff: live queue (pending/approved/preparing/ready)
 //  POST ?action=checkout           → player: place an order, pay wallet or cash
 //  POST ?action=save_item          → admin: create/update a menu item
 //  POST ?action=delete_item        → admin: remove a menu item
 //  POST ?action=save_category      → admin: create/update/reorder a menu category
 //  POST ?action=delete_category    → admin: remove a menu category (must be empty)
-//  POST ?action=update_status      → admin/staff: advance an order's status
+//  POST ?action=update_status      → admin/staff: approve/reject/advance an order
 //  POST ?action=mark_paid          → admin/staff: mark a "pay at counter" order paid
 // ============================================================
 require_once __DIR__ . '/../config/app.php';
@@ -126,14 +126,14 @@ if ($method === 'GET') {
                    FROM falcon.food_orders o
                    JOIN falcon.users u ON u.id = o.user_id
               LEFT JOIN falcon.courts c ON c.id = o.court_id
-                  WHERE o.status IN ('pending','preparing','ready')
+                  WHERE o.status IN ('pending','approved','preparing','ready')
                   ORDER BY o.created_at ASC"
             );
         } else {
             $stmt = $db->prepare(
                 "SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
                         o.fulfillment_type, o.court_id, c.name AS court_name,
-                        o.total_amount, o.notes, o.created_at, o.ready_at, o.completed_at
+                        o.total_amount, o.notes, o.rejection_reason, o.created_at, o.ready_at, o.completed_at
                    FROM falcon.food_orders o
               LEFT JOIN falcon.courts c ON c.id = o.court_id
                   WHERE o.user_id = ?
@@ -468,7 +468,8 @@ if ($method === 'POST') {
     if ($action === 'update_status') {
         $orderId   = (int)($body['order_id'] ?? 0);
         $newStatus = (string)($body['status'] ?? '');
-        $allowed   = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
+        $reason    = trim((string)($body['reason'] ?? ''));
+        $allowed   = ['approved', 'rejected', 'preparing', 'ready', 'completed', 'cancelled'];
 
         if ($orderId <= 0 || !in_array($newStatus, $allowed, true)) {
             apiError('VALIDATION', 'Invalid order or status.', [], 422);
@@ -479,6 +480,20 @@ if ($method === 'POST') {
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$order) apiError('NOT_FOUND', 'Order not found.', [], 404);
 
+        $transitions = [
+            'pending'   => ['approved', 'rejected'],
+            'approved'  => ['preparing', 'rejected'],
+            'preparing' => ['ready', 'cancelled'],
+            'ready'     => ['completed'],
+        ];
+        if (!in_array($newStatus, $transitions[$order['status']] ?? [], true)) {
+            apiError('VALIDATION', 'That order cannot be moved to the selected status.', [], 422);
+        }
+        if ($newStatus === 'rejected' && mb_strlen($reason) < 3) {
+            apiError('VALIDATION', 'Please provide a reason for rejecting this order.', [], 422);
+        }
+        $reason = mb_substr($reason, 0, 500);
+
         try {
             $db->beginTransaction();
 
@@ -486,12 +501,18 @@ if ($method === 'POST') {
             if ($newStatus === 'ready')     $extraSql = ", ready_at = NOW()";
             if ($newStatus === 'completed') $extraSql = ", completed_at = NOW()";
             if ($newStatus === 'cancelled') $extraSql = ", cancelled_at = NOW()";
+            if ($newStatus === 'approved' || $newStatus === 'rejected') {
+                $extraSql .= ", reviewed_by = " . (int)$uid . ", reviewed_at = NOW()";
+            }
+            if ($newStatus === 'rejected') {
+                $extraSql .= ", rejection_reason = " . $db->quote($reason);
+            }
 
             $db->prepare("UPDATE falcon.food_orders SET status = ?, updated_at = NOW() $extraSql WHERE id = ?")
                ->execute([$newStatus, $orderId]);
 
-            // Refund to wallet if a paid order is cancelled
-            if ($newStatus === 'cancelled' && $order['payment_method'] === 'wallet' && $order['payment_status'] === 'paid') {
+            // Refund wallet payments when staff cannot fulfil the order.
+            if (in_array($newStatus, ['rejected', 'cancelled'], true) && $order['payment_method'] === 'wallet' && $order['payment_status'] === 'paid') {
                 $walletStmt = $db->prepare("SELECT COALESCE(balance,0) AS balance FROM falcon.wallets WHERE user_id = ? FOR UPDATE");
                 $walletStmt->execute([$order['user_id']]);
                 $balanceBefore = (float)($walletStmt->fetchColumn() ?: 0);
@@ -504,15 +525,21 @@ if ($method === 'POST') {
                     "INSERT INTO falcon.transactions
                         (user_id, type, amount, reason, related_table, related_id, balance_before, balance_after, created_at)
                      VALUES (?, 'food_order_refund', ?, ?, 'food_orders', ?, ?, ?, NOW())"
-                )->execute([$order['user_id'], $refund, "Refund for cancelled order {$order['order_number']}", $orderId, $balanceBefore, $balanceBefore + $refund]);
+                )->execute([$order['user_id'], $refund, "Refund for {$newStatus} food order {$order['order_number']}", $orderId, $balanceBefore, $balanceBefore + $refund]);
 
                 $db->prepare("UPDATE falcon.food_orders SET payment_status='refunded' WHERE id=?")->execute([$orderId]);
             }
 
             $db->commit();
 
-            // Notify the customer once their order is ready to pick up
-            if ($newStatus === 'ready') {
+            if ($newStatus === 'approved') {
+                notifyUser($db, (int)$order['user_id'], 'Food order approved',
+                    "Order {$order['order_number']} was approved and is now being prepared.", null, APP_URL . '/player/food_orders.php');
+            } elseif ($newStatus === 'rejected') {
+                notifyUser($db, (int)$order['user_id'], 'Food order rejected',
+                    "Order {$order['order_number']} was rejected: {$reason}" . ($order['payment_method'] === 'wallet' ? ' Your credits have been refunded.' : ''),
+                    null, APP_URL . '/player/food_orders.php');
+            } elseif ($newStatus === 'ready') {
                 notifyUser(
                     $db, (int)$order['user_id'],
                     '🍽️ Your order is ready!',

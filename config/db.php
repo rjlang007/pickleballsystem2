@@ -273,7 +273,9 @@ function ensureUserAvatarColumns(PDO $pdo): void
     $pdo->exec(<<<'SQL'
         ALTER TABLE falcon.users
             ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255),
-            ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255)
+            ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS display_name VARCHAR(120),
+            ADD COLUMN IF NOT EXISTS show_display_name BOOLEAN NOT NULL DEFAULT TRUE
 SQL
     );
 
@@ -347,9 +349,17 @@ function ensureFoodOrderingSchema(PDO $pdo): void
                 ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS notes VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS ready_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(500),
+                ADD COLUMN IF NOT EXISTS reviewed_by INTEGER REFERENCES falcon.users(id) ON DELETE SET NULL,
+                ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP
 SQL
         );
+            $pdo->exec("ALTER TABLE falcon.food_orders DROP CONSTRAINT IF EXISTS food_orders_status_check");
+            $pdo->exec("ALTER TABLE falcon.food_orders ADD CONSTRAINT food_orders_status_check CHECK (status IN ('pending','approved','preparing','ready','completed','rejected','cancelled'))");
         $pdo->exec(<<<'SQL'
             ALTER TABLE falcon.food_order_items
                 ADD COLUMN IF NOT EXISTS food_item_id INTEGER REFERENCES falcon.food_items(id) ON DELETE SET NULL,

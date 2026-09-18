@@ -25,7 +25,7 @@ require_once __DIR__ . '/../includes/header.php';
     padding: 6px 4px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border);
 }
 .ost-step.done { color: var(--accent); border-color: var(--accent); background: rgba(0,229,160,0.1); }
-.ost-step.cancelled { color: var(--danger); border-color: var(--danger); background: rgba(239,68,68,0.08); }
+.ost-step.cancelled, .ost-step.rejected { color: var(--danger); border-color: var(--danger); background: rgba(239,68,68,0.08); }
 .order-items-list { font-size: 13px; color: var(--muted); margin-top: 8px; }
 .order-items-list div { display: flex; justify-content: space-between; padding: 2px 0; }
 .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
@@ -46,16 +46,16 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script nonce="<?= csrfNonce() ?>">
-const STATUS_STEPS = ['pending', 'preparing', 'ready', 'completed'];
-const STATUS_LABELS = { pending: 'Placed', preparing: 'Preparing', ready: 'Ready', completed: 'Completed', cancelled: 'Cancelled' };
+const STATUS_STEPS = ['pending', 'approved', 'preparing', 'ready', 'completed'];
+const STATUS_LABELS = { pending: 'Awaiting review', approved: 'Approved', preparing: 'Preparing', ready: 'Ready', completed: 'Completed', rejected: 'Rejected', cancelled: 'Cancelled' };
 
 function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
 function renderTrack(status) {
-    if (status === 'cancelled') {
-        return '<div class="order-status-track"><div class="ost-step cancelled">✕ Cancelled</div></div>';
+    if (status === 'cancelled' || status === 'rejected') {
+        return `<div class="order-status-track"><div class="ost-step ${status}">✕ ${STATUS_LABELS[status]}</div></div>`;
     }
     const idx = STATUS_STEPS.indexOf(status);
     return '<div class="order-status-track">' + STATUS_STEPS.map((s, i) =>
@@ -105,6 +105,7 @@ async function loadOrders() {
                 </div>
                 ${renderTrack(o.status)}
                 ${o.notes ? `<div class="order-meta">📝 ${escapeHtml(o.notes)}</div>` : ''}
+                ${o.rejection_reason ? `<div class="order-meta" style="color:var(--danger)">Reason: ${escapeHtml(o.rejection_reason)}</div>` : ''}
             </div>
         `).join('');
     } catch (e) {

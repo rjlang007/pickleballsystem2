@@ -15,7 +15,7 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style nonce="<?= getCspNonce() ?>">
-.fq-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.fq-cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 900px) { .fq-cols { grid-template-columns: 1fr; } }
 .fq-col-head { font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
 .fq-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--muted); }
@@ -44,7 +44,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="page-header flex-between">
     <div>
         <h1>🧾 Food Order Queue</h1>
-        <p>Live orders — updates every 10 seconds. Customers get notified automatically when their order is ready.</p>
+        <p>Review every order before preparation. Customers are notified when it is approved or rejected.</p>
     </div>
     <?php if (isAdmin()): ?>
     <div><a href="<?= APP_URL ?>/admin/food_menu.php" class="btn-outline btn-sm">🍔 Manage Menu</a></div>
@@ -60,6 +60,10 @@ require_once __DIR__ . '/../includes/header.php';
     <div>
         <div class="fq-col-head">⏳ Pending <span class="fq-count" id="count-pending">0</span></div>
         <div id="col-pending"></div>
+    </div>
+    <div>
+        <div class="fq-col-head">✅ Approved <span class="fq-count" id="count-approved">0</span></div>
+        <div id="col-approved"></div>
     </div>
     <div>
         <div class="fq-col-head">👨‍🍳 Preparing <span class="fq-count" id="count-preparing">0</span></div>
@@ -100,8 +104,11 @@ function isStuck(o) {
 function actionButtons(o) {
     const btns = [];
     if (o.status === 'pending') {
+        btns.push(`<button type="button" class="btn-primary btn-xs" onclick="updateStatus(${o.id},'approved')">Approve</button>`);
+        btns.push(`<button type="button" class="btn-danger btn-xs" onclick="rejectOrder(${o.id})">Reject</button>`);
+    } else if (o.status === 'approved') {
         btns.push(`<button type="button" class="btn-primary btn-xs" onclick="updateStatus(${o.id},'preparing')">Start Preparing</button>`);
-        btns.push(`<button type="button" class="btn-danger btn-xs" onclick="updateStatus(${o.id},'cancelled')">Cancel</button>`);
+        btns.push(`<button type="button" class="btn-danger btn-xs" onclick="rejectOrder(${o.id})">Reject</button>`);
     } else if (o.status === 'preparing') {
         btns.push(`<button type="button" class="btn-primary btn-xs" onclick="updateStatus(${o.id},'ready')">Mark Ready</button>`);
         btns.push(`<button type="button" class="btn-danger btn-xs" onclick="updateStatus(${o.id},'cancelled')">Cancel</button>`);
@@ -120,12 +127,12 @@ async function loadQueue() {
         const json = await res.json();
         if (!res.ok || !json.ok) return;
         const orders = json.data || [];
-        const cols = { pending: [], preparing: [], ready: [] };
+        const cols = { pending: [], approved: [], preparing: [], ready: [] };
         orders.forEach(o => { if (cols[o.status]) cols[o.status].push(o); });
 
         let stuckCount = 0;
 
-        for (const status of ['pending', 'preparing', 'ready']) {
+        for (const status of ['pending', 'approved', 'preparing', 'ready']) {
             document.getElementById('count-' + status).textContent = cols[status].length;
             const wrap = document.getElementById('col-' + status);
             if (cols[status].length === 0) {
@@ -169,18 +176,25 @@ async function loadQueue() {
     } catch (e) { /* silent — retries on next interval */ }
 }
 
-async function updateStatus(orderId, status) {
+async function updateStatus(orderId, status, reason = '') {
     if (status === 'cancelled' && !confirm('Cancel this order? Wallet payments will be refunded automatically.')) return;
     try {
         const res = await fetch('<?= APP_URL ?>/api/food.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'update_status', order_id: orderId, status }),
+            body: JSON.stringify({ action: 'update_status', order_id: orderId, status, reason }),
         });
         const json = await res.json();
         if (!res.ok || !json.ok) { alert(json.error?.message || 'Could not update the order.'); return; }
         loadQueue();
     } catch (e) { alert('Network error updating the order.'); }
+}
+
+async function rejectOrder(orderId) {
+    const reason = prompt('Why is this order being rejected?', 'Not available at the moment');
+    if (reason === null) return;
+    if (!reason.trim()) { alert('A rejection reason is required.'); return; }
+    updateStatus(orderId, 'rejected', reason.trim());
 }
 
 async function markPaid(orderId) {

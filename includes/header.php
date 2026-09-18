@@ -68,7 +68,7 @@ if (isset($user) && $user && isAdmin() && !isSuperAdmin()) {
             ORDER BY r.slot_date ASC, r.slot_time ASC
             LIMIT 5
         ")->fetchAll(PDO::FETCH_ASSOC);
-        $foodPendingCount = (int)$dbNav->query("SELECT COUNT(*) FROM falcon.food_orders WHERE status IN ('pending','preparing')")->fetchColumn();
+        $foodPendingCount = (int)$dbNav->query("SELECT COUNT(*) FROM falcon.food_orders WHERE status IN ('pending','approved','preparing','ready')")->fetchColumn();
     } catch (Exception $e) {
         $pendingCount = 0; $pendingResCount = 0; $pendingResPreview = []; $foodPendingCount = 0;
     }

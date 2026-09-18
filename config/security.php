@@ -394,9 +394,16 @@ function verifySameOrigin(): void {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) return;
 
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host   = $_SERVER['HTTP_HOST'] ?? '';
-    $selfOrigin = $scheme . '://' . $host;
+    // Prefer the configured public origin behind reverse proxies. Building
+    // this from HTTP_HOST/HTTPS can produce http:// on an HTTPS Railway edge.
+    $configuredOrigin = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+    if ($configuredOrigin !== '') {
+        $selfOrigin = $configuredOrigin;
+    } else {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host   = $_SERVER['HTTP_HOST'] ?? '';
+        $selfOrigin = $scheme . '://' . $host;
+    }
 
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     if ($origin === '' && !empty($_SERVER['HTTP_REFERER'])) {
