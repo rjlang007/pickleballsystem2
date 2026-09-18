@@ -17,13 +17,7 @@ fi
 
 # Run database migrations
 echo "📦 Running migrations..."
-if command -v psql >/dev/null 2>&1; then
-    psql "$DATABASE_URL" -f migrations/v2_multi_court.sql
-    psql "$DATABASE_URL" -f migrations/020_open_play_tournament.sql
-    psql "$DATABASE_URL" -f migrations/021_avatar_columns.sql
-else
-    echo "⚠️ psql not found — skipping SQL migration step"
-fi
+php migrations/migrations/run_migrations.php
 
 # Clear caches
 echo "🧹 Clearing caches..."

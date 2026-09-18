@@ -58,7 +58,7 @@ jobs:
 
     - name: Run database migrations
       run: |
-        railway run -- bash -lc 'psql "$DATABASE_URL" -f migrations/v2_multi_court.sql && psql "$DATABASE_URL" -f migrations/020_open_play_tournament.sql && psql "$DATABASE_URL" -f migrations/021_avatar_columns.sql'
+        railway run -- bash -lc 'php migrations/migrations/run_migrations.php'
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
