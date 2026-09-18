@@ -36,7 +36,9 @@ if (!$tournament_id) {
 $players = [];
 if (!$error) {
     $stmt = $pdo->prepare("
-        SELECT tp.id, tp.player_id, tp.seed, u.name, u.avatar_url 
+         SELECT tp.id, tp.player_id, tp.seed,
+             COALESCE(u.full_name, u.username) AS name,
+             COALESCE(u.avatar_url, u.avatar_path, u.avatar) AS avatar_url
         FROM tournament_players tp
         JOIN users u ON tp.player_id = u.id
         WHERE tp.tournament_id = ?
