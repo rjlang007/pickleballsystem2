@@ -184,7 +184,7 @@ $txnStmt->execute([
     $creditCost,
     $balanceBefore,
     $balanceAfter,
-    "Game #{$sessionId} on {$session['court_name']} ({$actualMins} min)",  // → reference_no
+    "Game #{$sessionId} on {$session['court_name']} ({$actualMins} min)",
     $sessionId,
 ]);
                 } catch (PDOException $txnEx) {

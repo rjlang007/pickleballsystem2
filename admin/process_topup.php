@@ -64,7 +64,7 @@ try {
             redirect('admin/topup_requests.php');
         }
 
-        // -- Duplicate reference_no guard
+        // -- Duplicate payment-reference guard
         if (!empty($req['gcash_ref_no'])) {
             $dupStmt = $db->prepare("
                 SELECT COUNT(*) FROM falcon.topup_requests
