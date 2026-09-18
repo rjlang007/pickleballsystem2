@@ -111,13 +111,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // ── Permanent player pass ──────────────────────────
-            // player_passes columns: user_id, qr_token (auto), issued_at, expires_at, is_active, created_at
+            // Every pass needs a unique token because qr_token is NOT NULL.
             $db->prepare("
                 INSERT INTO falcon.player_passes
-                    (user_id, expires_at, is_active, created_at)
+                    (user_id, qr_token, expires_at, is_active, created_at)
                 VALUES
-                    (?, '2099-12-31 23:59:59+00', TRUE, NOW())
-            ")->execute([$userId]);
+                    (?, ?, '2099-12-31 23:59:59+00', TRUE, NOW())
+            ")->execute([$userId, bin2hex(random_bytes(24))]);
 
             $db->commit();
 

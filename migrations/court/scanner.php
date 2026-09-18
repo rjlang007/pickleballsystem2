@@ -406,7 +406,7 @@ require_once __DIR__ . '/../includes/header.php';
 <body>
 
 <div class="scan-border" id="scan-border"></div>
-<input type="text" id="scanner-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-hidden="true" tabindex="-1" inputmode="none"/>
+<input type="text" id="scanner-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="-1" inputmode="none"/>
 <div id="focus-indicator" class="focused" onclick="forceFocus()">
     <div class="focus-dot"></div>
     <span id="focus-label">Scanner Ready</span>
