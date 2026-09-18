@@ -16,7 +16,11 @@ $overallStatus = 'healthy';
 try {
     $db = getDB();
     $db->query('SELECT 1');
-    $requiredTables = ['users', 'courts', 'game_queue'];
+    $requiredTables = [
+        'users', 'courts', 'game_queue', 'reservations', 'notifications',
+        'activity_logs', 'court_reservations', 'food_items', 'food_orders',
+        'food_order_items', 'food_categories', 'tournaments', 'tournament_matches',
+    ];
     $missingTables = [];
     $tableCheck = $db->prepare(
         "SELECT 1 FROM information_schema.tables
@@ -29,11 +33,32 @@ try {
         }
     }
 
-    if ($missingTables) {
+    $requiredColumns = [
+        'users' => ['show_display_name'],
+        'reservations' => ['payment_verified_at', 'cancel_reason'],
+        'food_orders' => ['rejection_reason', 'reviewed_by', 'reviewed_at'],
+        'tournament_matches' => ['score_player1', 'score_player2'],
+    ];
+    $missingColumns = [];
+    $columnCheck = $db->prepare(
+        "SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'falcon' AND table_name = ? AND column_name = ?"
+    );
+    foreach ($requiredColumns as $table => $columns) {
+        foreach ($columns as $column) {
+            $columnCheck->execute([$table, $column]);
+            if (!$columnCheck->fetchColumn()) {
+                $missingColumns[] = $table . '.' . $column;
+            }
+        }
+    }
+
+    if ($missingTables || $missingColumns) {
         $checks['database'] = [
             'status' => 'error',
             'message' => 'Database schema is not ready',
             'missing_tables' => $missingTables,
+            'missing_columns' => $missingColumns,
         ];
         $overallStatus = 'unhealthy';
     } else {

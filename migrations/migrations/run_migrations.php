@@ -17,7 +17,7 @@
  * exactly the same way they do when you run them by hand.
  */
 
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 // Files that should NEVER be auto-run.
 $skip = [
@@ -29,13 +29,13 @@ $skip = [
 $pdo = getDB();
 
 // Make sure the tracker table itself exists (idempotent).
-$pdo->exec(file_get_contents(__DIR__ . '/000_migration_tracker.sql'));
+$pdo->exec(file_get_contents(__DIR__ . '/../000_migration_tracker.sql'));
 
 $applied = $pdo->query("SELECT filename FROM falcon.schema_migrations")
                 ->fetchAll(PDO::FETCH_COLUMN);
 $applied = array_flip($applied);
 
-$files = glob(__DIR__ . '/*.sql');
+$files = glob(__DIR__ . '/../*.sql');
 sort($files, SORT_STRING);
 
 $pending = [];
