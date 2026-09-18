@@ -45,6 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 setFlash('success', 'Updated.');
                 break;
 
+            case 'approve_join':
+                $engine->approveJoin($tid, (int)$_POST['player_id'], (int)$user['id']);
+                setFlash('success', 'Join request approved.');
+                break;
+
+            case 'reject_join':
+                $engine->rejectJoin($tid, (int)$_POST['player_id'], (int)$user['id']);
+                setFlash('success', 'Join request rejected.');
+                break;
+
             case 'remove_player':
                 $engine->leaveEvent($tid, (int)$_POST['player_id']);
                 setFlash('success', 'Player removed.');
@@ -317,7 +327,7 @@ $recentFinished = $recentFinished->fetchAll();
         <?php foreach ($roster as $r): ?>
             <?php
                 $queueLabels = ['waiting' => 'Waiting', 'playing' => 'Playing', 'resting' => 'Resting', 'queued' => 'Up Next', 'left' => 'Left'];
-                $queueLabel = $queueLabels[$r['queue_status']] ?? ucfirst($r['queue_status']);
+                $queueLabel = $r['status'] === 'pending_approval' ? 'Pending Approval' : ($queueLabels[$r['queue_status']] ?? ucfirst($r['queue_status']));
                 $queueClass = $r['queue_status'] === 'waiting' ? 'badge-success' : ($r['queue_status'] === 'playing' ? 'badge-warning' : 'badge-secondary');
             ?>
             <tr>
@@ -326,7 +336,20 @@ $recentFinished = $recentFinished->fetchAll();
                 <td><span class="badge <?= $queueClass ?>"><?= clean($queueLabel) ?></span></td>
                 <td><?= (int)$r['wins'] ?>-<?= (int)$r['losses'] ?></td>
                 <td style="display:flex;gap:4px;">
-                    <?php if ($r['queue_status'] !== 'waiting'): ?>
+                    <?php if ($r['status'] === 'pending_approval'): ?>
+                    <form method="POST"><?= csrfField() ?>
+                        <input type="hidden" name="action" value="approve_join"/>
+                        <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+                        <input type="hidden" name="player_id" value="<?= (int)$r['player_id'] ?>"/>
+                        <button type="submit" class="btn btn-sm btn-primary">Approve</button>
+                    </form>
+                    <form method="POST"><?= csrfField() ?>
+                        <input type="hidden" name="action" value="reject_join"/>
+                        <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+                        <input type="hidden" name="player_id" value="<?= (int)$r['player_id'] ?>"/>
+                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                    </form>
+                    <?php elseif ($r['queue_status'] !== 'waiting'): ?>
                     <form method="POST"><?= csrfField() ?>
                         <input type="hidden" name="action" value="queue_status"/>
                         <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>

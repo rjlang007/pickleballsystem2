@@ -35,8 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $tab    = $_GET['tab'] ?? 'open';
-$status = ['open' => 'registration_open', 'live' => 'in_progress', 'done' => 'completed'][$tab] ?? 'registration_open';
-$events = $engine->listEvents(['status' => $status]);
+$status = ['live' => 'in_progress', 'done' => 'completed'][$tab] ?? null;
+$events = $status ? $engine->listEvents(['status' => $status]) : array_values(array_filter(
+  $engine->listEvents(), static fn($event) => in_array($event['status'], ['registration_open', 'in_progress'], true)
+));
 
 // Which of these has the current player already joined, and with what queue status?
 $myRows = [];
@@ -81,15 +83,15 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <div style="display:flex;gap:8px;margin:16px 0;">
-      <a class="btn <?= $tab === 'open' ? 'btn-primary' : '' ?>" href="?tab=open">Open for Signup</a>
+      <a class="btn <?= $tab === 'open' ? 'btn-primary' : '' ?>" href="?tab=open">Open Play</a>
       <a class="btn <?= $tab === 'live' ? 'btn-primary' : '' ?>" href="?tab=live">Happening Now</a>
       <a class="btn <?= $tab === 'done' ? 'btn-primary' : '' ?>" href="?tab=done">Past Results</a>
     </div>
 
     <?php if (empty($events)): ?>
       <div class="text-muted" style="padding:20px 0;">
-        <?php if ($tab === 'open'): ?>
-          No Open Play events are accepting players right now.
+          <?php if ($tab === 'open'): ?>
+          No Open Play events are available right now.
         <?php elseif ($tab === 'live'): ?>
           No Open Play event is happening right now.
         <?php else: ?>
@@ -121,9 +123,12 @@ require_once __DIR__ . '/../includes/header.php';
               <a class="btn" href="<?= APP_URL ?>/public/open_play_results.php?tournament_id=<?= (int)$e['id'] ?>">🏆 View Results</a>
 
             <?php elseif ($mine): ?>
-              <span class="badge badge-info">You're <?= clean($queueLabels[$mine['queue_status']] ?? ucfirst($mine['queue_status'])) ?> · <?= ucfirst($mine['skill_level']) ?></span>
-              <a class="btn" href="<?= APP_URL ?>/public/open_play_live.php?tournament_id=<?= (int)$e['id'] ?>">📺 Live Board</a>
-              <form method="POST" onsubmit="return confirm('Leave this event?');">
+              <span class="badge <?= $mine['queue_status'] === 'pending_approval' ? 'badge-warning' : 'badge-info' ?>">
+                <?= $mine['queue_status'] === 'pending_approval' ? 'Join request pending approval' : "You're " . clean($queueLabels[$mine['queue_status']] ?? ucfirst($mine['queue_status'])) ?> · <?= ucfirst($mine['skill_level']) ?>
+              </span>
+              <?php if ($mine['queue_status'] === 'pending_approval'): ?><span class="text-muted">Admin approval required</span><?php endif; ?>
+              <?php if ($mine['queue_status'] !== 'pending_approval'): ?><a class="btn" href="<?= APP_URL ?>/public/open_play_live.php?tournament_id=<?= (int)$e['id'] ?>">📺 Live Board</a><?php endif; ?>
+              <form method="POST" onsubmit="return confirm('Cancel this join request?');">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="leave"/>
                 <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
@@ -140,7 +145,7 @@ require_once __DIR__ . '/../includes/header.php';
                   <option value="average" selected>Average</option>
                   <option value="advance">Advanced</option>
                 </select>
-                <button type="submit" class="btn btn-primary">Join Pool</button>
+                <button type="submit" class="btn btn-primary">Request to Join</button>
               </form>
             <?php endif; ?>
           </div>

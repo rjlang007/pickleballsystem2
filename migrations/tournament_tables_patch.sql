@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS falcon.achievements (
     tournament_id    INTEGER
                          REFERENCES falcon.tournaments(id) ON DELETE SET NULL,
     achieved_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (player_id, achievement_type, tournament_id)
+    UNIQUE (player_id, achievement_type)
 );
 
 CREATE INDEX IF NOT EXISTS idx_ach_player

@@ -47,6 +47,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $staffActions = [
     'queue_status', 'draw', 'start_match', 'pause_match', 'resume_match',
     'adjust_timer', 'finish_match', 'correct_score', 'cancel_match', 'tiebreak',
+    'approve_join', 'reject_join',
     'finalize', 'create', 'update_event', 'cancel_event',
 ];
 
@@ -100,6 +101,16 @@ try {
                 $actorId
             );
             apiSuccess(null, 'Updated.');
+
+        case 'approve_join':
+            routeMethod('POST');
+            $engine->approveJoin((int)($body['tournament_id'] ?? 0), (int)($body['player_id'] ?? 0), $actorId);
+            apiSuccess(null, 'Join request approved.');
+
+        case 'reject_join':
+            routeMethod('POST');
+            $engine->rejectJoin((int)($body['tournament_id'] ?? 0), (int)($body['player_id'] ?? 0), $actorId);
+            apiSuccess(null, 'Join request rejected.');
 
         // ── Staff: matchmaking / draw ────────────────────────────
         case 'draw':

@@ -312,6 +312,25 @@ SQL
     }
 }
 
+function ensureAchievementsTable(PDO $pdo): void
+{
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS falcon.achievements (
+            id SERIAL PRIMARY KEY,
+            player_id INTEGER NOT NULL REFERENCES falcon.users(id) ON DELETE CASCADE,
+            achievement_type VARCHAR(60) NOT NULL,
+            label VARCHAR(120),
+            description TEXT,
+            tournament_id INTEGER REFERENCES falcon.tournaments(id) ON DELETE SET NULL,
+            achieved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (player_id, achievement_type)
+        )
+SQL
+    );
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_achievements_player ON falcon.achievements(player_id)");
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_achievements_player_type ON falcon.achievements(player_id, achievement_type)");
+}
+
 // ── PDO singleton ─────────────────────────────────────────────
 function getDB(): PDO {
     static $pdo = null;
@@ -349,6 +368,7 @@ function getDB(): PDO {
                 ensureAnnouncementsTable($pdo);
                 ensureUserAvatarColumns($pdo);
                 ensureTransactionCompatibilityColumns($pdo);
+                ensureAchievementsTable($pdo);
                 repairSerialSequence($pdo, 'falcon.transactions', 'id');
                 break;
             } catch (PDOException $e) {

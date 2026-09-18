@@ -118,7 +118,7 @@ class OpenPlayEngine
 
         $maxPlayers = isset($data['max_players']) ? max(4, (int)$data['max_players']) : (int)$event['max_players'];
         $stmt = $this->db->prepare(
-            "SELECT COUNT(*) FROM falcon.tournament_players WHERE tournament_id = :tid AND status != 'withdrawn'"
+            "SELECT COUNT(*) FROM falcon.tournament_players WHERE tournament_id = :tid AND status = 'active'"
         );
         $stmt->execute([':tid' => $tournamentId]);
         $activeCount = (int)$stmt->fetchColumn();
@@ -299,7 +299,7 @@ class OpenPlayEngine
         $event = $this->getEvent($tournamentId);
         if (!$event) throw new RuntimeException('Open play event not found.');
         if (!in_array($event['status'], ['registration_open', 'in_progress'], true)) {
-            throw new RuntimeException('This event is not open for signups.');
+            throw new RuntimeException('This Open Play event is no longer accepting join requests.');
         }
 
         $skillLevel = in_array($skillLevel, ['beginner', 'average', 'advance'], true) ? $skillLevel : 'average';
@@ -318,11 +318,37 @@ class OpenPlayEngine
         $this->db->prepare(
             "INSERT INTO falcon.tournament_players
                  (tournament_id, player_id, status, skill_level, queue_status, arrived_at)
-             VALUES (:tid, :pid, 'active', :skill, 'waiting', NOW())
+             VALUES (:tid, :pid, 'pending_approval', :skill, 'pending_approval', NOW())
              ON CONFLICT (tournament_id, player_id) DO UPDATE SET
-                 status = 'active', skill_level = :skill, queue_status = 'waiting',
+                 status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'active' ELSE 'pending_approval' END,
+                 skill_level = :skill,
+                 queue_status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'waiting' ELSE 'pending_approval' END,
                  arrived_at = COALESCE(falcon.tournament_players.arrived_at, NOW())"
         )->execute([':tid' => $tournamentId, ':pid' => $playerId, ':skill' => $skillLevel]);
+    }
+
+    public function approveJoin(int $tournamentId, int $playerId, int $actorId): void
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE falcon.tournament_players
+                SET status = 'active', queue_status = 'waiting', arrived_at = NOW()
+              WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending_approval'"
+        );
+        $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        if ($stmt->rowCount() !== 1) throw new RuntimeException('Join request is no longer pending.');
+        $this->logAudit($tournamentId, $actorId, 'approve_join', ['player_id' => $playerId]);
+    }
+
+    public function rejectJoin(int $tournamentId, int $playerId, int $actorId): void
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE falcon.tournament_players
+                SET status = 'withdrawn', queue_status = 'left'
+              WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending_approval'"
+        );
+        $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        if ($stmt->rowCount() !== 1) throw new RuntimeException('Join request is no longer pending.');
+        $this->logAudit($tournamentId, $actorId, 'reject_join', ['player_id' => $playerId]);
     }
 
     public function leaveEvent(int $tournamentId, int $playerId): void
@@ -386,7 +412,7 @@ class OpenPlayEngine
             "SELECT tp.*, u.display_name, u.full_name, u.username
                FROM falcon.tournament_players tp
                JOIN falcon.users u ON u.id = tp.player_id
-              WHERE tp.tournament_id = :tid AND tp.status != 'withdrawn'
+              WHERE tp.tournament_id = :tid AND tp.status = 'active'
               ORDER BY tp.queue_status, tp.arrived_at ASC"
         );
         $stmt->execute([':tid' => $tournamentId]);
