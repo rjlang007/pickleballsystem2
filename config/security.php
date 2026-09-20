@@ -48,7 +48,9 @@ if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
 $csp = implode('; ', array_filter([
     "default-src 'self'",
     "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com https://unpkg.com",
+    "style-src-attr 'unsafe-inline'",
     "script-src 'self' 'nonce-{$nonce}' https://unpkg.com https://fonts.googleapis.com",
+    "script-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: "
         . "https://res.cloudinary.com "
