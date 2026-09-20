@@ -202,7 +202,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php else: $eventSettings = json_decode($e['settings'] ?? '{}', true) ?: []; $eventPrice = (float)($eventSettings['price'] ?? 0); $joinDialogId = 'open-play-join-' . (int)$e['id']; ?>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <strong>Fee: ₱<?= number_format($eventPrice, 2) ?></strong>
-                <button type="button" class="btn btn-primary open-play-join-trigger" data-dialog-id="<?= $joinDialogId ?>" <?= $eventPrice <= 0 ? 'disabled' : '' ?>>Join Open Play</button>
+                <button type="button" class="btn btn-primary open-play-join-trigger" data-dialog-id="<?= $joinDialogId ?>">Join Open Play</button>
               </div>
               <dialog id="<?= $joinDialogId ?>" class="open-play-join-dialog">
                 <form method="POST" enctype="multipart/form-data">
@@ -211,6 +211,9 @@ require_once __DIR__ . '/../includes/header.php';
                   <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
                   <h2>Secure your slot</h2>
                   <p>Please fill up this form to secure your slot. The Open Play fee is <strong>₱<?= number_format($eventPrice, 2) ?></strong>.</p>
+                  <?php if ($eventPrice <= 0): ?>
+                    <div class="alert alert-warning">The admin has not configured the Open Play fee yet. Please try again later.</div>
+                  <?php endif; ?>
                   <label>Skill level</label>
                   <select name="skill_level" required>
                     <option value="beginner">Beginner</option>
@@ -230,7 +233,7 @@ require_once __DIR__ . '/../includes/header.php';
                   <input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
                   <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
                     <button type="button" class="btn open-play-dialog-close">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit Join Request</button>
+                    <button type="submit" class="btn btn-primary" <?= $eventPrice <= 0 ? 'disabled' : '' ?>>Submit Join Request</button>
                   </div>
                 </form>
               </dialog>
