@@ -77,6 +77,7 @@ class OpenPlayEngine
                                     ? $data['format'] : 'doubles',
             'game_duration'    => max(60, (int)($data['game_duration'] ?? 900)),
             'games_per_hour'   => max(1, (int)($data['games_per_hour'] ?? 4)),
+            'price'            => max(0, round((float)($data['price'] ?? 0), 2)),
             'registration_closed' => false,
             'point_distribution' => $this->config['point_distribution'],
         ];
@@ -130,6 +131,9 @@ class OpenPlayEngine
         $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
         if (isset($data['game_duration'])) {
             $settings['game_duration'] = max(60, (int)$data['game_duration']);
+        }
+        if (isset($data['price'])) {
+            $settings['price'] = max(0, round((float)$data['price'], 2));
         }
         if (isset($data['format']) && in_array($data['format'], ['singles', 'doubles'], true)) {
             $settings['format'] = $data['format'];
@@ -389,9 +393,37 @@ class OpenPlayEngine
     // QUEUE / ROSTER
     // ══════════════════════════════════════════════════════════
 
-    public function joinEvent(int $tournamentId, int $playerId, string $skillLevel = 'average'): void
+    public function joinEvent(int $tournamentId, int $playerId, string $skillLevel = 'average', array $payment = []): void
     {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+        $amount = round((float)($settings['price'] ?? 0), 2);
+        if ($amount <= 0) throw new RuntimeException('This Open Play event has no configured price yet.');
+        if (!in_array($payment['payment_method'] ?? '', ['gcash', 'bank_transfer', 'cash'], true)) {
+            throw new RuntimeException('Select a valid payment method.');
+        }
+        if (empty($payment['proof_path'])) throw new RuntimeException('Payment proof is required.');
+
+        $pending = $this->db->prepare(
+            "SELECT 1 FROM falcon.open_play_payment_requests
+              WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending' LIMIT 1"
+        );
+        $pending->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        if ($pending->fetchColumn()) throw new RuntimeException('Your payment request is already awaiting review.');
+
         $this->joinEventInternal($tournamentId, $playerId, $skillLevel, false);
+        $this->db->prepare(
+            "INSERT INTO falcon.open_play_payment_requests
+                (tournament_id, player_id, amount, payment_method, reference_no, proof_path)
+             VALUES (:tid, :pid, :amount, :method, :reference, :proof)"
+        )->execute([
+            ':tid' => $tournamentId, ':pid' => $playerId, ':amount' => $amount,
+            ':method' => trim((string)($payment['payment_method'] ?? '')),
+            ':reference' => trim((string)($payment['reference_no'] ?? '')) ?: null,
+            ':proof' => $payment['proof_path'],
+        ]);
+        notifyOperations($this->db, '💳 Open Play Payment Review', "A player submitted payment proof for '{$event['name']}'.");
     }
 
     /**
@@ -485,6 +517,11 @@ class OpenPlayEngine
         );
         $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
         if ($stmt->rowCount() !== 1) throw new RuntimeException('Join request is no longer pending.');
+                $this->db->prepare(
+                        "UPDATE falcon.open_play_payment_requests
+                                SET status = 'approved', reviewed_by = :actor, reviewed_at = NOW(), updated_at = NOW()
+                            WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending'"
+                )->execute([':actor' => $actorId, ':tid' => $tournamentId, ':pid' => $playerId]);
         notifyUser($this->db, $playerId, "You're approved for Open Play", 'You are now in the active queue. Watch the live board for your turn.', null, APP_URL . '/public/open_play_live.php?tournament_id=' . $tournamentId);
         $this->logAudit($tournamentId, $actorId, 'approve_join', ['player_id' => $playerId]);
     }
@@ -498,6 +535,11 @@ class OpenPlayEngine
         );
         $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
         if ($stmt->rowCount() !== 1) throw new RuntimeException('Join request is no longer pending.');
+                $this->db->prepare(
+                        "UPDATE falcon.open_play_payment_requests
+                                SET status = 'rejected', reviewed_by = :actor, reviewed_at = NOW(), updated_at = NOW()
+                            WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending'"
+                )->execute([':actor' => $actorId, ':tid' => $tournamentId, ':pid' => $playerId]);
         notifyUser($this->db, $playerId, 'Open Play join request declined', 'Your join request was declined by staff. Please contact the venue if this was unexpected.', null, APP_URL . '/public/open_play.php');
         $this->logAudit($tournamentId, $actorId, 'reject_join', ['player_id' => $playerId]);
     }
@@ -588,9 +630,15 @@ class OpenPlayEngine
     public function getRoster(int $tournamentId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT tp.*, u.display_name, u.full_name, u.username
+            "SELECT tp.*, u.display_name, u.full_name, u.username,
+                    pr.id AS payment_request_id, pr.amount AS payment_amount,
+                    pr.payment_method, pr.reference_no, pr.proof_path,
+                    pr.status AS payment_status, pr.review_note
                FROM falcon.tournament_players tp
                JOIN falcon.users u ON u.id = tp.player_id
+          LEFT JOIN falcon.open_play_payment_requests pr
+                 ON pr.tournament_id = tp.tournament_id AND pr.player_id = tp.player_id
+                AND pr.status = 'pending'
               WHERE tp.tournament_id = :tid AND tp.status IN ('active', 'pending_approval')
               ORDER BY (tp.status = 'pending_approval') DESC, tp.queue_status, tp.arrived_at ASC"
         );

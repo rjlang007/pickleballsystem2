@@ -154,6 +154,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <input type="hidden" name="action" value="create"/>
                 <input type="text" name="name" placeholder="Event name (e.g. Friday Night Open Play)" required/>
                 <textarea name="description" placeholder="Description (optional)" rows="2"></textarea>
+                <input type="number" name="price" min="0.01" step="0.01" placeholder="Open Play fee (₱)" required/>
                 <div style="display:flex;gap:8px;">
                     <select name="format" style="flex:1;">
                         <option value="doubles">Doubles (2v2)</option>
@@ -245,6 +246,9 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="text" name="name" value="<?= clean($event['name']) ?>" required/>
             <label>Description</label>
             <textarea name="description" rows="2"><?= clean($event['description'] ?? '') ?></textarea>
+            <?php $editSettings = json_decode($event['settings'] ?? '{}', true) ?: []; ?>
+            <label>Open Play fee (₱)</label>
+            <input type="number" name="price" min="0.01" step="0.01" value="<?= number_format((float)($editSettings['price'] ?? 0), 2, '.', '') ?>" required/>
             <div style="display:flex;gap:8px;">
                 <div style="flex:1;">
                     <label>Format</label>
@@ -386,6 +390,10 @@ $recentFinished = $recentFinished->fetchAll();
                 <td><?= (int)$r['wins'] ?>-<?= (int)$r['losses'] ?></td>
                 <td style="display:flex;gap:4px;">
                     <?php if ($r['status'] === 'pending_approval'): ?>
+                    <span class="text-muted" title="<?= clean(($r['payment_method'] ?? '') . ' / ' . ($r['reference_no'] ?? '')) ?>">
+                        💳 ₱<?= number_format((float)($r['payment_amount'] ?? 0), 2) ?>
+                        <?php if (!empty($r['payment_request_id'])): ?><a href="<?= APP_URL ?>/api/open_play_payment_proof.php?id=<?= (int)$r['payment_request_id'] ?>" target="_blank" rel="noopener">Proof</a><?php endif; ?>
+                    </span>
                     <form method="POST"><?= csrfField() ?>
                         <input type="hidden" name="action" value="approve_join"/>
                         <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>

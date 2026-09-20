@@ -22,8 +22,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
         if ($action === 'join') {
-            $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average');
-            setFlash('success', "🎲 You're in the pool! Watch the live board to see when you're up.");
+          if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
+            throw new RuntimeException('Upload your payment proof before requesting to join.');
+          }
+          $file = $_FILES['payment_proof'];
+          if ((int)$file['size'] > 5 * 1024 * 1024) throw new RuntimeException('Payment proof must be 5 MB or smaller.');
+          $finfo = new finfo(FILEINFO_MIME_TYPE);
+          $mime = $finfo->file($file['tmp_name']);
+          $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+          if (!isset($extensions[$mime])) throw new RuntimeException('Payment proof must be a JPG, PNG, or WebP image.');
+          $uploadDir = __DIR__ . '/../Uploads/open_play_payments';
+          if (!is_dir($uploadDir) && !mkdir($uploadDir, 0750, true)) throw new RuntimeException('Could not prepare payment upload storage.');
+          $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+          if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) throw new RuntimeException('Could not save payment proof.');
+
+          $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average', [
+            'payment_method' => $_POST['payment_method'] ?? '',
+            'reference_no' => $_POST['reference_no'] ?? '',
+            'proof_path' => 'Uploads/open_play_payments/' . $filename,
+          ]);
+          setFlash('success', '💳 Payment proof submitted. Staff will review your request before you enter the queue.');
         } elseif ($action === 'leave') {
             $engine->leaveEvent($tid, $myId);
             setFlash('success', 'You left the event.');
@@ -57,7 +75,7 @@ if ($events) {
     $in  = implode(',', array_fill(0, count($ids), '?'));
     $stmt = getDB()->prepare(
         "SELECT tournament_id, queue_status, skill_level FROM falcon.tournament_players
-          WHERE player_id = ? AND status != 'withdrawn' AND tournament_id IN ($in)"
+              WHERE player_id = ? AND status != 'withdrawn' AND tournament_id IN ($in)"
     );
     $stmt->execute([$myId, ...$ids]);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) $myRows[$r['tournament_id']] = $r;
@@ -181,17 +199,26 @@ require_once __DIR__ . '/../includes/header.php';
                 <button type="submit" class="btn btn-sm">Leave</button>
               </form>
 
-            <?php else: ?>
-              <form method="POST" style="display:flex;gap:6px;align-items:center;">
+            <?php else: $eventSettings = json_decode($e['settings'] ?? '{}', true) ?: []; $eventPrice = (float)($eventSettings['price'] ?? 0); ?>
+              <form method="POST" enctype="multipart/form-data" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="join"/>
                 <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
+                <strong>Fee: ₱<?= number_format($eventPrice, 2) ?></strong>
                 <select name="skill_level" title="Self-rate your skill so games stay balanced">
                   <option value="beginner">Beginner</option>
                   <option value="average" selected>Average</option>
                   <option value="advance">Advanced</option>
                 </select>
-                <button type="submit" class="btn btn-primary">Join Queue</button>
+                <select name="payment_method" required aria-label="Payment method">
+                  <option value="">Payment method</option>
+                  <option value="gcash">GCash</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="cash">Cash at venue</option>
+                </select>
+                <input type="text" name="reference_no" placeholder="Payment reference" maxlength="120" required/>
+                <input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
+                <button type="submit" class="btn btn-primary" <?= $eventPrice <= 0 ? 'disabled' : '' ?>>Request to Join</button>
               </form>
             <?php endif; ?>
           </div>
