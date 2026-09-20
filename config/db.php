@@ -415,14 +415,16 @@ function getDB(): PDO {
                 $pdo->exec("SET statement_timeout = '10s'");
                 $pdo->exec("SET lock_timeout = '3s'");
                 $pdo->exec("SET application_name = 'falcon_web'");
-                ensureCourtStatusView($pdo);
-                ensureLeaderboardTable($pdo);
-                ensureAnnouncementsTable($pdo);
-                ensureUserAvatarColumns($pdo);
-                ensureTransactionCompatibilityColumns($pdo);
-                ensureAchievementsTable($pdo);
-                ensureFoodOrderingSchema($pdo);
-                repairSerialSequence($pdo, 'falcon.transactions', 'id');
+                if (!defined('MIGRATION_RUNNER')) {
+                    ensureCourtStatusView($pdo);
+                    ensureLeaderboardTable($pdo);
+                    ensureAnnouncementsTable($pdo);
+                    ensureUserAvatarColumns($pdo);
+                    ensureTransactionCompatibilityColumns($pdo);
+                    ensureAchievementsTable($pdo);
+                    ensureFoodOrderingSchema($pdo);
+                    repairSerialSequence($pdo, 'falcon.transactions', 'id');
+                }
                 break;
             } catch (PDOException $e) {
                 $lastException = $e;

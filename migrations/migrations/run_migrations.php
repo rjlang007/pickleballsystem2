@@ -17,6 +17,10 @@
  * exactly the same way they do when you run them by hand.
  */
 
+// Suppress application self-healing queries while the schema is being
+// bootstrapped. Those helpers assume falcon.users and other tables already
+// exist, which is not true on a brand-new Railway Postgres database.
+define('MIGRATION_RUNNER', true);
 require_once __DIR__ . '/../../config/db.php';
 
 // Files that should NEVER be auto-run.
