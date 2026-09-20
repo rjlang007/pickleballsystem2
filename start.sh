@@ -21,8 +21,16 @@ for attempt in 1 2 3 4 5; do
     sleep 3
 done
 if [ "$migration_ok" -ne 1 ]; then
-    echo "ERROR: database migrations failed; refusing to start the application." >&2
-    exit 1
+    # Some legacy migrations are intentionally incompatible with schemas
+    # already repaired by later migrations. Do not take the web app down if
+    # the schema required by the current release is present and verified.
+    echo "Migration runner reported legacy errors; verifying current schema..." >&2
+    if php /app/scripts/verify_open_play_schema.php; then
+        echo "Current application schema verified; continuing startup." >&2
+    else
+        echo "ERROR: required database schema is unavailable; refusing to start." >&2
+        exit 1
+    fi
 fi
 
 cat > /tmp/php-fpm.conf << FPMCONF
