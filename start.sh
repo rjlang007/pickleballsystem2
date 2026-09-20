@@ -7,6 +7,24 @@ chmod -R 775 /app/uploads /app/logs /app/storage
 
 mkdir -p /tmp/php-fpm.d
 
+# Bootstrap/update the database from inside Railway, where the private
+# Postgres hostname resolves. The runner is idempotent and records each file
+# in falcon.schema_migrations, so retries and container restarts are safe.
+echo "Running database migrations..."
+migration_ok=0
+for attempt in 1 2 3 4 5; do
+    if php /app/migrations/migrations/run_migrations.php; then
+        migration_ok=1
+        break
+    fi
+    echo "Migration attempt $attempt failed; retrying..."
+    sleep 3
+done
+if [ "$migration_ok" -ne 1 ]; then
+    echo "ERROR: database migrations failed; refusing to start the application." >&2
+    exit 1
+fi
+
 cat > /tmp/php-fpm.conf << FPMCONF
 [global]
 daemonize = yes
