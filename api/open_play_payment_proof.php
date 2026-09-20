@@ -15,7 +15,7 @@ $stmt = getDB()->prepare(
 );
 $stmt->execute([$requestId]);
 $relativePath = $stmt->fetchColumn();
-$uploadRoot = realpath(__DIR__ . '/../Uploads');
+$uploadRoot = realpath(__DIR__ . '/../uploads');
 $filePath = $relativePath ? realpath(__DIR__ . '/../' . ltrim($relativePath, '/\\')) : false;
 
 if (!$uploadRoot || !$filePath || !str_starts_with($filePath, $uploadRoot . DIRECTORY_SEPARATOR) || !is_file($filePath)) {

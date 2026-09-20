@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $mime = $finfo->file($file['tmp_name']);
           $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
           if (!isset($extensions[$mime])) throw new RuntimeException('Payment proof must be a JPG, PNG, or WebP image.');
-          $uploadDir = __DIR__ . '/../Uploads/open_play_payments';
+          $uploadDir = __DIR__ . '/../uploads/open_play_payments';
           if (!is_dir($uploadDir) && !mkdir($uploadDir, 0750, true)) throw new RuntimeException('Could not prepare payment upload storage.');
           $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
           if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) throw new RuntimeException('Could not save payment proof.');
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average', [
             'payment_method' => $_POST['payment_method'] ?? '',
             'reference_no' => $_POST['reference_no'] ?? '',
-            'proof_path' => 'Uploads/open_play_payments/' . $filename,
+            'proof_path' => 'uploads/open_play_payments/' . $filename,
           ]);
           setFlash('success', '💳 Payment proof submitted. Staff will review your request before you enter the queue.');
         } elseif ($action === 'leave') {
@@ -199,27 +199,41 @@ require_once __DIR__ . '/../includes/header.php';
                 <button type="submit" class="btn btn-sm">Leave</button>
               </form>
 
-            <?php else: $eventSettings = json_decode($e['settings'] ?? '{}', true) ?: []; $eventPrice = (float)($eventSettings['price'] ?? 0); ?>
-              <form method="POST" enctype="multipart/form-data" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                <?= csrfField() ?>
-                <input type="hidden" name="action" value="join"/>
-                <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
+            <?php else: $eventSettings = json_decode($e['settings'] ?? '{}', true) ?: []; $eventPrice = (float)($eventSettings['price'] ?? 0); $joinDialogId = 'open-play-join-' . (int)$e['id']; ?>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <strong>Fee: ₱<?= number_format($eventPrice, 2) ?></strong>
-                <select name="skill_level" title="Self-rate your skill so games stay balanced">
-                  <option value="beginner">Beginner</option>
-                  <option value="average" selected>Average</option>
-                  <option value="advance">Advanced</option>
-                </select>
-                <select name="payment_method" required aria-label="Payment method">
-                  <option value="">Payment method</option>
-                  <option value="gcash">GCash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="cash">Cash at venue</option>
-                </select>
-                <input type="text" name="reference_no" placeholder="Payment reference" maxlength="120" required/>
-                <input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
-                <button type="submit" class="btn btn-primary" <?= $eventPrice <= 0 ? 'disabled' : '' ?>>Request to Join</button>
-              </form>
+                <button type="button" class="btn btn-primary open-play-join-trigger" data-dialog-id="<?= $joinDialogId ?>" <?= $eventPrice <= 0 ? 'disabled' : '' ?>>Join Open Play</button>
+              </div>
+              <dialog id="<?= $joinDialogId ?>" class="open-play-join-dialog">
+                <form method="POST" enctype="multipart/form-data">
+                  <?= csrfField() ?>
+                  <input type="hidden" name="action" value="join"/>
+                  <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
+                  <h2>Secure your slot</h2>
+                  <p>Please fill up this form to secure your slot. The Open Play fee is <strong>₱<?= number_format($eventPrice, 2) ?></strong>.</p>
+                  <label>Skill level</label>
+                  <select name="skill_level" required>
+                    <option value="beginner">Beginner</option>
+                    <option value="average" selected>Average</option>
+                    <option value="advance">Advanced</option>
+                  </select>
+                  <label>Payment method</label>
+                  <select name="payment_method" required>
+                    <option value="">Select payment method</option>
+                    <option value="gcash">GCash</option>
+                    <option value="bank_transfer">Bank transfer</option>
+                    <option value="cash">Cash at venue</option>
+                  </select>
+                  <label>Payment reference</label>
+                  <input type="text" name="reference_no" maxlength="120" required/>
+                  <label>Upload proof of payment</label>
+                  <input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
+                  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+                    <button type="button" class="btn open-play-dialog-close">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Join Request</button>
+                  </div>
+                </form>
+              </dialog>
             <?php endif; ?>
           </div>
         </div>
@@ -270,5 +284,29 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endforeach; ?>
   </div>
 </div>
+
+  <style nonce="<?= getCspNonce() ?>">
+  .open-play-join-dialog { border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); padding:0; width:min(92vw,480px); }
+  .open-play-join-dialog::backdrop { background:rgba(5,10,15,.72); }
+  .open-play-join-dialog form { display:flex; flex-direction:column; gap:8px; padding:22px; }
+  .open-play-join-dialog h2 { margin:0; }
+  .open-play-join-dialog p { color:var(--muted); margin:0 0 8px; }
+  .open-play-join-dialog label { color:var(--muted); font-size:12px; font-weight:700; }
+  .open-play-join-dialog input, .open-play-join-dialog select { width:100%; }
+  </style>
+  <script nonce="<?= csrfNonce() ?>">
+  document.querySelectorAll('.open-play-join-trigger').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const dialog = document.getElementById(button.dataset.dialogId);
+      if (dialog) dialog.showModal();
+    });
+  });
+  document.querySelectorAll('.open-play-dialog-close').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const dialog = button.closest('dialog');
+      if (dialog) dialog.close();
+    });
+  });
+  </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
