@@ -21,14 +21,8 @@ pm.max_children = 5
 pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 3
+clear_env = no
 FPMCONF
-
-# PHP-FPM rejects empty env directives. Only forward variables that are set.
-for fpm_var in PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD DATABASE_URL APP_ENV APP_URL APP_NAME; do
-    if [ -n "${!fpm_var:-}" ]; then
-        printf 'env[%s] = %s\n' "$fpm_var" "${!fpm_var}" >> /tmp/php-fpm.conf
-    fi
-done
 
 # ── Find php-fpm binary ──────────────────────────────────────
 PHP_FPM_BIN=""
