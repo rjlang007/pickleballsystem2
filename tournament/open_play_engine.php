@@ -252,12 +252,46 @@ class OpenPlayEngine
                 "UPDATE falcon.tournaments SET status = 'cancelled' WHERE id = :id"
             )->execute([':id' => $tournamentId]);
 
-            $this->logAudit($tournamentId, $actorId, 'cancel_event', []);
+            $eventDate = date('Y-m-d', strtotime((string)($event['start_date'] ?? 'now')));
+            $this->db->prepare(
+                "INSERT INTO falcon.site_content (section, key, value, updated_at)
+                 VALUES ('open_play_schedule', 'closed_for_date', :v, NOW())
+                 ON CONFLICT (section, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()"
+            )->execute([':v' => $eventDate]);
+
+            $playerStmt = $this->db->prepare(
+                "SELECT player_id FROM falcon.tournament_players WHERE tournament_id = :tid AND status != 'withdrawn'"
+            );
+            $playerStmt->execute([':tid' => $tournamentId]);
+            foreach ($playerStmt->fetchAll(PDO::FETCH_COLUMN) as $playerId) {
+                notifyUser(
+                    $this->db,
+                    (int)$playerId,
+                    '🎲 Open Play cancelled',
+                    'Tonight’s Open Play session was cancelled. The queue has been closed for this date and the schedule will stay off until an admin re-enables it.',
+                    null,
+                    APP_URL . '/public/open_play.php'
+                );
+            }
+
+            $this->logAudit($tournamentId, $actorId, 'cancel_event', ['closed_for_date' => $eventDate]);
             $this->db->commit();
         } catch (Throwable $e) {
             $this->db->rollBack();
             throw $e;
         }
+    }
+
+    public function closeTonight(int $tournamentId, int $actorId): void
+    {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        $this->cancelEvent($tournamentId, $actorId);
+        $this->db->prepare(
+            "INSERT INTO falcon.site_content (section, key, value, updated_at)
+             VALUES ('open_play_schedule', 'closed_for_date', :value, NOW())
+             ON CONFLICT (section, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()"
+        )->execute([':value' => date('Y-m-d', strtotime((string)($event['start_date'] ?? 'now')))]);
     }
 
     public function getEvent(int $id): ?array
@@ -357,6 +391,24 @@ class OpenPlayEngine
 
     public function joinEvent(int $tournamentId, int $playerId, string $skillLevel = 'average'): void
     {
+        $this->joinEventInternal($tournamentId, $playerId, $skillLevel, false);
+    }
+
+    /**
+     * Staff adding a player directly at the venue (the "Add Player" box
+     * on the control console) already amounts to staff vetting them in
+     * person — routing that through the same pending_approval step as a
+     * remote self-join would just make staff approve their own action a
+     * second time. This skips straight to 'active'/'waiting'.
+     */
+    public function addPlayerByStaff(int $tournamentId, int $playerId, string $skillLevel, int $actorId): void
+    {
+        $this->joinEventInternal($tournamentId, $playerId, $skillLevel, true);
+        $this->logAudit($tournamentId, $actorId, 'add_player', ['player_id' => $playerId]);
+    }
+
+    private function joinEventInternal(int $tournamentId, int $playerId, string $skillLevel, bool $preApproved): void
+    {
         $event = $this->getEvent($tournamentId);
         if (!$event) throw new RuntimeException('Open play event not found.');
         if (!in_array($event['status'], ['registration_open', 'in_progress', 'paused'], true)) {
@@ -376,22 +428,53 @@ class OpenPlayEngine
             throw new RuntimeException('This event is full.');
         }
 
+        $status      = $preApproved ? 'active' : 'pending_approval';
+        $queueStatus = $preApproved ? 'waiting' : 'pending_approval';
+        $pre         = $preApproved ? 1 : 0;
+
+        // arrival_at/queued_at/arrived_at are left NULL for a fresh
+        // pending_approval request — every self-join here requires staff
+        // approval, so we don't want the queue-fairness clock (pace =
+        // games_played / hours-since-arrival, see drawRound()) to start
+        // ticking the moment someone taps "Join" from their phone, maybe
+        // hours before they actually show up. approveJoin() below stamps
+        // these at the moment staff actually admits them, which is the
+        // closest proxy we have for "physically here and waiting." A
+        // staff-added (pre-approved) player is, by definition, physically
+        // here right now, so their clock starts immediately.
         $this->db->prepare(
             "INSERT INTO falcon.tournament_players
                  (tournament_id, player_id, status, skill_level, queue_status, arrival_at, queued_at, arrived_at)
-             VALUES (:tid, :pid, 'pending_approval', :skill, 'pending_approval', NOW(), NOW(), NOW())
+             VALUES (:tid, :pid, :status, :skill, :qstatus,
+                     CASE WHEN :pre1 = 1 THEN NOW() ELSE NULL END,
+                     CASE WHEN :pre2 = 1 THEN NOW() ELSE NULL END,
+                     CASE WHEN :pre3 = 1 THEN NOW() ELSE NULL END)
              ON CONFLICT (tournament_id, player_id) DO UPDATE SET
-                 status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'active' ELSE 'pending_approval' END,
-                 skill_level = :skill,
-                 queue_status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'waiting' ELSE 'pending_approval' END,
-                 arrival_at = COALESCE(falcon.tournament_players.arrival_at, falcon.tournament_players.arrived_at, NOW()),
-                 queued_at = COALESCE(falcon.tournament_players.queued_at, NOW()),
-                 arrived_at = COALESCE(falcon.tournament_players.arrived_at, NOW())"
-        )->execute([':tid' => $tournamentId, ':pid' => $playerId, ':skill' => $skillLevel]);
+                 status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'active' ELSE :status2 END,
+                 skill_level = :skill2,
+                 queue_status = CASE WHEN falcon.tournament_players.status = 'active' THEN 'waiting' ELSE :qstatus2 END,
+                 arrival_at = CASE
+                     WHEN falcon.tournament_players.status = 'active' THEN falcon.tournament_players.arrival_at
+                     WHEN :pre4 = 1 THEN NOW() ELSE NULL END,
+                 queued_at = CASE
+                     WHEN falcon.tournament_players.status = 'active' THEN falcon.tournament_players.queued_at
+                     WHEN :pre5 = 1 THEN NOW() ELSE NULL END,
+                 arrived_at = CASE
+                     WHEN falcon.tournament_players.status = 'active' THEN falcon.tournament_players.arrived_at
+                     WHEN :pre6 = 1 THEN NOW() ELSE NULL END"
+        )->execute([
+            ':tid' => $tournamentId, ':pid' => $playerId,
+            ':status' => $status, ':qstatus' => $queueStatus, ':skill' => $skillLevel,
+            ':status2' => $status, ':qstatus2' => $queueStatus, ':skill2' => $skillLevel,
+            ':pre1' => $pre, ':pre2' => $pre, ':pre3' => $pre, ':pre4' => $pre, ':pre5' => $pre, ':pre6' => $pre,
+        ]);
     }
 
     public function approveJoin(int $tournamentId, int $playerId, int $actorId): void
     {
+        // arrival_at/arrived_at are still NULL from joinEvent() at this
+        // point (see comment there), so these COALESCEs correctly stamp
+        // "now" as the moment this player actually enters the queue.
         $stmt = $this->db->prepare(
             "UPDATE falcon.tournament_players
                 SET status = 'active', queue_status = 'waiting',
@@ -402,6 +485,7 @@ class OpenPlayEngine
         );
         $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
         if ($stmt->rowCount() !== 1) throw new RuntimeException('Join request is no longer pending.');
+        notifyUser($this->db, $playerId, "You're approved for Open Play", 'You are now in the active queue. Watch the live board for your turn.', null, APP_URL . '/public/open_play_live.php?tournament_id=' . $tournamentId);
         $this->logAudit($tournamentId, $actorId, 'approve_join', ['player_id' => $playerId]);
     }
 
@@ -414,6 +498,7 @@ class OpenPlayEngine
         );
         $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
         if ($stmt->rowCount() !== 1) throw new RuntimeException('Join request is no longer pending.');
+        notifyUser($this->db, $playerId, 'Open Play join request declined', 'Your join request was declined by staff. Please contact the venue if this was unexpected.', null, APP_URL . '/public/open_play.php');
         $this->logAudit($tournamentId, $actorId, 'reject_join', ['player_id' => $playerId]);
     }
 
@@ -506,8 +591,8 @@ class OpenPlayEngine
             "SELECT tp.*, u.display_name, u.full_name, u.username
                FROM falcon.tournament_players tp
                JOIN falcon.users u ON u.id = tp.player_id
-              WHERE tp.tournament_id = :tid AND tp.status = 'active'
-              ORDER BY tp.queue_status, tp.arrived_at ASC"
+              WHERE tp.tournament_id = :tid AND tp.status IN ('active', 'pending_approval')
+              ORDER BY (tp.status = 'pending_approval') DESC, tp.queue_status, tp.arrived_at ASC"
         );
         $stmt->execute([':tid' => $tournamentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -592,6 +677,7 @@ class OpenPlayEngine
      */
     public function drawRound(int $tournamentId, int $actorId, ?int $maxGames = null): array
     {
+        $this->sweepNoShows($tournamentId, $actorId);
         // Serialize draws for this event so a double-click (or two staff
         // acting at once) can't compute "free courts" from the same stale
         // snapshot twice and double-book a court or a player. The lock is
@@ -778,7 +864,7 @@ class OpenPlayEngine
         if ($cand['repeat']    !== $best['repeat'])    return $cand['repeat']    < $best['repeat'];
         if (($cand['lineupRepeat'] ?? 0) !== ($best['lineupRepeat'] ?? 0)) return ($cand['lineupRepeat'] ?? 0) < ($best['lineupRepeat'] ?? 0);
         if ($cand['diff']      !== $best['diff'])      return $cand['diff']      < $best['diff'];
-        if ($cand['waitTime']  !== $best['waitTime'])  return $cand['waitTime']  > $best['waitTime'];
+        if ($cand['waitTime']  !== $best['waitTime'])  return $cand['waitTime']  < $best['waitTime'];
         if (($cand['arrivalAge'] ?? 0) !== ($best['arrivalAge'] ?? 0)) return ($cand['arrivalAge'] ?? 0) < ($best['arrivalAge'] ?? 0);
         return $cand['rand'] < $best['rand'];
     }
@@ -837,6 +923,10 @@ class OpenPlayEngine
      * reasons your booking system already knows about:
      *   - under maintenance
      *   - covered by a pending/confirmed reservation right now
+     *   - occupied by the separate walk-in/credits queue system
+     *     (falcon.game_sessions, driven by the QR kiosk) — it shares the
+     *     same "open_play" court_slot_modes designation as this module, so
+     *     it's checked explicitly rather than assumed away
      *   - explicitly set to "reservation" mode for this exact moment via
      *     Court Mode (falcon.court_slot_modes) — a court with no rule
      *     configured is treated as available, since staff running an
@@ -860,6 +950,16 @@ class OpenPlayEngine
                        AND r.status IN ('pending','confirmed')
                        AND r.slot_date = CURRENT_DATE
                        AND CURRENT_TIME BETWEEN r.slot_time AND r.slot_end
+                )
+                AND NOT EXISTS (
+                    -- Courts already occupied by the separate walk-in/credits
+                    -- queue system (falcon.game_sessions, driven by the QR
+                    -- kiosk under court/*.php). That system shares the same
+                    -- open_play court_slot_modes designation as this one,
+                    -- so without this check a court someone just scanned
+                    -- into could get double-booked into a drawn match here.
+                    SELECT 1 FROM falcon.game_sessions gs
+                     WHERE gs.court_id = c.id AND gs.status = 'active'
                 )
               ORDER BY c.id"
         );
@@ -949,6 +1049,74 @@ class OpenPlayEngine
             ':dur' => $duration, ':actor' => $actorId,
         ]);
         return (int)$stmt->fetchColumn();
+    }
+
+    /** Mark a player present for a drawn match before the no-show deadline. */
+    public function confirmMatch(int $matchId, int $playerId): void
+    {
+        $stmt = $this->db->prepare(
+            "SELECT m.*, t.status AS event_status
+               FROM falcon.open_play_matches m
+               JOIN falcon.tournaments t ON t.id = m.tournament_id
+              WHERE m.id = :mid AND m.status = 'ready'"
+        );
+        $stmt->execute([':mid' => $matchId]);
+        $match = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$match) throw new RuntimeException('This match is no longer awaiting check-in.');
+
+        $players = array_map('intval', array_filter([
+            $match['team1_player1_id'], $match['team1_player2_id'],
+            $match['team2_player1_id'], $match['team2_player2_id'],
+        ]));
+        if (!in_array($playerId, $players, true)) {
+            throw new RuntimeException('You are not assigned to this match.');
+        }
+
+        $this->db->prepare(
+            "INSERT INTO falcon.open_play_match_checkins (match_id, player_id)
+             VALUES (:mid, :pid) ON CONFLICT (match_id, player_id)
+             DO UPDATE SET confirmed_at = NOW()"
+        )->execute([':mid' => $matchId, ':pid' => $playerId]);
+    }
+
+    /** Cancel expired ready matches and return present players to the queue. */
+    public function sweepNoShows(int $tournamentId, int $actorId): int
+    {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        $settings = json_decode((string)($event['settings'] ?? '{}'), true) ?: [];
+        $timeout = max(1, min(60, (int)($settings['no_show_minutes'] ?? 10)));
+        $stmt = $this->db->prepare(
+            "SELECT id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id
+               FROM falcon.open_play_matches
+              WHERE tournament_id = :tid AND status = 'ready'
+                AND created_at <= NOW() - (:minutes * INTERVAL '1 minute')"
+        );
+        $stmt->execute([':tid' => $tournamentId, ':minutes' => $timeout]);
+        $expired = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($expired as $match) {
+            $this->db->beginTransaction();
+            try {
+                $this->db->prepare("UPDATE falcon.open_play_matches SET status = 'cancelled', no_show_at = NOW() WHERE id = :id AND status = 'ready'")
+                    ->execute([':id' => $match['id']]);
+                $check = $this->db->prepare("SELECT player_id FROM falcon.open_play_match_checkins WHERE match_id = :mid");
+                $check->execute([':mid' => $match['id']]);
+                $present = array_map('intval', $check->fetchAll(PDO::FETCH_COLUMN));
+                $all = array_map('intval', array_filter([$match['team1_player1_id'], $match['team1_player2_id'], $match['team2_player1_id'], $match['team2_player2_id']]));
+                foreach ($all as $playerId) {
+                    $status = in_array($playerId, $present, true) ? 'waiting' : 'resting';
+                    $this->db->prepare("UPDATE falcon.tournament_players SET queue_status = :status, queued_at = CASE WHEN :status = 'waiting' THEN NOW() ELSE queued_at END WHERE tournament_id = :tid AND player_id = :pid")
+                        ->execute([':status' => $status, ':tid' => $tournamentId, ':pid' => $playerId]);
+                    notifyUser($this->db, $playerId, 'Open Play check-in closed', in_array($playerId, $present, true) ? 'The match was cancelled because another player did not check in. You are back in the queue.' : 'The match was cancelled because you did not check in before the deadline. Ask staff to return you to the queue.', null, APP_URL . '/public/open_play.php');
+                }
+                $this->logAudit($tournamentId, $actorId, 'no_show_match', ['match_id' => (int)$match['id'], 'present' => $present]);
+                $this->db->commit();
+            } catch (Throwable $e) {
+                if ($this->db->inTransaction()) $this->db->rollBack();
+                throw $e;
+            }
+        }
+        return count($expired);
     }
 
     public function getMatch(int $matchId): ?array
@@ -1088,7 +1256,16 @@ class OpenPlayEngine
             throw $e;
         }
 
-        $this->assignFreeCourts((int)$m['tournament_id'], $actorId);
+        // The score is already committed at this point. Auto-filling freed
+        // courts / drawing the next round is a best-effort follow-up — e.g.
+        // if the event got paused mid-match, drawRound() will refuse to
+        // draw, but that shouldn't make this call look like it failed when
+        // the score was in fact saved successfully.
+        try {
+            $this->assignFreeCourts((int)$m['tournament_id'], $actorId);
+        } catch (Throwable $e) {
+            error_log('[OpenPlayEngine] assignFreeCourts after finishMatch failed: ' . $e->getMessage());
+        }
         return $this->getMatch($matchId);
     }
 
@@ -1231,7 +1408,13 @@ class OpenPlayEngine
             throw $e;
         }
 
-        $this->assignFreeCourts((int)$m['tournament_id'], $actorId);
+        // Same best-effort follow-up rationale as finishMatch() above — the
+        // cancellation itself already committed successfully.
+        try {
+            $this->assignFreeCourts((int)$m['tournament_id'], $actorId);
+        } catch (Throwable $e) {
+            error_log('[OpenPlayEngine] assignFreeCourts after cancelMatch failed: ' . $e->getMessage());
+        }
     }
 
     private function setPlayersQueueStatus(array $match, string $status): void
@@ -1485,7 +1668,7 @@ class OpenPlayEngine
                 -$b['losses'],
                 $a['point_diff'],
                 $a['points_scored'],
-                $b['games_played'],
+                $a['games_played'],
             ];
         });
 

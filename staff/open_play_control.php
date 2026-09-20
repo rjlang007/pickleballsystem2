@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'add_player':
-                $engine->joinEvent($tid, (int)$_POST['player_id'], $_POST['skill_level'] ?? 'average');
+                $engine->addPlayerByStaff($tid, (int)$_POST['player_id'], $_POST['skill_level'] ?? 'average', (int)$user['id']);
                 setFlash('success', 'Player added to the pool.');
                 break;
 
@@ -68,6 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'cancel_event':
                 $engine->cancelEvent($tid, (int)$user['id']);
                 setFlash('success', 'Event cancelled.');
+                redirect('staff/open_play_control.php');
+                break;
+
+            case 'close_tonight':
+                $engine->closeTonight($tid, (int)$user['id']);
+                setFlash('success', 'Tonight was closed and the schedule has been disabled for this date onward.');
                 redirect('staff/open_play_control.php');
                 break;
 
@@ -210,6 +216,12 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="hidden" name="action" value="cancel_event"/>
             <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
             <button type="submit" class="btn">🗑️ Cancel Event</button>
+        </form>
+        <form method="POST" onsubmit="return confirm('Close tonight and disable the nightly schedule from this date onward?');">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="close_tonight"/>
+            <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+            <button type="submit" class="btn btn-warning">🚫 Close Tonight</button>
         </form>
         <form method="POST" onsubmit="return confirm('Finalize this event? This locks in placements and updates the season leaderboard.');">
             <?= csrfField() ?>

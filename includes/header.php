@@ -905,6 +905,7 @@ if (isset($user) && $user) {
                     <div class="section-label">Tournaments</div>
                     <a href="<?= APP_URL ?>/admin/tournament_admin.php">🏆 Create / Manage Tournaments</a>
                     <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Control</a>
+                    <a href="<?= APP_URL ?>/admin/open_play_settings.php">⚙️ Open Play Settings</a>
                     <a href="<?= APP_URL ?>/admin/tournament_bracket_editor.php">🗂️ Bracket Editor</a>
                     <a href="<?= APP_URL ?>/admin/tournament_scoring.php">🎯 Live Scoring</a>
                     <a href="<?= APP_URL ?>/admin/tournament_reports.php">📈 Tournament Reports</a>
@@ -919,6 +920,7 @@ if (isset($user) && $user) {
                     <a href="<?= APP_URL ?>/admin/announcements.php">📢 Announcements</a>
                     <a href="<?= APP_URL ?>/admin/content_manager.php">✏️ Content Manager</a>
                     <a href="<?= APP_URL ?>/admin/activity_manager.php">🎯 Activity Center</a>
+                    <a href="<?= APP_URL ?>/admin/audit_log.php">🔎 Audit Log</a>
                 </div>
             </div>
             <div class="nav-group" id="ng-sa-acct">
@@ -991,6 +993,7 @@ if (isset($user) && $user) {
                 <div class="nav-dropdown">
                     <a href="<?= APP_URL ?>/admin/tournament_admin.php">🏆 Create / Manage Tournaments</a>
                     <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Control</a>
+                    <a href="<?= APP_URL ?>/admin/open_play_settings.php">⚙️ Open Play Settings</a>
                     <a href="<?= APP_URL ?>/admin/tournament_bracket_editor.php">🗂️ Bracket Editor</a>
                     <a href="<?= APP_URL ?>/admin/tournament_scoring.php">🎯 Live Scoring</a>
                     <a href="<?= APP_URL ?>/admin/tournament_reports.php">📈 Tournament Reports</a>
@@ -1007,7 +1010,9 @@ if (isset($user) && $user) {
                     <a href="<?= APP_URL ?>/admin/announcements.php">📢 Announcements</a>
                     <a href="<?= APP_URL ?>/admin/content_manager.php">✏️ Content Manager</a>
                     <a href="<?= APP_URL ?>/admin/activity_manager.php">🎯 Activity Center</a>
+                    <a href="<?= APP_URL ?>/admin/audit_log.php">🔎 Audit Log</a>
                     <a href="<?= APP_URL ?>/admin/court_mode.php">🏓 Court Mode</a>
+                    <a href="<?= APP_URL ?>/admin/two_factor.php">🔐 Two-factor Authentication</a>
                     <div class="sep"></div>
                     <a href="<?= APP_URL ?>/public/tournaments.php">🏆 Tournaments</a>
                     <a href="<?= APP_URL ?>/public/open_play.php">🎲 Open Play</a>
@@ -1237,6 +1242,7 @@ if (isset($user) && $user) {
         <div class="mob-section-label">Tournaments &amp; Leaderboard</div>
         <a href="<?= APP_URL ?>/admin/tournament_admin.php">🏆 Create / Manage Tournaments</a>
                     <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Control</a>
+                    <a href="<?= APP_URL ?>/admin/open_play_settings.php">⚙️ Open Play Settings</a>
         <a href="<?= APP_URL ?>/admin/tournament_bracket_editor.php">🗂️ Bracket Editor</a>
         <a href="<?= APP_URL ?>/admin/tournament_scoring.php">🎯 Live Scoring</a>
         <a href="<?= APP_URL ?>/admin/tournament_reports.php">📈 Tournament Reports</a>
@@ -1299,6 +1305,7 @@ if (isset($user) && $user) {
             <div class="nav-dropdown">
                 <a href="<?= APP_URL ?>/admin/tournament_admin.php">🏆 Create / Manage Tournaments</a>
                     <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Control</a>
+                    <a href="<?= APP_URL ?>/admin/open_play_settings.php">⚙️ Open Play Settings</a>
                 <a href="<?= APP_URL ?>/admin/tournament_bracket_editor.php">🗂️ Bracket Editor</a>
                 <a href="<?= APP_URL ?>/admin/tournament_scoring.php">🎯 Live Scoring</a>
                 <a href="<?= APP_URL ?>/admin/tournament_reports.php">📈 Tournament Reports</a>

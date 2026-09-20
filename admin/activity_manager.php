@@ -129,8 +129,12 @@ $page   = max(1, (int)($_GET['p'] ?? 1));
 $limit  = 20;
 $offset = ($page - 1) * $limit;
 $statusFilter = $_GET['status'] ?? '';
-$whereClause  = $statusFilter ? "WHERE ab.status = '$statusFilter'" : '';
-$totalBookings = $db->query("SELECT COUNT(*) FROM falcon.activity_bookings ab $whereClause")->fetchColumn();
+$countStmt = $db->prepare(
+    "SELECT COUNT(*) FROM falcon.activity_bookings ab"
+    . ($statusFilter ? " WHERE ab.status = ?" : "")
+);
+$statusFilter ? $countStmt->execute([$statusFilter]) : $countStmt->execute();
+$totalBookings = $countStmt->fetchColumn();
 
 $bookingsStmt = $db->prepare("
     SELECT ab.*, u.full_name, u.username, at2.name AS act_name, at2.icon AS act_icon

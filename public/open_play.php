@@ -63,6 +63,26 @@ if ($events) {
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) $myRows[$r['tournament_id']] = $r;
 }
 
+// Full roster per event (approved / waitlisted / remaining slots) — visible
+// to every player, not just the ones who joined. Only needed for events
+// that are actually taking sign-ups or running right now.
+$rosters = [];
+foreach ($events as $e) {
+    if ($tab === 'done') continue;
+    $roster    = $engine->getRoster((int)$e['id']);
+    $approved  = array_values(array_filter($roster, static fn($p) => $p['status'] === 'active'));
+    $waitlist  = array_values(array_filter($roster, static fn($p) => $p['status'] === 'pending_approval'));
+    $rosters[$e['id']] = [
+        'approved'  => $approved,
+        'waitlist'  => $waitlist,
+        'remaining' => max(0, (int)$e['max_players'] - count($roster)),
+    ];
+}
+
+function openPlayPlayerName(array $p): string {
+    return $p['display_name'] ?: $p['full_name'] ?: $p['username'];
+}
+
 $pageTitle = 'Open Play';
 $history   = $engine->getPlayerHistory($myId);
 $queueLabels = ['waiting' => 'Waiting', 'playing' => 'Playing', 'resting' => 'Resting', 'queued' => 'Up Next', 'left' => 'Left'];
@@ -129,7 +149,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
 
           <div style="display:flex;gap:8px;align-items:center;">
-            <?php if ($status === 'done'): ?>
+            <?php if ($tab === 'done'): ?>
               <a class="btn" href="<?= APP_URL ?>/public/open_play_results.php?tournament_id=<?= (int)$e['id'] ?>">🏆 View Results</a>
 
             <?php elseif ($mine): ?>
@@ -176,6 +196,49 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
           </div>
         </div>
+
+        <?php if ($tab !== 'done' && isset($rosters[$e['id']])): $r = $rosters[$e['id']]; ?>
+          <hr class="divider" style="margin:14px 0;"/>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+            <span class="badge badge-info"><?= count($r['approved']) ?> / <?= (int)$e['max_players'] ?> approved</span>
+            <?php if (count($r['waitlist']) > 0): ?>
+              <span class="badge badge-warning"><?= count($r['waitlist']) ?> waitlisted</span>
+            <?php endif; ?>
+            <span class="badge"><?= (int)$r['remaining'] ?> slot<?= $r['remaining'] === 1 ? '' : 's' ?> left</span>
+          </div>
+
+          <details>
+            <summary style="cursor:pointer;color:var(--accent);font-size:13px;">See who's playing</summary>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;">
+              <div style="flex:1;min-width:200px;">
+                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">✅ Approved (<?= count($r['approved']) ?>)</div>
+                <?php if (empty($r['approved'])): ?>
+                  <div class="text-muted" style="font-size:13px;">No one has joined yet.</div>
+                <?php else: ?>
+                  <ol style="margin:0;padding-left:18px;font-size:14px;">
+                    <?php foreach ($r['approved'] as $p): ?>
+                      <li><?= clean(openPlayPlayerName($p)) ?>
+                        <span class="text-muted" style="font-size:12px;">· <?= clean($queueLabels[$p['queue_status']] ?? ucfirst($p['queue_status'])) ?></span>
+                      </li>
+                    <?php endforeach; ?>
+                  </ol>
+                <?php endif; ?>
+              </div>
+              <div style="flex:1;min-width:200px;">
+                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">⏳ Waitlisted (<?= count($r['waitlist']) ?>)</div>
+                <?php if (empty($r['waitlist'])): ?>
+                  <div class="text-muted" style="font-size:13px;">No one is waiting on approval.</div>
+                <?php else: ?>
+                  <ol style="margin:0;padding-left:18px;font-size:14px;">
+                    <?php foreach ($r['waitlist'] as $p): ?>
+                      <li><?= clean(openPlayPlayerName($p)) ?></li>
+                    <?php endforeach; ?>
+                  </ol>
+                <?php endif; ?>
+              </div>
+            </div>
+          </details>
+        <?php endif; ?>
       </div>
     <?php endforeach; ?>
   </div>

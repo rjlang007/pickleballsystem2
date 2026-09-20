@@ -82,6 +82,21 @@ function checkSessionTimeout(): void {
         _forceLogout('⚠️ Session invalid. Please log in again.');
     }
 
+    // Enforce admin TOTP even when an account session was established by a
+    // non-password path such as email verification or impersonation.
+    if (in_array($_SESSION['role'] ?? '', ADMIN_ROLES, true)
+        && empty($_SESSION['two_factor_verified_at'])) {
+        try {
+            $stmt = getDB()->prepare('SELECT totp_enabled FROM falcon.users WHERE id = ?');
+            $stmt->execute([(int)$_SESSION['user_id']]);
+            if ($stmt->fetchColumn()) {
+                redirect('auth/two_factor.php');
+            }
+        } catch (Throwable $e) {
+            error_log('[SEC] TOTP enforcement lookup failed: ' . $e->getMessage());
+        }
+    }
+
     $now  = time();
     $last = $_SESSION['_last_activity'] ?? null;
 

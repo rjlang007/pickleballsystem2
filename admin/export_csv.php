@@ -127,19 +127,36 @@ if (isset($_GET['export'])) {
 $dateFrom = $_GET['date_from'] ?? date('Y-m-01');
 $dateTo   = $_GET['date_to']   ?? date('Y-m-d');
 
+// Defense in depth: even though these are bound below, reject anything
+// that isn't a plain YYYY-MM-DD so a malformed value fails fast and
+// obviously rather than silently reaching the database as a string.
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) $dateFrom = date('Y-m-01');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo))   $dateTo   = date('Y-m-d');
+
 try {
+    $sessionsCountStmt = $db->prepare("SELECT COUNT(*) FROM falcon.game_sessions WHERE DATE(started_at) BETWEEN ? AND ?");
+    $sessionsCountStmt->execute([$dateFrom, $dateTo]);
+
+    $topupsCountStmt = $db->prepare("SELECT COUNT(*) FROM falcon.topup_requests WHERE DATE(created_at) BETWEEN ? AND ?");
+    $topupsCountStmt->execute([$dateFrom, $dateTo]);
+
+    $foodCountStmt = $db->prepare("SELECT COUNT(*) FROM falcon.food_orders WHERE DATE(created_at) BETWEEN ? AND ?");
+    $foodCountStmt->execute([$dateFrom, $dateTo]);
+
     $counts = [
-        'sessions' => $db->prepare("SELECT COUNT(*) FROM falcon.game_sessions WHERE DATE(started_at) BETWEEN ? AND ?")->execute([$dateFrom,$dateTo]) ? $db->query("SELECT COUNT(*) FROM falcon.game_sessions WHERE DATE(started_at) BETWEEN '$dateFrom' AND '$dateTo'")->fetchColumn() : 0,
-        'topups'   => $db->query("SELECT COUNT(*) FROM falcon.topup_requests WHERE DATE(created_at) BETWEEN '$dateFrom' AND '$dateTo'")->fetchColumn(),
+        'sessions' => $sessionsCountStmt->fetchColumn(),
+        'topups'   => $topupsCountStmt->fetchColumn(),
         'players'  => $db->query("SELECT COUNT(*) FROM falcon.users WHERE role='player'")->fetchColumn(),
-        'food'     => $db->query("SELECT COUNT(*) FROM falcon.food_orders WHERE DATE(created_at) BETWEEN '$dateFrom' AND '$dateTo'")->fetchColumn(),
+        'food'     => $foodCountStmt->fetchColumn(),
     ];
-    $revenueTotal = $db->query("
+    $revenueStmt = $db->prepare("
         SELECT COALESCE(SUM(gp.credits_charged),0)
         FROM falcon.game_players gp
         JOIN falcon.game_sessions gs ON gs.id = gp.session_id
-        WHERE DATE(gs.started_at) BETWEEN '$dateFrom' AND '$dateTo'
-    ")->fetchColumn();
+        WHERE DATE(gs.started_at) BETWEEN ? AND ?
+    ");
+    $revenueStmt->execute([$dateFrom, $dateTo]);
+    $revenueTotal = $revenueStmt->fetchColumn();
 } catch (PDOException $e) {
     $counts = ['sessions'=>0,'topups'=>0,'players'=>0,'food'=>0];
     $revenueTotal = 0;
@@ -260,7 +277,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
         <div class="export-desc"><?= $desc ?></div>
         <div style="margin-top:auto;">
-            <a href="<?= APP_URL ?>/admin/export_csv.php?export=<?= $key ?>&date_from=<?= $dateFrom ?>&date_to=<?= $dateTo ?>&csrf_token=<?= csrfToken() ?>"
+            <a href="<?= APP_URL ?>/admin/export_csv.php?export=<?= urlencode($key) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>&csrf_token=<?= urlencode(csrfToken()) ?>"
                class="btn-success btn-sm btn-block"
                onclick="event.stopPropagation();">
                 ⬇ Download CSV

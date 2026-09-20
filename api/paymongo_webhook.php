@@ -32,6 +32,7 @@
 // ── Bootstrap (DB + constants only; no session, no output) ───
 define('WEBHOOK_ENTRY', true);          // flag checked by app.php guard
 require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 // Disable any accidental HTML error output — we speak JSON here
 ini_set('display_errors', '0');
@@ -380,7 +381,7 @@ function resolveUserId(PDO $db, array $attrs, string $paymongoSubId): ?int
           ?? null;
     if ($email) {
         $stmt = $db->prepare("
-            SELECT id FROM town.users WHERE email = ? AND is_active = TRUE LIMIT 1
+            SELECT id FROM falcon.users WHERE email = ? AND is_active = TRUE LIMIT 1
         ");
         $stmt->execute([$email]);
         $uid = $stmt->fetchColumn();
@@ -388,6 +389,43 @@ function resolveUserId(PDO $db, array $attrs, string $paymongoSubId): ?int
     }
 
     return null;
+}
+
+function resolveTopupRequestId(array $attrs): ?int
+{
+    $metadata = $attrs['metadata'] ?? $attrs['data']['attributes']['metadata'] ?? [];
+    foreach (['topup_request_id', 'top_up_request_id'] as $key) {
+        if (isset($metadata[$key]) && ctype_digit((string)$metadata[$key])) return (int)$metadata[$key];
+    }
+    return null;
+}
+
+function autoVerifyPayMongoTopup(PDO $db, int $requestId, string $paymentId, float $amount): void
+{
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('SELECT id, user_id, amount, status FROM falcon.topup_requests WHERE id = ? FOR UPDATE');
+        $stmt->execute([$requestId]);
+        $request = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$request) throw new RuntimeException('Top-up request not found.');
+        if ($request['status'] === 'approved') { $db->commit(); return; }
+        if ($request['status'] !== 'pending' || abs((float)$request['amount'] - $amount) > 0.01) throw new RuntimeException('Top-up amount or status does not match.');
+        $wallet = $db->prepare('SELECT balance FROM falcon.wallets WHERE user_id = ? FOR UPDATE');
+        $wallet->execute([$request['user_id']]);
+        $before = (float)($wallet->fetchColumn() ?: 0);
+        $after = $before + (float)$request['amount'];
+        $db->prepare("INSERT INTO falcon.wallets (user_id, balance, last_topup_at, updated_at) VALUES (?, ?, NOW(), NOW()) ON CONFLICT (user_id) DO UPDATE SET balance = EXCLUDED.balance, last_topup_at = NOW(), updated_at = NOW()")
+            ->execute([$request['user_id'], $after]);
+        $db->prepare("UPDATE falcon.topup_requests SET status = 'approved', processed_at = NOW(), paymongo_payment_id = ?, paymongo_auto_verified_at = NOW() WHERE id = ?")
+            ->execute([$paymentId, $requestId]);
+        $db->prepare('INSERT INTO falcon.transactions (user_id, type, amount, reason, related_table, related_id, balance_before, balance_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            ->execute([$request['user_id'], 'topup', $request['amount'], 'PayMongo top-up', 'topup_requests', $requestId, $before, $after]);
+        notifyUser($db, (int)$request['user_id'], 'Top-up approved', 'Your PayMongo top-up of PHP ' . number_format((float)$request['amount'], 2) . ' was verified automatically.', null, APP_URL . '/player/wallet.php');
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $e;
+    }
 }
 
 // ============================================================
@@ -469,6 +507,11 @@ try {
         // ── One-shot payment via checkout / payment link ──────
         case 'payment.paid':
         case 'checkout_session.payment.paid':
+            $topupRequestId = resolveTopupRequestId($eventAttrs);
+            if ($topupRequestId) {
+                autoVerifyPayMongoTopup($db, $topupRequestId, $paymongoPaymentId, $amount);
+                webhookRespond(200, 'Top-up processed');
+            }
             if (!$userId) {
                 wlog('WARN', 'Could not resolve user_id for payment.paid', [
                     'pm_payment_id' => $paymongoPaymentId,

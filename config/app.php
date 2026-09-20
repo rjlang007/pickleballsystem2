@@ -414,3 +414,17 @@ function clean(?string $val): string {
 // pattern was also removed from api/chat.php.
 
 require_once __DIR__ . '/../court/auto_end_games.php';
+
+// ── Recurring nightly Open Play — self-healing, same pattern as
+//    auto_end_games.php above. Internally rate-limited and fully
+//    guarded so a scheduler problem can never take down the app.
+if (file_exists(__DIR__ . '/../tournament/open_play_scheduler.php')) {
+    try {
+        require_once __DIR__ . '/../tournament/open_play_scheduler.php';
+        if (function_exists('ensureNightlyOpenPlayEvent')) {
+            ensureNightlyOpenPlayEvent();
+        }
+    } catch (Throwable $e) {
+        error_log('[open_play_scheduler] bootstrap failed: ' . $e->getMessage());
+    }
+}

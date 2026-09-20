@@ -103,7 +103,7 @@ async function load(){
             : '<p class="text-muted">No games in progress yet.</p>';
 
         document.getElementById('upNext').innerHTML = d.up_next.length
-            ? d.up_next.map(m => `<div style="padding:8px 0;border-bottom:1px solid var(--border);">${teamName(m,'t1')} <span style="color:var(--muted);">vs</span> ${teamName(m,'t2')}</div>`).join('')
+            ? d.up_next.map(m => `<div style="padding:8px 0;border-bottom:1px solid var(--border);">${teamName(m,'t1')} <span style="color:var(--muted);">vs</span> ${teamName(m,'t2')} ${involvesMe(m) ? `<button class="btn btn-sm btn-primary" onclick="confirmMatch(${Number(m.id)})">I'm here</button>` : ''}</div>`).join('')
             : '<p class="text-muted">Nothing queued.</p>';
 
         document.getElementById('poolCount').textContent = d.waiting_count;
@@ -124,6 +124,16 @@ async function load(){
         else if (mine) msg = '⏳ You\'re in the waiting pool. Hang tight!';
         document.getElementById('myStatus').innerHTML = msg ? `<div class="alert alert-info">${msg}</div>` : '';
     } catch (e) {}
+}
+
+async function confirmMatch(matchId){
+    const res = await fetch(`${APP_URL}/api/open_play.php?action=confirm_match`, {
+        method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({match_id: matchId})
+    });
+    const data = await res.json();
+    if (data.success) load();
+    else alert(data.message || 'Unable to confirm check-in.');
 }
 
 load();

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../includes/subscription_helpers.php';   // ← NEW
 require_once __DIR__ . '/../includes/activity_logger.php';
 require_once __DIR__ . '/../includes/email_helpers.php';
 require_once __DIR__ . '/../includes/verification_helpers.php';
+require_once __DIR__ . '/../includes/totp.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     startDBSession(getDB());
@@ -80,7 +81,7 @@ if (!$blocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $sql = "SELECT id, username, full_name, email, phone, "
                  . "password_hash, role, " . ($avatarColumn ?: 'NULL') . " AS avatar_path, "
-                 . "is_active, is_banned, NULL AS ban_reason, must_change_password, email_verified "
+                 . "is_active, is_banned, NULL AS ban_reason, must_change_password, email_verified, totp_secret, totp_enabled "
                  . "FROM falcon.users "
                  . "WHERE (username = ? OR phone = ? OR email = ?) "
                  . "LIMIT 1";
@@ -121,6 +122,12 @@ if (!$blocked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 // ── Credentials OK — set up session ──────────────────────
                 clearRateLimit('login_ip_' . getClientIp());
                 session_regenerate_id(true);
+
+                if (in_array($user['role'], ADMIN_ROLES, true) && !empty($user['totp_enabled']) && !empty($user['totp_secret'])) {
+                    $_SESSION['pending_2fa_user_id'] = (int)$user['id'];
+                    $_SESSION['pending_2fa_username'] = $user['username'];
+                    redirect('auth/two_factor.php');
+                }
 
                 $_SESSION['user_id']        = (int)$user['id'];
                 $_SESSION['username']       = $user['username'];

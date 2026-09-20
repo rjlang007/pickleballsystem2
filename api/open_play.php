@@ -48,16 +48,28 @@ $staffActions = [
     'queue_status', 'draw', 'start_match', 'pause_match', 'resume_match',
     'adjust_timer', 'finish_match', 'correct_score', 'cancel_match', 'tiebreak',
     'approve_join', 'reject_join',
+    'confirm_match', 'sweep_no_shows',
     'finalize', 'create', 'update_event', 'cancel_event',
 ];
 
 try {
+    // FIX (this pass): every other mutating fetch()-based API (wallet,
+    // community, food, chat, chat_rooms, bracket_edit) got a
+    // verifySameOrigin() + rate-limit pass in the security hardening round;
+    // this dispatcher was added later (open play is a newer module) and
+    // was missed, leaving score entry / match control / event finalize
+    // reachable cross-site with nothing but the session cookie. Bringing
+    // it in line with the rest of api/*.php.
+    verifySameOrigin();
     if (in_array($action, $staffActions, true)) {
         $session = requireStaffApi();
     } else {
         $session = requireAuth();
     }
     $actorId = (int)$session['user_id'];
+    if (!checkRateLimit('api_open_play_' . $actorId, 60, 60)) {
+        apiError('Too many requests. Please wait.', 429);
+    }
     $body    = getRequestBody();
 
     switch ($action) {
@@ -77,6 +89,15 @@ try {
             if (!$tid) apiError('tournament_id required.');
             $engine->leaveEvent($tid, $actorId);
             apiSuccess(null, 'Left the event.');
+
+        case 'confirm_match':
+            routeMethod('POST');
+            $engine->confirmMatch((int)($body['match_id'] ?? 0), $actorId);
+            apiSuccess(null, 'Check-in confirmed.');
+
+        case 'sweep_no_shows':
+            routeMethod('POST');
+            apiSuccess(['cancelled' => $engine->sweepNoShows((int)($body['tournament_id'] ?? 0), $actorId)]);
 
         // ── Staff: event + roster ───────────────────────────────
         case 'create':

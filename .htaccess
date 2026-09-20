@@ -17,6 +17,7 @@ ServerSignature Off
     RewriteRule ^storage/ - [F,L]
     RewriteRule ^vendor/ - [F,L]
     RewriteRule ^migrations/ - [F,L]
+    RewriteRule ^tmp/ - [F,L]
 </IfModule>
 
 <FilesMatch "\.(sql|md|log|bak|sh)$">

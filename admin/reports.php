@@ -166,6 +166,31 @@ $maxRevenue  = max(array_column($daily, 'revenue') ?: [1]);
 $maxSessions = max(array_values($peakHours) ?: [1]);
 $combinedRevenue = (float)$summary['revenue'] + (float)$foodSummary['food_revenue'];
 
+// Observed court utilization: occupied court-hours divided by the maximum
+// active-court hours in the selected calendar month. This is deliberately
+// separate from credit circulation below, which measures wallet usage.
+$courtHoursStmt = $db->query("SELECT ch.day_of_week, ch.open_time, ch.close_time, ch.is_closed FROM falcon.court_hours ch JOIN falcon.courts c ON c.id = ch.court_id WHERE c.is_active = TRUE");
+$configuredHours = $courtHoursStmt->fetchAll(PDO::FETCH_ASSOC);
+$daysInMonth = (int)date('t', strtotime($monthStart));
+$weekdayCounts = array_fill(0, 7, 0);
+$monthCursor = new DateTimeImmutable($monthStart);
+for ($dayIndex = 0; $dayIndex < $daysInMonth; $dayIndex++) {
+    $weekdayCounts[(int)$monthCursor->format('w')]++;
+    $monthCursor = $monthCursor->modify('+1 day');
+}
+$availableCourtHours = 0.0;
+foreach ($configuredHours as $hours) {
+    if (!empty($hours['is_closed'])) continue;
+    $openMinutes = ((int)substr((string)$hours['open_time'], 0, 2) * 60) + (int)substr((string)$hours['open_time'], 3, 2);
+    $closeMinutes = ((int)substr((string)$hours['close_time'], 0, 2) * 60) + (int)substr((string)$hours['close_time'], 3, 2);
+    if ($closeMinutes <= $openMinutes) $closeMinutes += 24 * 60;
+    $availableCourtHours += (($closeMinutes - $openMinutes) / 60) * ($weekdayCounts[(int)$hours['day_of_week']] ?? 0);
+}
+$occupiedHoursStmt = $db->prepare("SELECT COALESCE(SUM(CASE WHEN gs.duration_mins > 0 THEN gs.duration_mins ELSE EXTRACT(EPOCH FROM (COALESCE(gs.ended_at, NOW()) - gs.started_at)) / 60 END), 0) / 60.0 FROM falcon.game_sessions gs WHERE gs.started_at >= ? AND gs.started_at < (?::date + INTERVAL '1 day') AND gs.status IN ('active', 'completed')");
+$occupiedHoursStmt->execute([$monthStart, $monthEnd]);
+$occupiedCourtHours = (float)$occupiedHoursStmt->fetchColumn();
+$courtUtilisationPct = $availableCourtHours > 0 ? min(100, round($occupiedCourtHours / $availableCourtHours * 100, 1)) : 0;
+
 $pageTitle = 'Reports';
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -290,8 +315,28 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="stat-label">Unique Players</div>
     </div>
     <div class="stat-card">
+        <div class="stat-val" style="color:var(--accent2);"><?= $courtUtilisationPct ?>%</div>
+        <div class="stat-label">Court Utilisation</div>
+    </div>
+    <div class="stat-card">
         <div class="stat-val" style="color:var(--accent2);">₱<?= number_format($topup['total_loaded'], 2) ?></div>
         <div class="stat-label">Credits Loaded</div>
+    </div>
+</div>
+
+<!-- ── Observed Court Utilisation ── -->
+<div class="card mb-3">
+    <div class="flex-between" style="align-items:flex-start;">
+        <div>
+            <div class="card-title">🏟️ Court Utilisation</div>
+            <div class="card-subtitle">Observed occupied court-hours for <?= $monthLabel ?></div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent2);"><?= $courtUtilisationPct ?>%</div>
+    </div>
+    <div class="util-bar-wrap"><div class="util-bar-fill" style="width:<?= $courtUtilisationPct ?>%;background:var(--accent2);"></div></div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+        <?= number_format($occupiedCourtHours, 1) ?> occupied hours of <?= number_format($availableCourtHours, 1) ?> available active-court hours.
+        Credit circulation is reported separately below.
     </div>
 </div>
 
