@@ -23,20 +23,25 @@ if (file_exists(__DIR__ . '/../.env')) {
     }
 }
 
-// Parse DATABASE_URL if PG vars are not set
+// Parse DATABASE_URL when Railway provides the canonical connection string.
+// Prefer it over legacy individual variables so a full URL accidentally
+// supplied as PGHOST cannot be treated as a literal hostname.
 $rawDbHost = getenv('PGHOST')     ?: getenv('DB_HOST');
 $rawDbPort = getenv('PGPORT')     ?: getenv('DB_PORT');
 $rawDbName = getenv('PGDATABASE') ?: getenv('DB_NAME');
 $rawDbUser = getenv('PGUSER')     ?: getenv('DB_USER');
 $rawDbPass = getenv('PGPASSWORD') ?: getenv('DB_PASS');
 
-if (!$rawDbHost && getenv('DATABASE_URL')) {
-    $url       = parse_url(getenv('DATABASE_URL'));
-    $rawDbHost = $url['host']           ?? '';
-    $rawDbPort = $url['port']           ?? ($rawDbPort ?: 5432);
-    $rawDbName = ltrim($url['path'] ?? '', '/');
-    $rawDbUser = $url['user']           ?? $rawDbUser;
-    $rawDbPass = $url['pass']           ?? $rawDbPass;
+$databaseUrl = getenv('DATABASE_URL');
+if ($databaseUrl) {
+    $url = parse_url($databaseUrl);
+    if (!empty($url['host'])) {
+        $rawDbHost = $url['host'];
+        $rawDbPort = $url['port'] ?? 5432;
+        $rawDbName = ltrim($url['path'] ?? '', '/');
+        $rawDbUser = $url['user'] ?? $rawDbUser;
+        $rawDbPass = $url['pass'] ?? $rawDbPass;
+    }
 }
 
 define('DB_HOST',   $rawDbHost ?: 'localhost');
