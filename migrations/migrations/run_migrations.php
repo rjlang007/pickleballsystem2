@@ -9,7 +9,7 @@
  * already-applied files are skipped automatically.
  *
  * USAGE (from the project root, in PowerShell):
- *   php migrations\run_migrations.php
+ *   php migrations\migrations\run_migrations.php
  *
  * Requires the `psql` command to be on your PATH (you already have
  * this, since you've been running it manually) — this script shells
@@ -71,21 +71,13 @@ foreach ($pending as $path) {
     $name = basename($path);
     echo "── Applying $name ──────────────────────────────\n";
 
-    $cmd = "psql $psqlArgs -v ON_ERROR_STOP=0 -f " . escapeshellarg($path) . " 2>&1";
+    $cmd = "psql $psqlArgs -v ON_ERROR_STOP=1 -f " . escapeshellarg($path) . " 2>&1";
     $output = [];
     $exitCode = 0;
     exec($cmd, $output, $exitCode);
     echo implode("\n", $output) . "\n";
 
-    // Treat "GRANT to role falcon_app" style errors as harmless (matches
-    // the note in GUIDE.md — that role isn't used in local dev) and don't
-    // block recording the file as applied because of them.
-    $realErrors = array_filter($output, function ($line) {
-        return stripos($line, 'ERROR:') !== false
-            && stripos($line, 'falcon_app') === false;
-    });
-
-    if (!empty($realErrors)) {
+    if ($exitCode !== 0) {
         echo "✘ $name had errors — NOT marked as applied. Fix and re-run.\n\n";
         $failures++;
         continue;

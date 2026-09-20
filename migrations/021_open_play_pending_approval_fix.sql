@@ -24,7 +24,7 @@
 
 DO $$
 DECLARE
-    old_constraint_name TEXT;
+    constraint_record RECORD;
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -35,25 +35,18 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Find the existing CHECK constraint on this column, whatever it's named.
-    SELECT con.conname INTO old_constraint_name
-      FROM pg_constraint con
-      JOIN pg_class rel      ON rel.oid = con.conrelid
-      JOIN pg_namespace nsp  ON nsp.oid = rel.relnamespace
-      JOIN pg_attribute att  ON att.attrelid = rel.oid AND att.attnum = ANY (con.conkey)
-     WHERE nsp.nspname = 'falcon'
-       AND rel.relname = 'tournament_players'
-       AND att.attname = 'queue_status'
-       AND con.contype = 'c'
-     LIMIT 1;
-
-    IF old_constraint_name IS NOT NULL THEN
-        IF old_constraint_name = 'tournament_players_queue_status_pending_chk' THEN
-            RAISE NOTICE 'queue_status CHECK constraint already includes pending_approval — skipping.';
-            RETURN;
-        END IF;
-        EXECUTE format('ALTER TABLE falcon.tournament_players DROP CONSTRAINT %I', old_constraint_name);
-    END IF;
+        -- Replace every CHECK definition that mentions queue_status. This avoids
+        -- leaving a legacy constraint active on partially migrated databases and
+        -- avoids dropping an unrelated CHECK chosen by LIMIT 1.
+        FOR constraint_record IN
+                SELECT con.conname
+                    FROM pg_constraint con
+                 WHERE con.conrelid = 'falcon.tournament_players'::regclass
+                     AND con.contype = 'c'
+                     AND pg_get_constraintdef(con.oid) ILIKE '%queue_status%'
+        LOOP
+                EXECUTE format('ALTER TABLE falcon.tournament_players DROP CONSTRAINT %I', constraint_record.conname);
+        END LOOP;
 
     ALTER TABLE falcon.tournament_players
         ADD CONSTRAINT tournament_players_queue_status_pending_chk

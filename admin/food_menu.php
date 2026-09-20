@@ -29,6 +29,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <style nonce="<?= getCspNonce() ?>">
 .fm-toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.fm-toolbar-spread { justify-content: space-between; }
 .fm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
 .fm-card { display: flex; flex-direction: column; gap: 8px; }
 .fm-img { width: 100%; height: 110px; object-fit: cover; border-radius: 10px; background: var(--surface2); }
@@ -37,6 +38,18 @@ require_once __DIR__ . '/../includes/header.php';
 .fm-cat { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 .fm-price { color: var(--accent); font-weight: 700; }
 .fm-actions { display: flex; gap: 6px; margin-top: auto; }
+.fm-actions .fm-edit-btn { flex: 1; }
+.fm-img.fm-image-error { display: none; }
+.fm-file-input { display: none; }
+.fm-available-label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.fm-category-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.fm-category-form { border-top: 1px solid var(--border); padding-top: 14px; }
+.fm-category-inputs { display: flex; gap: 8px; }
+.fm-category-inputs .cat-new-name { flex: 1; }
+.fm-category-row { display: flex; align-items: center; gap: 8px; }
+.fm-category-row .cat-name-input { flex: 1; }
+.fm-category-row .cat-sort-input { width: 64px; }
+.fm-empty-category { margin: 0; }
 
 /* Modal (self-contained, no dependency on content_manager.php styles) */
 .fmbg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
@@ -63,9 +76,9 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<div class="fm-toolbar" style="justify-content: space-between;">
-    <button type="button" class="btn-outline btn-sm" onclick="openCatModal()">🏷️ Manage Categories</button>
-    <button type="button" class="btn-primary btn-sm" onclick="openItemModal()">＋ Add Menu Item</button>
+<div class="fm-toolbar fm-toolbar-spread">
+    <button type="button" class="btn-outline btn-sm" data-action="open-categories">🏷️ Manage Categories</button>
+    <button type="button" class="btn-primary btn-sm" data-action="open-item">＋ Add Menu Item</button>
 </div>
 
 <?php if (empty($items)): ?>
@@ -75,7 +88,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php foreach ($items as $it): ?>
             <div class="card fm-card" data-item='<?= json_encode($it, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
                 <?php if (!empty($it['image'])): ?>
-                    <img class="fm-img" src="<?= APP_URL ?>/Uploads/food/<?= urlencode($it['image']) ?>" alt="<?= clean($it['name']) ?>" onerror="this.style.display='none'">
+                    <img class="fm-img" src="<?= APP_URL ?>/Uploads/food/<?= urlencode($it['image']) ?>" alt="<?= clean($it['name']) ?>">
                 <?php else: ?>
                     <div class="fm-noimg">🍽️</div>
                 <?php endif; ?>
@@ -86,8 +99,8 @@ require_once __DIR__ . '/../includes/header.php';
                     <?= $it['is_available'] ? 'Available' : 'Hidden' ?>
                 </span>
                 <div class="fm-actions">
-                    <button type="button" class="btn-outline btn-xs" style="flex:1" onclick="editItem(this)">✏️ Edit</button>
-                    <button type="button" class="btn-danger btn-xs" onclick="deleteItem(<?= (int)$it['id'] ?>,'<?= clean($it['name']) ?>')">🗑</button>
+                    <button type="button" class="btn-outline btn-xs fm-edit-btn" data-action="edit-item">✏️ Edit</button>
+                    <button type="button" class="btn-danger btn-xs" data-action="delete-item" data-item-id="<?= (int)$it['id'] ?>" data-item-name="<?= htmlspecialchars($it['name'], ENT_QUOTES, 'UTF-8') ?>">🗑</button>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -97,7 +110,7 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- Item Modal -->
 <div class="fmbg" id="fm-modal">
     <div class="fmbox">
-        <div class="fmhead"><h3 id="fm-modal-title">Add Menu Item</h3><button type="button" class="fmclose" onclick="closeItemModal()">✕</button></div>
+        <div class="fmhead"><h3 id="fm-modal-title">Add Menu Item</h3><button type="button" class="fmclose" data-action="close-item">✕</button></div>
         <input type="hidden" id="fm-id" value="0">
         <input type="hidden" id="fm-existing-image" value="">
 
@@ -117,19 +130,19 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="fm-fg"><label>Sort Order</label><input type="number" id="fm-sort" min="0" value="0"></div>
         <div class="fm-fg">
             <label>Photo</label>
-            <div class="fm-dropzone" onclick="document.getElementById('fm-img-input').click()">
+            <div class="fm-dropzone" data-action="choose-image">
                 📷 Click to choose a photo (JPG, PNG, WEBP, GIF — max 5MB)
             </div>
-            <input type="file" id="fm-img-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none" onchange="previewImg(this)">
+            <input type="file" id="fm-img-input" class="fm-file-input" accept="image/jpeg,image/png,image/webp,image/gif">
             <div class="fm-imgprev" id="fm-imgprev"></div>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        <label class="fm-available-label">
             <input type="checkbox" id="fm-available" checked> Available to order
         </label>
 
         <div class="fm-foot">
-            <button type="button" class="btn-outline btn-sm" onclick="closeItemModal()">Cancel</button>
-            <button type="button" class="btn-primary btn-sm" id="fm-save-btn" onclick="saveItem()">💾 Save Item</button>
+            <button type="button" class="btn-outline btn-sm" data-action="close-item">Cancel</button>
+            <button type="button" class="btn-primary btn-sm" id="fm-save-btn" data-action="save-item">💾 Save Item</button>
         </div>
     </div>
 </div>
@@ -137,20 +150,20 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- Manage Categories Modal -->
 <div class="fmbg" id="cat-modal">
     <div class="fmbox">
-        <div class="fmhead"><h3>🏷️ Manage Categories</h3><button type="button" class="fmclose" onclick="closeCatModal()">✕</button></div>
+        <div class="fmhead"><h3>🏷️ Manage Categories</h3><button type="button" class="fmclose" data-action="close-categories">✕</button></div>
 
-        <div id="cat-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+        <div id="cat-list" class="fm-category-list"></div>
 
-        <div class="fm-fg" style="border-top:1px solid var(--border); padding-top:14px;">
+        <div class="fm-fg fm-category-form">
             <label>Add a Category</label>
-            <div style="display:flex; gap:8px;">
-                <input type="text" id="cat-new-name" placeholder="e.g. Desserts" style="flex:1;">
-                <button type="button" class="btn-primary btn-sm" onclick="addCategory()">＋ Add</button>
+            <div class="fm-category-inputs">
+                <input type="text" id="cat-new-name" class="cat-new-name" placeholder="e.g. Desserts">
+                <button type="button" class="btn-primary btn-sm" data-action="add-category">＋ Add</button>
             </div>
         </div>
 
         <div class="fm-foot">
-            <button type="button" class="btn-outline btn-sm" onclick="closeCatModal()">Close</button>
+            <button type="button" class="btn-outline btn-sm" data-action="close-categories">Close</button>
         </div>
     </div>
 </div>
@@ -263,15 +276,15 @@ function closeCatModal() { document.getElementById('cat-modal').classList.remove
 function renderCatList() {
     const wrap = document.getElementById('cat-list');
     if (!FOOD_CATEGORIES.length) {
-        wrap.innerHTML = '<p class="card-subtitle" style="margin:0;">No categories yet — add one below.</p>';
+        wrap.innerHTML = '<p class="card-subtitle fm-empty-category">No categories yet — add one below.</p>';
         return;
     }
     wrap.innerHTML = FOOD_CATEGORIES.map(c => `
-        <div style="display:flex; align-items:center; gap:8px;" data-cat-id="${c.id}">
-            <input type="text" value="${escapeAttr(c.name)}" class="cat-name-input" style="flex:1;">
-            <input type="number" value="${c.sort_order}" class="cat-sort-input" title="Sort order" style="width:64px;">
-            <button type="button" class="btn-outline btn-xs" onclick="saveCategoryRow(this, ${c.id})">💾</button>
-            <button type="button" class="btn-danger btn-xs" onclick="deleteCategory(${c.id}, '${escapeAttr(c.name)}')">🗑</button>
+        <div class="fm-category-row" data-cat-id="${c.id}" data-cat-name="${escapeAttr(c.name)}">
+            <input type="text" value="${escapeAttr(c.name)}" class="cat-name-input">
+            <input type="number" value="${c.sort_order}" class="cat-sort-input" title="Sort order">
+            <button type="button" class="btn-outline btn-xs" data-action="save-category">💾</button>
+            <button type="button" class="btn-danger btn-xs" data-action="delete-category">🗑</button>
         </div>
     `).join('');
 }
@@ -337,6 +350,29 @@ async function deleteCategory(id, name) {
         alert('Network error deleting the category.');
     }
 }
+
+document.addEventListener('click', event => {
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+
+    const action = target.dataset.action;
+    if (action === 'open-item') openItemModal();
+    if (action === 'open-categories') openCatModal();
+    if (action === 'close-item') closeItemModal();
+    if (action === 'close-categories') closeCatModal();
+    if (action === 'choose-image') document.getElementById('fm-img-input').click();
+    if (action === 'save-item') saveItem();
+    if (action === 'add-category') addCategory();
+    if (action === 'edit-item') editItem(target);
+    if (action === 'delete-item') deleteItem(Number(target.dataset.itemId), target.dataset.itemName);
+    if (action === 'save-category') saveCategoryRow(target, Number(target.closest('[data-cat-id]').dataset.catId));
+    if (action === 'delete-category') deleteCategory(Number(target.closest('[data-cat-id]').dataset.catId), target.closest('[data-cat-id]').dataset.catName);
+});
+
+document.getElementById('fm-img-input').addEventListener('change', event => previewImg(event.target));
+document.querySelectorAll('.fm-img').forEach(image => {
+    image.addEventListener('error', () => image.classList.add('fm-image-error'));
+});
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

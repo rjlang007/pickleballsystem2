@@ -179,17 +179,23 @@ END;
 $$;
 
 -- ── Grants ───────────────────────────────────────────────────
-GRANT SELECT, INSERT, UPDATE, DELETE
-    ON falcon.leaderboard,
-       falcon.tournament_scores,
-       falcon.achievements
-    TO falcon_app;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+        GRANT SELECT, INSERT, UPDATE, DELETE
+            ON falcon.leaderboard,
+               falcon.tournament_scores,
+               falcon.achievements
+            TO falcon_app;
 
-GRANT USAGE, SELECT
-    ON SEQUENCE falcon.leaderboard_id_seq,
-       falcon.tournament_scores_id_seq,
-       falcon.achievements_id_seq
-    TO falcon_app;
+        GRANT USAGE, SELECT
+            ON SEQUENCE falcon.leaderboard_id_seq,
+               falcon.tournament_scores_id_seq,
+               falcon.achievements_id_seq
+            TO falcon_app;
+    END IF;
+END;
+$$;
 
 -- ── Verify all 6 tables now present ──────────────────────────
 DO $$

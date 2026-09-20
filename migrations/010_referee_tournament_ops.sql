@@ -14,24 +14,50 @@
 -- ── 1. Referee + live-scoring state on tournament_matches ─────
 DO $$
 BEGIN
+    ALTER TABLE falcon.tournament_matches
+        ADD COLUMN IF NOT EXISTS referee_id      INTEGER REFERENCES falcon.users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS current_game    SMALLINT NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS games_to_win    SMALLINT NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS games_won_p1    SMALLINT NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS games_won_p2    SMALLINT NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS current_server  SMALLINT NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS server_position VARCHAR(5) NOT NULL DEFAULT 'right',
+        ADD COLUMN IF NOT EXISTS round_name      VARCHAR(60),
+        ADD COLUMN IF NOT EXISTS started_at      TIMESTAMPTZ;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'falcon.tournament_matches'::regclass
+          AND conname = 'tournament_matches_current_server_chk'
+    ) THEN
+        ALTER TABLE falcon.tournament_matches
+            ADD CONSTRAINT tournament_matches_current_server_chk
+            CHECK (current_server IN (1,2));
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'falcon.tournament_matches'::regclass
+          AND conname = 'tournament_matches_server_position_chk'
+    ) THEN
+        ALTER TABLE falcon.tournament_matches
+            ADD CONSTRAINT tournament_matches_server_position_chk
+            CHECK (server_position IN ('left','right'));
+    END IF;
+END;
+$$;
+
+-- scheduled_court may be added by a later compatibility patch. Add it here
+-- before creating the index so this migration also works on a fresh database.
+DO $$
+BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'falcon' AND table_name = 'tournament_matches'
-          AND column_name  = 'referee_id'
+          AND column_name = 'scheduled_court'
     ) THEN
         ALTER TABLE falcon.tournament_matches
-            ADD COLUMN referee_id      INTEGER REFERENCES falcon.users(id) ON DELETE SET NULL,
-            ADD COLUMN current_game    SMALLINT NOT NULL DEFAULT 1,
-            ADD COLUMN games_to_win    SMALLINT NOT NULL DEFAULT 1,
-            ADD COLUMN games_won_p1    SMALLINT NOT NULL DEFAULT 0,
-            ADD COLUMN games_won_p2    SMALLINT NOT NULL DEFAULT 0,
-            ADD COLUMN current_server  SMALLINT NOT NULL DEFAULT 1 CHECK (current_server IN (1,2)),
-            ADD COLUMN server_position VARCHAR(5) NOT NULL DEFAULT 'right' CHECK (server_position IN ('left','right')),
-            ADD COLUMN round_name      VARCHAR(60),
-            ADD COLUMN started_at      TIMESTAMPTZ;
-        RAISE NOTICE 'Added referee/live-scoring columns to tournament_matches.';
-    ELSE
-        RAISE NOTICE 'referee_id already exists on tournament_matches — skipping.';
+            ADD COLUMN scheduled_court INTEGER REFERENCES falcon.courts(id) ON DELETE SET NULL;
     END IF;
 END;
 $$;

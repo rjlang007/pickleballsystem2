@@ -97,8 +97,10 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS falcon.subscriptions
     OWNER TO postgres;
 
-REVOKE ALL ON TABLE falcon.subscriptions FROM falcon_app;
-GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.subscriptions TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    REVOKE ALL ON TABLE falcon.subscriptions FROM falcon_app;
+    GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.subscriptions TO falcon_app;
+END IF; END $$;
 GRANT ALL ON TABLE falcon.subscriptions TO postgres;
 
 -- Index: quick lookup by status (access gate queries)
@@ -185,8 +187,10 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS falcon.subscription_payments
     OWNER TO postgres;
 
-REVOKE ALL ON TABLE falcon.subscription_payments FROM falcon_app;
-GRANT INSERT, SELECT, UPDATE ON TABLE falcon.subscription_payments TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    REVOKE ALL ON TABLE falcon.subscription_payments FROM falcon_app;
+    GRANT INSERT, SELECT, UPDATE ON TABLE falcon.subscription_payments TO falcon_app;
+END IF; END $$;
 GRANT ALL ON TABLE falcon.subscription_payments TO postgres;
 
 CREATE INDEX IF NOT EXISTS idx_sub_payments_subscription_id
@@ -284,8 +288,10 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS falcon.chat_rooms
     OWNER TO postgres;
 
-REVOKE ALL ON TABLE falcon.chat_rooms FROM falcon_app;
-GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.chat_rooms TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    REVOKE ALL ON TABLE falcon.chat_rooms FROM falcon_app;
+    GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.chat_rooms TO falcon_app;
+END IF; END $$;
 GRANT ALL ON TABLE falcon.chat_rooms TO postgres;
 
 CREATE INDEX IF NOT EXISTS idx_chat_rooms_type
@@ -362,8 +368,10 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS falcon.chat_room_members
     OWNER TO postgres;
 
-REVOKE ALL ON TABLE falcon.chat_room_members FROM falcon_app;
-GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.chat_room_members TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    REVOKE ALL ON TABLE falcon.chat_room_members FROM falcon_app;
+    GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.chat_room_members TO falcon_app;
+END IF; END $$;
 GRANT ALL ON TABLE falcon.chat_room_members TO postgres;
 
 -- Fastest path: "give me all rooms for user X"
@@ -439,8 +447,10 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS falcon.chat_room_messages
     OWNER TO postgres;
 
-REVOKE ALL ON TABLE falcon.chat_room_messages FROM falcon_app;
-GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.chat_room_messages TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    REVOKE ALL ON TABLE falcon.chat_room_messages FROM falcon_app;
+    GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.chat_room_messages TO falcon_app;
+END IF; END $$;
 GRANT ALL ON TABLE falcon.chat_room_messages TO postgres;
 
 CREATE INDEX IF NOT EXISTS idx_chat_room_messages_room_id
@@ -524,8 +534,10 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS falcon.community_announcements
     OWNER TO postgres;
 
-REVOKE ALL ON TABLE falcon.community_announcements FROM falcon_app;
-GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.community_announcements TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    REVOKE ALL ON TABLE falcon.community_announcements FROM falcon_app;
+    GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE falcon.community_announcements TO falcon_app;
+END IF; END $$;
 GRANT ALL ON TABLE falcon.community_announcements TO postgres;
 
 CREATE INDEX IF NOT EXISTS idx_announcements_room_id
@@ -573,12 +585,14 @@ SELECT setval('falcon.chat_rooms_id_seq', GREATEST(
 -- GRANT on sequences (so falcon_app can call nextval)
 -- ============================================================
 
-GRANT USAGE, SELECT ON SEQUENCE falcon.subscriptions_id_seq            TO falcon_app;
-GRANT USAGE, SELECT ON SEQUENCE falcon.subscription_payments_id_seq    TO falcon_app;
-GRANT USAGE, SELECT ON SEQUENCE falcon.chat_rooms_id_seq               TO falcon_app;
-GRANT USAGE, SELECT ON SEQUENCE falcon.chat_room_members_id_seq        TO falcon_app;
-GRANT USAGE, SELECT ON SEQUENCE falcon.chat_room_messages_id_seq       TO falcon_app;
-GRANT USAGE, SELECT ON SEQUENCE falcon.community_announcements_id_seq  TO falcon_app;
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'falcon_app') THEN
+    GRANT USAGE, SELECT ON SEQUENCE falcon.subscriptions_id_seq,
+        falcon.subscription_payments_id_seq,
+        falcon.chat_rooms_id_seq,
+        falcon.chat_room_members_id_seq,
+        falcon.chat_room_messages_id_seq,
+        falcon.community_announcements_id_seq TO falcon_app;
+END IF; END $$;
 
 -- ============================================================
 -- END OF MIGRATION 004
