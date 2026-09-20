@@ -130,10 +130,10 @@ require_once __DIR__ . '/../includes/header.php';
       <p style="color:var(--muted);margin:0;">Continuous walk-in session — join the queue at any time, get considered with the current wait and arrival fairness, and play as courts free up.</p>
     </div>
 
-    <div style="display:flex;gap:8px;margin:16px 0;">
-      <a class="btn <?= $tab === 'open' ? 'btn-primary' : '' ?>" href="?tab=open">Open Play</a>
-      <a class="btn <?= $tab === 'live' ? 'btn-primary' : '' ?>" href="?tab=live">Happening Now</a>
-      <a class="btn <?= $tab === 'done' ? 'btn-primary' : '' ?>" href="?tab=done">Past Results</a>
+    <div class="open-play-tabs" role="tablist" aria-label="Open Play views">
+      <a class="open-play-tab <?= $tab === 'open' ? 'is-active' : '' ?>" href="?tab=open" role="tab" aria-selected="<?= $tab === 'open' ? 'true' : 'false' ?>">Open Play</a>
+      <a class="open-play-tab <?= $tab === 'live' ? 'is-active' : '' ?>" href="?tab=live" role="tab" aria-selected="<?= $tab === 'live' ? 'true' : 'false' ?>">Happening Now</a>
+      <a class="open-play-tab <?= $tab === 'done' ? 'is-active' : '' ?>" href="?tab=done" role="tab" aria-selected="<?= $tab === 'done' ? 'true' : 'false' ?>">Past Results</a>
     </div>
 
     <?php if (empty($events)): ?>
@@ -284,6 +284,52 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endforeach; ?>
   </div>
 </div>
+
+<style nonce="<?= getCspNonce() ?>">
+.open-play-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 22px;
+  padding: 4px;
+  width: fit-content;
+  max-width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.open-play-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease;
+}
+.open-play-tab:hover,
+.open-play-tab:focus-visible {
+  color: var(--text);
+  background: rgba(0,229,160,.08);
+  outline: none;
+}
+.open-play-tab.is-active {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 3px 10px rgba(0,229,160,.18);
+}
+@media (max-width: 520px) {
+  .open-play-tabs { width: 100%; }
+  .open-play-tab { flex: 1; padding: 0 8px; font-size: 12px; }
+}
+</style>
 
   <style nonce="<?= getCspNonce() ?>">
   .open-play-join-dialog { border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); padding:0; width:min(92vw,480px); }
