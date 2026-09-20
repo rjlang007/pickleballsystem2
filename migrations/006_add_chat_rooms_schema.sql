@@ -85,7 +85,7 @@ WHERE NOT EXISTS (
 -- ── 5. Auto-join all existing active players to community ─────
 INSERT INTO falcon.chat_room_members (room_id, user_id, role, joined_at)
 SELECT
-    (SELECT id FROM falcon.chat_rooms WHERE room_type = 'community' LIMIT 1),
+    (SELECT MIN(id) FROM falcon.chat_rooms WHERE room_type = 'community'),
     u.id,
     'member',
     NOW()
@@ -95,7 +95,7 @@ WHERE u.is_active = TRUE
   AND NOT EXISTS (
         SELECT 1
           FROM falcon.chat_room_members m
-         WHERE m.room_id = (SELECT id FROM falcon.chat_rooms WHERE room_type = 'community' LIMIT 1)
+         WHERE m.room_id = (SELECT MIN(id) FROM falcon.chat_rooms WHERE room_type = 'community')
            AND m.user_id = u.id
       )
 ON CONFLICT (room_id, user_id) DO NOTHING;

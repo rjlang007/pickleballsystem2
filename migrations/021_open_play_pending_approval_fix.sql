@@ -37,7 +37,7 @@ BEGIN
 
         -- Replace every CHECK definition that mentions queue_status. This avoids
         -- leaving a legacy constraint active on partially migrated databases and
-        -- avoids dropping an unrelated CHECK chosen by LIMIT 1.
+        -- avoids dropping an unrelated CHECK chosen arbitrarily.
         FOR constraint_record IN
                 SELECT con.conname
                     FROM pg_constraint con

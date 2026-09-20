@@ -75,5 +75,5 @@ UPDATE falcon.food_items fi
 -- ── Anything still unlinked (e.g. category was blank) falls back
 --    to "Main" so it doesn't silently disappear from the menu ──
 UPDATE falcon.food_items fi
-   SET category_id = (SELECT id FROM falcon.food_categories WHERE LOWER(name) = 'main' LIMIT 1)
+  SET category_id = (SELECT MIN(id) FROM falcon.food_categories WHERE LOWER(name) = 'main')
  WHERE fi.category_id IS NULL;
