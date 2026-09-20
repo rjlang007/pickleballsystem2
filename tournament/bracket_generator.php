@@ -19,7 +19,7 @@ class BracketGenerator
      *
      * @param int    $tournamentId
      * @param int[]  $seededPlayerIds  Ordered 0-indexed array; index 0 = seed #1.
-     * @param string $type             single_elimination | round_robin | double_elimination
+    * @param string $type             single_elimination | round_robin | double_elimination | swiss
      * @param array  $options          { swiss_rounds: int }
      * @return array[]  Rows ready for bulk insert into falcon.tournament_matches.
      */
@@ -34,6 +34,12 @@ class BracketGenerator
                 return self::generateRoundRobin($tournamentId, $seededPlayerIds);
             case 'double_elimination':
                 return self::generateDoubleElimination($tournamentId, $seededPlayerIds);
+            case 'swiss':
+                return self::generateSwiss(
+                    $tournamentId,
+                    $seededPlayerIds,
+                    max(1, (int)($options['swiss_rounds'] ?? 5))
+                );
             case 'single_elimination':
             default:
                 return self::generateSingleElimination($tournamentId, $seededPlayerIds);
@@ -167,6 +173,47 @@ class BracketGenerator
             // Rotate: move last of rotating array to front
             $last     = array_pop($rotate);
             array_unshift($rotate, $last);
+        }
+
+        return $matches;
+    }
+
+    /**
+     * Generate fixed Swiss-style rounds. Pairings are seeded and rotated;
+     * the scoring engine can use the completed results for standings.
+     */
+    public static function generateSwiss(
+        int $tournamentId,
+        array $seededPlayers,
+        int $rounds
+    ): array {
+        $players = array_values($seededPlayers);
+        if (count($players) % 2 !== 0) $players[] = null;
+
+        $matches  = [];
+        $matchNum = 1;
+        $count    = count($players);
+
+        for ($round = 1; $round <= $rounds; $round++) {
+            for ($i = 0; $i < $count; $i += 2) {
+                $p1 = $players[$i];
+                $p2 = $players[$i + 1];
+                if ($p1 === null && $p2 === null) continue;
+                $matches[] = [
+                    'tournament_id'   => $tournamentId,
+                    'bracket_round'   => $round,
+                    'match_number'    => $matchNum++,
+                    'bracket_section' => 'main',
+                    'player1_id'      => $p1,
+                    'player2_id'      => $p2,
+                    'status'          => $p2 === null ? 'bye' : 'pending',
+                ];
+            }
+
+            $fixed = array_shift($players);
+            $last  = array_pop($players);
+            array_unshift($players, $last);
+            array_unshift($players, $fixed);
         }
 
         return $matches;

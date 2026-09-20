@@ -62,8 +62,8 @@ $csp = implode('; ', array_filter([
         . "https://maps.gstatic.com "
         . "https://www.google.com "
         . "https://www.googleapis.com",
-    "frame-src https://maps.google.com https://www.google.com",
-    "connect-src 'self' {$serverOrigin} "
+     "frame-src https://maps.google.com https://www.google.com",
+     "connect-src 'self' {$serverOrigin} "
         . "https://*.tile.openstreetmap.org "
         . "https://*.basemaps.cartocdn.com "
         . "https://server.arcgisonline.com "

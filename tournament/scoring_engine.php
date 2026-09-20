@@ -47,6 +47,7 @@ class ScoringEngine
 
         switch ($type) {
             case 'round_robin':
+            case 'swiss':
                 $standings = $this->deriveRoundRobinStandings($tournamentId);
                 break;
             case 'double_elimination':

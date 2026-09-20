@@ -20,8 +20,8 @@ $stats = $db->query("
         (SELECT COUNT(*) FROM falcon.game_sessions WHERE status = 'completed' AND ended_at >= CURRENT_DATE)             AS games_today,
         (SELECT COUNT(*) FROM falcon.topup_requests  WHERE status = 'pending')                                          AS pending_topups,
         (SELECT COUNT(*) FROM falcon.reservations    WHERE status = 'pending')                                          AS pending_reservations,
-        (SELECT COALESCE(SUM(amount), 0) FROM falcon.transactions WHERE type = 'deduction' AND created_at >= CURRENT_DATE) AS revenue_today,
-        (SELECT COALESCE(SUM(amount), 0) FROM falcon.transactions WHERE type = 'deduction' AND created_at >= date_trunc('month', CURRENT_DATE)) AS revenue_month
+        (SELECT COALESCE(SUM(amount), 0) FROM falcon.transactions WHERE type IN ('deduction', 'food_order_charge') AND created_at >= CURRENT_DATE) AS revenue_today,
+        (SELECT COALESCE(SUM(amount), 0) FROM falcon.transactions WHERE type IN ('deduction', 'food_order_charge') AND created_at >= date_trunc('month', CURRENT_DATE)) AS revenue_month
 ")->fetch();
 
 $activeSessions = $db->query("

@@ -62,7 +62,7 @@ class TournamentEngine
             $settings['participation_points'] = (int)$data['participation_points'];
         }
         if ($type === 'swiss' && !empty($data['swiss_rounds'])) {
-            $settings['swiss_rounds'] = (int)$data['swiss_rounds'];
+            $settings['swiss_rounds'] = min(15, max(1, (int)$data['swiss_rounds']));
         }
 
         $stmt = $this->db->prepare(
@@ -96,6 +96,12 @@ class TournamentEngine
     {
         $where  = ['1=1'];
         $params = [];
+
+        // Open Play is a live queue, not a bracket tournament. Keep it out
+        // of tournament listings unless a caller explicitly requests it.
+        if (($filters['include_open_play'] ?? false) !== true) {
+            $where[] = "t.bracket_type <> 'open_play'";
+        }
 
         if (!empty($filters['status'])) {
             $where[]           = 't.status = :status';
@@ -333,6 +339,9 @@ class TournamentEngine
     {
         $t = $this->getTournament($tournamentId);
         if (!$t) throw new RuntimeException('Tournament not found.');
+        if ($t['bracket_type'] === 'open_play') {
+            throw new RuntimeException('Open Play uses the separate Open Play registration page.');
+        }
         if ($t['status'] !== 'registration_open') {
             throw new RuntimeException('Registration is not open for this tournament.');
         }
@@ -340,17 +349,41 @@ class TournamentEngine
             throw new RuntimeException('Tournament is full.');
         }
 
-        try {
-            $this->db->prepare(
-                "INSERT INTO falcon.tournament_players
-                     (tournament_id, player_id, status)
-                 VALUES (:tid, :pid, 'registered')"
-            )->execute([':tid' => $tournamentId, ':pid' => $playerId]);
-        } catch (PDOException $e) {
-            if (str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'duplicate')) {
+        $existing = $this->db->prepare(
+            "SELECT id, status FROM falcon.tournament_players
+              WHERE tournament_id = :tid AND player_id = :pid
+              LIMIT 1"
+        );
+        $existing->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        $row = $existing->fetch(PDO::FETCH_ASSOC);
+
+        if ($row) {
+            if ($row['status'] !== 'withdrawn') {
                 throw new RuntimeException('You are already registered for this tournament.');
             }
-            throw $e;
+
+            $this->db->prepare(
+                "UPDATE falcon.tournament_players
+                    SET status = 'registered', joined_at = NOW(), seed = NULL
+                  WHERE id = :id"
+            )->execute([':id' => $row['id']]);
+            return;
+        }
+
+        $this->db->prepare(
+            "INSERT INTO falcon.tournament_players
+                 (tournament_id, player_id, status)
+             VALUES (:tid, :pid, 'registered')"
+        )->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+
+        try {
+            notifyOperations(
+                $this->db,
+                '🏆 New Tournament Entry',
+                "A player joined tournament '{$t['name']}'."
+            );
+        } catch (Throwable $e) {
+            error_log('[Tournament] entry notification failed: ' . $e->getMessage());
         }
     }
 

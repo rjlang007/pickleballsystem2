@@ -227,8 +227,8 @@ if ($method === 'POST') {
     ]);
     $reservationId = (int)$insert->fetchColumn();
 
-    // Notify all admins
-    notifyAdmins(
+    // Notify the operational team so staff can see new player bookings too.
+    notifyOperations(
         $db,
         'New Booking Request',
         "A new booking request has been created for court {$court['name']}.",

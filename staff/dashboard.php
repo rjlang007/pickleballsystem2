@@ -17,7 +17,14 @@ $stats = $db->query("
         (SELECT COUNT(*) FROM falcon.game_sessions WHERE status IN ('waiting','active'))                      AS live_sessions,
         (SELECT COUNT(*) FROM falcon.game_sessions WHERE status = 'completed' AND ended_at >= CURRENT_DATE)   AS games_today,
         (SELECT COUNT(*) FROM falcon.reservations WHERE status = 'pending')                                   AS pending_reservations,
-        (SELECT COUNT(*) FROM falcon.tournaments WHERE status = 'in_progress')                                AS active_tournaments
+                (SELECT COUNT(*) FROM falcon.tournaments
+                    WHERE status = 'in_progress' AND bracket_type <> 'open_play')                                    AS active_tournaments,
+                (SELECT COUNT(*) FROM falcon.food_orders
+                    WHERE status IN ('pending', 'approved', 'preparing', 'ready'))                                   AS active_food_orders,
+                (SELECT COUNT(*) FROM falcon.tournament_players tp
+                    JOIN falcon.tournaments t ON t.id = tp.tournament_id
+                    WHERE tp.status = 'registered' AND t.bracket_type <> 'open_play'
+                        AND tp.joined_at >= NOW() - INTERVAL '24 hours')                                                AS new_tournament_entries
 ")->fetch();
 
 $courts = $db->query("
@@ -39,7 +46,8 @@ $activeTournaments = $db->query("
     LEFT JOIN falcon.tournament_players tp
            ON tp.tournament_id = t.id
           AND tp.status NOT IN ('withdrawn')
-    WHERE t.status IN ('in_progress', 'registration_open')
+        WHERE t.status IN ('in_progress', 'registration_open')
+            AND t.bracket_type <> 'open_play'
     GROUP BY t.id, t.name, t.status, t.bracket_type, t.max_players
     ORDER BY t.start_date ASC NULLS LAST
     LIMIT 6
@@ -50,7 +58,7 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style nonce="<?= getCspNonce() ?>">
-.staff-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.staff-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .staff-courts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
 .staff-court-card { border-radius: 12px; }
 .staff-quick-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
@@ -91,6 +99,14 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="stat-card">
         <div class="stat-val" style="color:var(--info);"><?= (int)$stats['active_tournaments'] ?></div>
         <div class="stat-label">Active Tournaments</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-val" style="color:var(--accent);"> <?= (int)$stats['active_food_orders'] ?></div>
+        <div class="stat-label">Food Orders</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-val" style="color:var(--info);"> <?= (int)$stats['new_tournament_entries'] ?></div>
+        <div class="stat-label">New Entries (24h)</div>
     </div>
 </div>
 
@@ -158,6 +174,7 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?= APP_URL ?>/admin/active_game.php" class="btn-outline btn-sm">🎮 Manage Live Games</a>
         <a href="<?= APP_URL ?>/admin/court_mode.php" class="btn-outline btn-sm">🏓 Switch Court Mode</a>
         <a href="<?= APP_URL ?>/staff/tournament_queue.php" class="btn-outline btn-sm">🏆 Tournament Queue &amp; Bracket</a>
+        <a href="<?= APP_URL ?>/admin/food_orders.php" class="btn-outline btn-sm">🍔 Food Order Queue</a>
         <a href="<?= APP_URL ?>/admin/kiosk.php" class="btn-outline btn-sm">🖥️ Open Kiosk Display</a>
         <a href="<?= APP_URL ?>/admin/game_history.php" class="btn-outline btn-sm">📋 Game History</a>
     </div>

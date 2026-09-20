@@ -22,6 +22,35 @@ function getAdminUserIds(PDO $db): array {
 }
 
 /**
+ * Returns active users who handle day-to-day player operations.
+ */
+function getOperationsUserIds(PDO $db): array {
+    $stmt = $db->query(
+        "SELECT id FROM falcon.users
+          WHERE role IN ('staff', 'admin', 'super_admin')
+            AND is_active = TRUE"
+    );
+    return array_map(fn($row) => (int)$row['id'], $stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+/**
+ * Notify staff and administrators about operational player activity.
+ */
+function notifyOperations(PDO $db, string $title, string $message, ?int $reservationId = null): void {
+    $userIds = getOperationsUserIds($db);
+    if (empty($userIds)) return;
+
+    $stmt = $db->prepare(
+        "INSERT INTO falcon.notifications
+            (user_id, title, message, type, reservation_id, created_at)
+         VALUES (?, ?, ?, 'info', ?, NOW())"
+    );
+    foreach ($userIds as $userId) {
+        $stmt->execute([$userId, $title, $message, $reservationId]);
+    }
+}
+
+/**
  * Notify all active admins with a given title + message.
  * Optionally attach a reservation_id for deep-linking.
  */

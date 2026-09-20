@@ -22,7 +22,7 @@ $stats = $db->query("
         (SELECT COALESCE(SUM(amount),0) FROM falcon.transactions
          WHERE type = 'topup')                                           AS total_loaded,
         (SELECT COALESCE(SUM(amount),0) FROM falcon.transactions
-         WHERE type = 'deduction')                                       AS total_spent,
+         WHERE type IN ('deduction', 'food_order_charge'))                AS total_spent,
         (SELECT COUNT(*) FROM falcon.topup_requests WHERE status='pending') AS pending_topups,
         (SELECT COUNT(*) FROM falcon.topup_requests)                    AS total_topups
 ")->fetch();

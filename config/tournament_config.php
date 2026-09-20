@@ -13,6 +13,7 @@ return [
         'single_elimination' => 'Single Elimination',
         'round_robin'        => 'Round Robin',
         'double_elimination' => 'Double Elimination',
+        'swiss'              => 'Swiss System',
     ],
 
     // Alias used in display/label contexts
@@ -20,6 +21,14 @@ return [
         'single_elimination' => 'Single Elimination',
         'round_robin'        => 'Round Robin',
         'double_elimination' => 'Double Elimination',
+        'swiss'              => 'Swiss System',
+    ],
+
+    'bracket_descriptions' => [
+        'single_elimination' => 'Lose once and you are eliminated.',
+        'double_elimination' => 'A second loss eliminates a player or team.',
+        'round_robin'        => 'Every participant plays every other participant.',
+        'swiss'              => 'Players compete for a fixed number of rounds without elimination.',
     ],
 
     // ── Player count constraints ─────────────────────────────

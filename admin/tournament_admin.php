@@ -180,6 +180,7 @@ $statusLabels = [
                         <option value="<?= $val ?>"><?= htmlspecialchars($desc) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <small class="section-note">Open Play is posted separately under Staff → Open Play Control.</small>
                 </div>
             </div>
 
@@ -205,6 +206,12 @@ $statusLabels = [
             <div class="form-group">
                 <label>Description</label>
                 <textarea name="description" rows="2" placeholder="Optional tournament details..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Swiss Rounds</label>
+                <input type="number" name="swiss_rounds" min="1" max="15" value="5">
+                <small class="section-note">Used only when Swiss System is selected.</small>
             </div>
 
             <div class="form-group form-check">

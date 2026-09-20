@@ -283,7 +283,7 @@ if ($method === 'POST') {
             }
 
             $fulfillmentLabel = $fulfillment === 'court' ? 'deliver to court' : 'pickup at counter';
-            notifyAdmins($db, '🍔 New Food Order', "Order {$orderNumber} placed ({$fulfillmentLabel}) — ₱" . number_format($total, 2));
+            notifyOperations($db, '🍔 New Food Order', "Order {$orderNumber} placed ({$fulfillmentLabel}) — ₱" . number_format($total, 2));
 
             $db->commit();
 
