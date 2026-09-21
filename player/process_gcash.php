@@ -97,7 +97,6 @@ try {
         VALUES (?, ?, ?, ?, ?, 'pending')
     ")->execute([$uid, $amount, $method, $ref, $screenshotData]);
 
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     setFlash('success', '✅ Top-up request submitted! The owner will approve it shortly.');
 
 } catch (PDOException $e) {

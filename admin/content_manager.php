@@ -28,8 +28,6 @@ if (!empty($_POST['action'])) {
             echo json_encode(['success' => false, 'message' => 'Session expired. Please reload the page.', 'csrf_token' => '']);
             exit;
         }
-        unset($_SESSION['csrf_token']);
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         echo json_encode(['success' => true, 'message' => 'Token refreshed.', 'csrf_token' => $_SESSION['csrf_token']]);
         exit;
     }

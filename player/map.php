@@ -21,9 +21,6 @@ if ($isAdmin && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? ''
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
         echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token.']); exit;
     }
-    // Rotate after a successful check, same as the central verifyCsrf() helper,
-    // so the token can't be replayed for a second save.
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     $newLat = trim($_POST['lat'] ?? '');
     $newLng = trim($_POST['lng'] ?? '');
     $errors = [];
