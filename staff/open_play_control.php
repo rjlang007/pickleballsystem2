@@ -572,10 +572,13 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
-    <!-- ── Roster & approvals ── -->
+    <!-- ── Registration: manual players + join requests ── -->
     <section class="opc-section" id="roster">
         <div class="opc-section-head">
-            <h3 class="opc-h3">Roster &amp; Approvals</h3>
+            <div>
+                <h3 class="opc-h3">Registration &amp; Approvals</h3>
+                <p class="opc-sub" style="margin:4px 0 0;">Registered players include staff-added players and players who requested to join.</p>
+            </div>
             <span class="opc-meta"><?= count($roster) ?> player<?= count($roster) === 1 ? '' : 's' ?></span>
         </div>
         <div class="opc-panel">
