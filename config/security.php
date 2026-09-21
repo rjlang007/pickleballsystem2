@@ -217,8 +217,6 @@ die('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 </html>');
     }
 
-    unset($_SESSION['csrf_token']);
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 // ── Role guards ───────────────────────────────────────────────
