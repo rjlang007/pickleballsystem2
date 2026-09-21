@@ -492,7 +492,7 @@ require_once __DIR__ . '/../includes/header.php';
             👤+ Manual Add
         </button>
         <a href="<?= APP_URL ?>/admin/kiosk.php" target="_blank" class="btn-primary btn-sm">📺 TV / Kiosk</a>
-        <a href="<?= APP_URL ?>/court/scanner.php"       class="btn-outline btn-sm">📷 Scanner</a>
+        <a href="<?= APP_URL ?>/staff/open_play_control.php" class="btn-outline btn-sm">🎲 Open Play Queue</a>
         <a href="<?= APP_URL ?>/admin/scan_logs.php"     class="btn-outline btn-sm">📋 Scan Logs</a>
         <a href="<?= APP_URL ?>/admin/court_settings.php"class="btn-outline btn-sm">⚙️ Settings</a>
         <a href="<?= APP_URL ?>/admin/dashboard.php"     class="btn-outline btn-sm">← Dashboard</a>

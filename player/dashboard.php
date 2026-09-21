@@ -932,7 +932,7 @@ require_once __DIR__ . '/../includes/header.php';
         <p>Welcome back, <strong class="dash-header-left-name"><?= clean($_SESSION['full_name']) ?></strong> 👋</p>
     </div>
     <div class="dash-header-actions">
-        <a href="<?= APP_URL ?>/player/my_qr.php" class="btn-outline btn-sm">📱 My QR</a>
+        <a href="<?= APP_URL ?>/public/open_play.php" class="btn-outline btn-sm">🎲 Open Play</a>
         <a href="<?= APP_URL ?>/player/topup.php"  class="btn-primary btn-sm">+ Load Credits</a>
     </div>
 </div>
@@ -1074,46 +1074,39 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?= APP_URL ?>/player/schedule.php" class="btn-outline btn-sm">Full Schedule →</a>
     </div>
 </div>
-<!-- ══ 5. QR PASS + GAME STATUS ════════════════════════════════ -->
+<!-- ══ 5. OPEN PLAY QUEUE + GAME STATUS ════════════════════════════════ -->
 <div class="dash-main-grid">
 
-    <!-- QR Pass -->
+    <!-- Open Play Queue -->
     <div class="card">
-        <div class="card-title">📱 My Court QR Pass</div>
-        <div class="card-subtitle">Show this at the court entrance scanner</div>
+        <div class="card-title">🎲 Open Play Queue</div>
+        <div class="card-subtitle">Your current place in the live queue</div>
         <hr class="divider"/>
-        <?php if ($pass): ?>
-            <div class="qr-inner">
-                <div class="qr-box <?= !$isActive ? 'qr-box-inactive' : '' ?>">
-                    <?= PlayerQR::img($pass['qr_token'], 170, 'display:block;margin:0 auto;width:100%;height:auto;', 'My Court QR Pass') ?>
-                    <?php if (!$isActive): ?><div class="qr-inactive-stamp">INACTIVE</div><?php endif; ?>
-                    <div class="qr-token-hint"><?= clean(substr($pass['qr_token'], 0, 20)) ?>…</div>
-                </div>
-                <?php if ($isActive): ?>
-                    <span class="badge badge-success qr-active-badge">✅ Active — Ready to Scan</span>
-                <?php else: ?>
-                    <span class="badge badge-danger qr-active-badge">❌ Inactive — Load Credits</span>
-                <?php endif; ?>
-                <div class="qr-info">
-                    This QR is <strong>permanent</strong> — it never changes.<br>
-                    <?php if ($isActive): ?>
-                        Ready to scan at the court entrance.
-                    <?php else: ?>
-                        Top up <strong class="qr-info-cost">₱<?= number_format($creditCost, 0) ?>+</strong> to activate.
-                    <?php endif; ?>
-                </div>
-                <div class="qr-actions">
-                    <a href="<?= APP_URL ?>/player/my_qr.php" class="btn-outline btn-sm">⛶ Full Screen</a>
-                    <?php if (!$isActive): ?>
-                        <a href="<?= APP_URL ?>/player/topup.php" class="btn-primary btn-sm">💰 Load Credits</a>
-                    <?php endif; ?>
-                </div>
+        <?php if ($queuePos ?? false): ?>
+            <div class="scanner-screen" style="border-color:var(--accent2);margin-bottom:12px;">
+                <div class="scanner-icon">⏳</div>
+                <div class="scanner-text">In Queue</div>
+                <div style="font-size:52px;font-family:'Bebas Neue',sans-serif;color:var(--accent2);">#<?= (int)$queuePos['position'] ?></div>
+                <div class="scanner-sub">Waiting for <?= max(0, PLAYERS_PER_GAME - $queueCount) ?> more player(s)</div>
+            </div>
+            <div class="qr-info">
+                Queue status is managed from the Open Play board.<br>
+                Watch your position and join the next available match from the queue screen.
+            </div>
+            <div class="qr-actions">
+                <a href="<?= APP_URL ?>/public/open_play.php" class="btn-primary btn-sm">🎲 View Queue</a>
             </div>
         <?php else: ?>
-            <div class="qr-refresh-wrap">
-                <div class="qr-refresh-icon">🔄</div>
-                <p class="qr-refresh-text">Setting up your QR pass… please refresh.</p>
-                <a href="" class="btn-outline btn-sm">↺ Refresh</a>
+            <div class="scanner-screen success" style="margin-bottom:12px;">
+                <div class="scanner-icon">✅</div>
+                <div class="scanner-text">Queue is clear</div>
+                <div class="scanner-sub">You are not currently waiting for a game.</div>
+            </div>
+            <div class="qr-info">
+                Join the live Open Play queue when you want to play.
+            </div>
+            <div class="qr-actions">
+                <a href="<?= APP_URL ?>/public/open_play.php" class="btn-primary btn-sm">🎲 Join Open Play</a>
             </div>
         <?php endif; ?>
     </div>
@@ -1314,7 +1307,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <!-- ══ 8. QUICK LINKS ══════════════════════════════════════════ -->
 <div class="dash-quick-links">
-    <a href="<?= APP_URL ?>/player/my_qr.php">        <span>📱</span>My QR Code</a>
+    <a href="<?= APP_URL ?>/public/open_play.php">     <span>🎲</span>Open Play</a>
     <a href="<?= APP_URL ?>/player/topup.php">         <span>💳</span>Load Credits</a>
     <a href="<?= APP_URL ?>/public/leaderboard.php">   <span>🏆</span>Leaderboard</a>
     <a href="<?= APP_URL ?>/public/tournaments.php">   <span>🎯</span>Tournaments</a>

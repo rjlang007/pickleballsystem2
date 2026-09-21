@@ -55,12 +55,11 @@ require_once __DIR__ . '/../includes/header.php';
       </details>
 
       <details style="padding:12px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">
-        <summary style="cursor:pointer;font-weight:600;">What is my QR code for?</summary>
+        <summary style="cursor:pointer;font-weight:600;">How does the Open Play queue work?</summary>
         <p style="margin:10px 0 0;color:var(--muted);">
-          Your personal QR code (<a href="<?= APP_URL ?>/player/my_qr.php">My QR Code</a>) is
-          how staff check you in at the court. Show it at the scanner when your slot starts —
-          it links your session to your account so credits are deducted correctly and your
-          stats/leaderboard points get recorded.
+          Open Play now runs through the live queue system instead of QR check-ins. Join from
+          <a href="<?= APP_URL ?>/public/open_play.php">Open Play</a>, watch your position in the
+          queue, and staff manage the active matches from the Open Play control screens.
         </p>
       </details>
 

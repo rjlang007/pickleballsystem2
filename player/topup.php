@@ -336,10 +336,10 @@ if (!empty($popt['qr_image'])) {
                 <strong style="color:var(--accent);">QR code</strong> directly.
                 Credits are added immediately — no waiting, no screenshots.
             </p>
-            <a href="<?= APP_URL ?>/player/my_qr.php" class="btn-outline"
+            <a href="<?= APP_URL ?>/public/open_play.php" class="btn-outline"
                style="display:block;text-align:center;padding:12px;margin-top:12px;
                       touch-action:manipulation;">
-                📱 Show My QR Code
+                🎲 Open Play Queue
             </a>
         </div>
 

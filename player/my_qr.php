@@ -24,6 +24,8 @@
 //   - Pass timer countdown
 // ============================================================
 require_once __DIR__ . '/../config/app.php';
+redirect('public/open_play.php');
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/qr.php';
 require_once __DIR__ . '/../config/security.php';

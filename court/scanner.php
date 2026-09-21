@@ -2,20 +2,19 @@
 // ============================================================
 //  FILE: court/scanner.php  — Priority 4 (multi-court tabs)
 // ============================================================
-require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/app.php';
+header('Location: ' . appUrl('staff/open_play_control.php'));
+exit;
+
+/*
+ * The legacy scanner flow has been removed. Open Play queueing is now the
+ * system of record for live floor operations.
+ */
+
+require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/security.php';
 require_once __DIR__ . '/../includes/logo.php';
 requireStaff();
-
-$kioskToken = hash('sha256', APP_NAME . '|kiosk|' . date('Y-m-d'));
-$cookiePath = appBasePath() ? appBasePath() . '/court/' : '/court/';
-setcookie('kiosk_token', $kioskToken, [
-    'expires'  => strtotime('tomorrow'),
-    'path'     => $cookiePath,
-    'httponly' => true,
-    'samesite' => 'Strict',
-]);
 
 $db = getDB();
 

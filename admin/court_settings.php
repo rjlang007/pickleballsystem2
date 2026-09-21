@@ -738,7 +738,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <div style="margin-top:8px;">
                 <a href="<?= APP_URL ?>/admin/active_game.php" class="btn-outline btn-sm" style="margin-right:6px;">🎮 Monitor</a>
-                <a href="<?= APP_URL ?>/court/scanner.php"     class="btn-outline btn-sm">📷 Scanner</a>
+                <a href="<?= APP_URL ?>/staff/open_play_control.php" class="btn-outline btn-sm">🎲 Open Play Queue</a>
             </div>
         </div>
     </div>

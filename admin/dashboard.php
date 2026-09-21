@@ -827,7 +827,7 @@ require_once __DIR__ . '/../includes/header.php';
         </p>
     </div>
     <div class="page-header-actions">
-        <a href="<?= APP_URL ?>/court/scanner.php"        class="btn-primary btn-sm">📷 Scanner</a>
+        <a href="<?= APP_URL ?>/staff/open_play_control.php" class="btn-primary btn-sm">🎲 Open Play Queue</a>
         <a href="<?= APP_URL ?>/admin/active_game.php"    class="btn-outline btn-sm">🎮 Live</a>
         <a href="<?= APP_URL ?>/admin/topup_requests.php" class="btn-outline btn-sm">
             ⏳ Top-Ups
@@ -1182,7 +1182,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="card-title mb-1">⚡ Quick Actions</div>
             <hr class="divider"/>
             <div class="quick-actions-grid">
-                <a href="<?= APP_URL ?>/court/scanner.php">          <span>📷</span>Scanner</a>
+                <a href="<?= APP_URL ?>/staff/open_play_control.php"> <span>🎲</span>Open Play</a>
                 <a href="<?= APP_URL ?>/admin/active_game.php">      <span>🎮</span>Live Games</a>
                 <a href="<?= APP_URL ?>/admin/players.php">          <span>👥</span>Players</a>
                 <a href="<?= APP_URL ?>/admin/create_player.php">    <span>➕</span>Add Player</a>

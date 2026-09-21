@@ -73,7 +73,7 @@ require_once __DIR__ . '/../includes/header.php';
         <p>Hi <?= clean($user['full_name'] ?: $user['username']) ?> — here's what's happening on the floor right now.</p>
     </div>
     <div class="sa-header-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-        <a href="<?= APP_URL ?>/court/scanner.php" class="btn-primary btn-sm">📷 Court Scanner</a>
+        <a href="<?= APP_URL ?>/staff/open_play_control.php" class="btn-primary btn-sm">🎲 Open Play Queue</a>
         <a href="<?= APP_URL ?>/admin/active_game.php" class="btn-outline btn-sm">🎮 Game Monitor</a>
         <a href="<?= APP_URL ?>/staff/tournament_queue.php" class="btn-outline btn-sm">🏆 Tournament Ops</a>
     </div>
@@ -170,7 +170,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="card-title mb-1">Quick Actions</div>
     <hr class="divider"/>
     <div class="staff-quick-actions">
-        <a href="<?= APP_URL ?>/court/scanner.php" class="btn-outline btn-sm">📷 Scan QR / Check-in</a>
+        <a href="<?= APP_URL ?>/staff/open_play_control.php" class="btn-outline btn-sm">🎲 Open Play Queue</a>
         <a href="<?= APP_URL ?>/admin/active_game.php" class="btn-outline btn-sm">🎮 Manage Live Games</a>
         <a href="<?= APP_URL ?>/admin/court_mode.php" class="btn-outline btn-sm">🏓 Switch Court Mode</a>
         <a href="<?= APP_URL ?>/staff/tournament_queue.php" class="btn-outline btn-sm">🏆 Tournament Queue &amp; Bracket</a>

@@ -941,7 +941,7 @@ if (isset($user) && $user) {
                 <button class="nav-group-btn" onclick="toggleNavGroup('ng-courts')"><?= pickleballLogo(18) ?> Courts <span class="arrow">▾</span></button>
                 <div class="nav-dropdown">
                     <div class="section-label">Live</div>
-                    <a href="<?= APP_URL ?>/court/scanner.php">📷 Court Scanner</a>
+                    <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Queue</a>
                     <a href="<?= APP_URL ?>/admin/active_game.php">🎮 Game Monitor</a>
                     <div class="sep"></div>
                     <div class="section-label">Settings</div>
@@ -1084,7 +1084,7 @@ if (isset($user) && $user) {
 
         <?php elseif (isStaffOnly()): /* Staff desktop nav */ ?>
             <a href="<?= APP_URL ?>/staff/dashboard.php">🧑‍💼 Console</a>
-            <a href="<?= APP_URL ?>/court/scanner.php">📷 Scanner</a>
+            <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Queue</a>
             <a href="<?= APP_URL ?>/admin/active_game.php">🎮 Game Monitor</a>
             <a href="<?= APP_URL ?>/admin/court_mode.php">🏓 Court Mode</a>
             <a href="<?= APP_URL ?>/staff/tournament_queue.php">🏆 Tournament Queue</a>
@@ -1132,7 +1132,7 @@ if (isset($user) && $user) {
             <a href="<?= APP_URL ?>/public/open_play.php">🎲 Open Play</a>
             <a href="<?= APP_URL ?>/player/food_menu.php">🍔 Food</a>
             <a href="<?= APP_URL ?>/player/dashboard.php">Dashboard</a>
-            <a href="<?= APP_URL ?>/player/my_qr.php">📱 My QR</a>
+            <a href="<?= APP_URL ?>/public/open_play.php">🎲 Queue</a>
             <a href="<?= APP_URL ?>/public/help.php">❓ Help</a>
             <a href="<?= APP_URL ?>/player/topup.php" class="btn-outline btn-sm">+ Load</a>
 
@@ -1263,7 +1263,7 @@ if (isset($user) && $user) {
             <button class="nav-group-btn" onclick="toggleNavGroup('ng-courts-m')">🏓 Courts <span class="arrow">▾</span></button>
             <div class="nav-dropdown">
                 <div class="section-label">Live</div>
-                <a href="<?= APP_URL ?>/court/scanner.php">📷 Court Scanner</a>
+                <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Queue</a>
                 <a href="<?= APP_URL ?>/admin/active_game.php">🎮 Game Monitor</a>
                 <div class="sep"></div>
                 <div class="section-label">Settings</div>
@@ -1381,7 +1381,7 @@ if (isset($user) && $user) {
     <?php elseif (isStaffOnly()): /* Staff mobile nav */ ?>
         <div class="mob-section-label">Floor Ops</div>
         <a href="<?= APP_URL ?>/staff/dashboard.php">🧑‍💼 Console</a>
-        <a href="<?= APP_URL ?>/court/scanner.php">📷 Court Scanner</a>
+        <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Queue</a>
         <a href="<?= APP_URL ?>/admin/active_game.php">🎮 Game Monitor</a>
         <a href="<?= APP_URL ?>/admin/court_mode.php">🏓 Court Mode</a>
         <a href="<?= APP_URL ?>/admin/game_history.php">📋 Game History</a>
@@ -1440,7 +1440,7 @@ if (isset($user) && $user) {
         <a href="<?= APP_URL ?>/public/tournaments.php">🎯 Tournaments</a>
         <a href="<?= APP_URL ?>/public/open_play.php">🎲 Open Play</a>
         <a href="<?= APP_URL ?>/player/food_menu.php">🍔 Food</a>
-        <a href="<?= APP_URL ?>/player/my_qr.php">📱 My QR</a>
+        <a href="<?= APP_URL ?>/public/open_play.php">🎲 Queue</a>
         <a href="<?= APP_URL ?>/public/help.php">❓ Help</a>
 
         <div class="mob-section-label">Chat</div>
