@@ -135,18 +135,24 @@ class OpenPlayEngine
         if (isset($data['price'])) {
             $settings['price'] = max(0, round((float)$data['price'], 2));
         }
+        if (array_key_exists('start_date', $data)) {
+            $startDate = trim((string)$data['start_date']);
+        } else {
+            $startDate = $event['start_date'] ?? null;
+        }
         if (isset($data['format']) && in_array($data['format'], ['singles', 'doubles'], true)) {
             $settings['format'] = $data['format'];
         }
 
         $this->db->prepare(
             "UPDATE falcon.tournaments
-                SET name = :name, description = :desc, max_players = :max, settings = :settings::jsonb
+                SET name = :name, description = :desc, max_players = :max, start_date = :start, settings = :settings::jsonb
               WHERE id = :id"
         )->execute([
             ':name' => $name,
             ':desc' => trim((string)($data['description'] ?? ($event['description'] ?? ''))) ?: null,
             ':max'  => $maxPlayers,
+            ':start' => $startDate ?: null,
             ':settings' => json_encode($settings),
             ':id'   => $tournamentId,
         ]);

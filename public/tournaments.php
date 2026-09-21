@@ -86,6 +86,8 @@ require_once __DIR__ . '/../includes/header.php';
             $max       = (int)$t['max_players'];
             $isFull    = $current >= $max;
             $canJoin   = $status === 'registration_open' && !$isJoined && !$isFull;
+            $tournamentSettings = json_decode($t['settings'] ?? '{}', true) ?: [];
+            $tournamentPrice = (float)($tournamentSettings['price'] ?? 0);
         ?>
         <div class="card" data-tid="<?= $tid ?>" style="margin:0;">
           <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;">
@@ -101,6 +103,7 @@ require_once __DIR__ . '/../includes/header.php';
             <span>📅 <?= $t['start_date'] ? date('M j, Y', strtotime($t['start_date'])) : 'TBD' ?></span>
             <span>👥 <?= $current ?>/<?= $max ?> players</span>
             <span>🏆 <?= ucwords(str_replace('_', ' ', $t['bracket_type'])) ?></span>
+            <span>💳 <?= $tournamentPrice > 0 ? '₱' . number_format($tournamentPrice, 2) : 'Free' ?></span>
           </div>
 
           <?php if ($status === 'registration_open'): ?>

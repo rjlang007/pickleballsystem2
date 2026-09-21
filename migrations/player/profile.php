@@ -118,7 +118,7 @@ $pageTitle = 'My Profile';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://unpkg.com/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 
 <?php if ($showFirstLoginAlert): ?>
 <script>

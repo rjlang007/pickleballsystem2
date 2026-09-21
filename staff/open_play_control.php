@@ -246,6 +246,9 @@ require_once __DIR__ . '/../includes/header.php';
             <input type="text" name="name" value="<?= clean($event['name']) ?>" required/>
             <label>Description</label>
             <textarea name="description" rows="2"><?= clean($event['description'] ?? '') ?></textarea>
+                 <label>Date and time</label>
+                 <input type="datetime-local" name="start_date"
+                     value="<?= !empty($event['start_date']) ? date('Y-m-d\TH:i', strtotime($event['start_date'])) : '' ?>" required/>
             <?php $editSettings = json_decode($event['settings'] ?? '{}', true) ?: []; ?>
             <label>Open Play fee (₱)</label>
             <input type="number" name="price" min="0.01" step="0.01" value="<?= number_format((float)($editSettings['price'] ?? 0), 2, '.', '') ?>" required/>

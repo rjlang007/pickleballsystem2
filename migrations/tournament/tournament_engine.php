@@ -41,6 +41,7 @@ class TournamentEngine
         $endDate     = $data['end_date']   ?? null;
         $description = trim($data['description'] ?? '');
         $featured    = !empty($data['featured']);
+        $price       = max(0, round((float)($data['price'] ?? 0), 2));
 
         if ($name === '') {
             throw new InvalidArgumentException('Tournament name is required.');
@@ -64,6 +65,7 @@ class TournamentEngine
         if ($type === 'swiss' && !empty($data['swiss_rounds'])) {
             $settings['swiss_rounds'] = (int)$data['swiss_rounds'];
         }
+        $settings['price'] = $price;
 
         $stmt = $this->db->prepare(
             "INSERT INTO falcon.tournaments
@@ -86,6 +88,27 @@ class TournamentEngine
             ':featured' => $featured ? 'true' : 'false',
         ]);
         return $stmt->fetch();
+    }
+
+    public function updateTournament(int $id, array $data, int $adminId): array
+    {
+        $tournament = $this->getTournament($id);
+        if (!$tournament) throw new RuntimeException('Tournament not found.');
+        if (!in_array($tournament['status'], ['draft', 'registration_open'], true)) {
+            throw new RuntimeException('Only draft or open-registration tournaments can be edited.');
+        }
+        $name = trim((string)($data['name'] ?? ''));
+        $type = $data['bracket_type'] ?? $tournament['bracket_type'];
+        $maxPlayers = (int)($data['max_players'] ?? $tournament['max_players']);
+        if ($name === '') throw new InvalidArgumentException('Tournament name is required.');
+        if (!array_key_exists($type, $this->config['bracket_types'])) throw new InvalidArgumentException('Invalid bracket type.');
+        if (!in_array($maxPlayers, $this->config['supported_player_counts'], true)) throw new InvalidArgumentException('Invalid player capacity.');
+        if ((int)$tournament['current_players'] > $maxPlayers) throw new InvalidArgumentException('Capacity cannot be lower than the current registered players.');
+        $settings = json_decode($tournament['settings'] ?? '{}', true) ?: [];
+        $settings['price'] = max(0, round((float)($data['price'] ?? 0), 2));
+        $stmt = $this->db->prepare("UPDATE falcon.tournaments SET name = :name, description = :description, bracket_type = :type, max_players = :max, start_date = :start, end_date = :end, featured = :featured, settings = :settings::jsonb, updated_at = NOW() WHERE id = :id RETURNING *");
+        $stmt->execute([':name' => $name, ':description' => trim((string)($data['description'] ?? '')) ?: null, ':type' => $type, ':max' => $maxPlayers, ':start' => $data['start_date'] ?: null, ':end' => $data['end_date'] ?: null, ':featured' => !empty($data['featured']) ? 'true' : 'false', ':settings' => json_encode($settings), ':id' => $id]);
+        return $stmt->fetch() ?: $this->getTournament($id);
     }
 
     /**

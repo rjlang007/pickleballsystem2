@@ -71,7 +71,7 @@ $tournaments = $engine->listTournaments();
 
 // Separate active tournaments needing bracket attention
 $bracketTournaments = array_filter($tournaments, fn($t) =>
-    in_array($t['status'], ['registration_open', 'in_progress'], true)
+    in_array($t['status'], ['draft', 'registration_open', 'in_progress'], true)
 );
 
 $statusLabels = [
@@ -201,6 +201,11 @@ $statusLabels = [
                     <label>End Date</label>
                     <input type="datetime-local" name="end_date">
                 </div>
+                <div class="form-group">
+                    <label>Registration Price (₱)</label>
+                    <input type="number" name="price" min="0" step="0.01" value="0">
+                    <small class="section-note">Set 0 for a free tournament.</small>
+                </div>
             </div>
 
             <div class="form-group">
@@ -278,6 +283,13 @@ $statusLabels = [
                 </div>
 
                 <div class="bracket-mgmt-actions">
+
+                    <?php if (in_array($t['status'], ['draft', 'registration_open'], true)): ?>
+                        <a href="<?= APP_URL ?>/admin/tournament_edit.php?id=<?= $t['id'] ?>"
+                           class="btn btn-xs btn-primary">
+                            ✏️ Edit Posting
+                        </a>
+                    <?php endif; ?>
 
                     <!-- Phase 11B: "👁 View Bracket" now points to bracket_viewer.php -->
                     <a href="<?= APP_URL ?>/public/bracket_viewer.php?id=<?= $t['id'] ?>"
