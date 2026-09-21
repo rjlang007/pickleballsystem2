@@ -130,10 +130,11 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="page-header">
     <h1>🎲 Open Play — Staff Control</h1>
-    <p>Draw skill-balanced games, run the courts, and finalize standings when the session wraps up.</p>
+    <p>Manage the event, review players, run games, and finish the session.</p>
 </div>
 
 <!-- ── Event picker / create ── -->
+<h2 style="margin:0 0 10px;font-size:20px;">Select Event</h2>
 <div class="card" style="margin-bottom:20px;">
     <div style="display:flex;gap:20px;flex-wrap:wrap;">
         <form method="GET" style="flex:1;min-width:220px;">
@@ -181,6 +182,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 <?php endif; ?>
 
+<h2 style="margin:0 0 10px;font-size:20px;">Session Controls</h2>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
     <div style="display:flex;gap:10px;">
         <a class="btn" href="<?= APP_URL ?>/staff/open_play_kiosk.php?tournament_id=<?= $selected ?>" target="_blank">📺 Open TV Kiosk</a>
@@ -236,8 +238,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <?php if (!$isClosed): ?>
 <div class="card" style="margin-bottom:20px;">
-    <details>
-        <summary style="cursor:pointer;color:var(--accent);">⚙️ Edit event settings</summary>
+    <h2 style="margin:0 0 12px;font-size:18px;">Basic Event Settings</h2>
         <form method="POST" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;max-width:420px;">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="update_event"/>
@@ -274,7 +275,6 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-muted" style="font-size:12px;margin:0;">Format and duration changes only apply to the <em>next</em> round drawn — games already on a court keep running with their original timer.</p>
             <button type="submit" class="btn btn-primary" style="align-self:flex-start;">Save Changes</button>
         </form>
-    </details>
 </div>
 <?php endif; ?>
 
@@ -311,6 +311,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+<h2 style="margin:24px 0 10px;font-size:20px;">Draw &amp; Live Games</h2>
 <!-- ── Live courts ── -->
 <div class="card" style="margin-bottom:20px;">
     <div class="card-title mb-1">🏟️ Live Courts</div>
@@ -334,6 +335,7 @@ $recentFinished = $db->prepare(
 $recentFinished->execute([':tid' => $selected]);
 $recentFinished = $recentFinished->fetchAll();
 ?>
+<h2 style="margin:24px 0 10px;font-size:20px;">Score Corrections</h2>
 <div class="card" style="margin-bottom:20px;">
     <div class="card-title mb-1">🕓 Recently Finished <span style="font-weight:400;color:var(--muted);font-size:12px;">— made a scoring mistake? Fix it here.</span></div>
     <hr class="divider"/>
@@ -354,6 +356,7 @@ $recentFinished = $recentFinished->fetchAll();
 </div>
 
 <!-- ── Roster / waiting pool ── -->
+<h2 style="margin:24px 0 10px;font-size:20px;">Queue &amp; Approvals</h2>
 <div class="card" style="margin-bottom:20px;">
     <div class="card-title mb-1">👥 Roster</div>
     <hr class="divider"/>
