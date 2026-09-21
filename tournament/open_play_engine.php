@@ -634,14 +634,19 @@ class OpenPlayEngine
         }
         $this->db->prepare(
             "UPDATE falcon.tournament_players
-                SET queue_status = :status,
+                SET queue_status = CAST(:queue_status AS varchar),
                     queued_at = CASE
-                        WHEN :status = 'waiting' THEN NOW()
+                        WHEN CAST(:waiting_status AS varchar) = 'waiting' THEN NOW()
                         ELSE COALESCE(queued_at, NOW())
                     END,
                     arrival_at = COALESCE(arrival_at, arrived_at, NOW())
               WHERE tournament_id = :tid AND player_id = :pid"
-        )->execute([':status' => $status, ':tid' => $tournamentId, ':pid' => $playerId]);
+        )->execute([
+            ':queue_status' => $status,
+            ':waiting_status' => $status,
+            ':tid' => $tournamentId,
+            ':pid' => $playerId,
+        ]);
         $this->logAudit($tournamentId, $actorId, 'queue_status', ['player_id' => $playerId, 'status' => $status]);
     }
 
@@ -703,7 +708,10 @@ class OpenPlayEngine
         $stmt = $this->db->prepare(
             "SELECT tp.player_id,
                     COALESCE(u.display_name, u.full_name, u.username) AS display_name,
-                    u.full_name, tp.skill_level, tp.games_played,
+                    u.full_name,
+                    CASE WHEN tp.skill_level IN ('beginner', 'average', 'advance')
+                        THEN tp.skill_level ELSE 'average' END AS skill_level,
+                    tp.games_played,
                     tp.wins, tp.losses,
                     EXTRACT(EPOCH FROM COALESCE(tp.arrival_at, tp.arrived_at, NOW())) AS arrival_epoch,
                     EXTRACT(EPOCH FROM COALESCE(tp.queued_at, tp.arrived_at, NOW())) AS queued_epoch
@@ -726,7 +734,7 @@ class OpenPlayEngine
                     team2_player1_id AS c, team2_player2_id AS d
                FROM falcon.open_play_matches
               WHERE tournament_id = :tid AND status = 'finished'
-              ORDER BY finished_at DESC LIMIT 40"
+              ORDER BY finished_at ASC"
         );
         $stmt->execute([':tid' => $tournamentId]);
         $partners  = [];
@@ -753,7 +761,7 @@ class OpenPlayEngine
                     team2_player1_id AS c, team2_player2_id AS d
                FROM falcon.open_play_matches
               WHERE tournament_id = :tid AND status = 'finished'
-              ORDER BY finished_at DESC LIMIT 60"
+              ORDER BY finished_at ASC"
         );
         $stmt->execute([':tid' => $tournamentId]);
         $lineups = [];
@@ -911,6 +919,13 @@ class OpenPlayEngine
                         // on pace/fairness alone.
                         if (!$this->compositionsCompatible($teamA, $teamB)) continue;
 
+                        // A complete four-player lineup must never be drawn
+                        // again, and players must not face the same opponent
+                        // twice. Repeating a teammate is allowed when the
+                        // opposing players are different.
+                        if (($this->lineupRepeatPenalty($teamA, $teamB, $recentLineups) ?? 0) > 0) continue;
+                        if ($this->hasRepeatedOpponent($teamA, $teamB, $opponents)) continue;
+
                         $all   = array_merge($teamA, $teamB);
 
                         $maxPace     = max(array_map($pace, $all));
@@ -958,6 +973,7 @@ class OpenPlayEngine
                 $diff       = abs(self::SKILL_SCORE[$pair[0]['skill_level']] - self::SKILL_SCORE[$pair[1]['skill_level']]);
                 $repeat     = isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']]) ? 1 : 0;
                 $lineupRepeat = $this->lineupRepeatPenalty($pair, [], $recentLineups);
+                if (isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']])) continue;
                 $waitTime   = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
                 $arrivalAge = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
                 $cand = compact('pair', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge');
@@ -1006,7 +1022,8 @@ class OpenPlayEngine
     {
         $keyA = $this->compositionKey($teamA);
         $keyB = $this->compositionKey($teamB);
-        return in_array($keyB, self::COMPOSITION_MATCHUPS[$keyA] ?? [], true);
+        return in_array($keyB, self::COMPOSITION_MATCHUPS[$keyA] ?? [], true)
+            && in_array($keyA, self::COMPOSITION_MATCHUPS[$keyB] ?? [], true);
     }
 
     private function repeatPenalty(array $teamA, array $teamB, array $partners, array $opponents): int
@@ -1020,6 +1037,17 @@ class OpenPlayEngine
             if (isset($opponents[$a['player_id']][$b['player_id']])) $penalty += 1;
         }
         return $penalty;
+    }
+
+    /** Return true when any player in one team has already faced a player in the other team. */
+    private function hasRepeatedOpponent(array $teamA, array $teamB, array $opponents): bool
+    {
+        foreach ($teamA as $playerA) {
+            foreach ($teamB as $playerB) {
+                if (isset($opponents[$playerA['player_id']][$playerB['player_id']])) return true;
+            }
+        }
+        return false;
     }
 
     private function lineupRepeatPenalty(array $teamA, array $teamB, array $recentLineups): int
@@ -1240,8 +1268,13 @@ class OpenPlayEngine
                 $all = array_map('intval', array_filter([$match['team1_player1_id'], $match['team1_player2_id'], $match['team2_player1_id'], $match['team2_player2_id']]));
                 foreach ($all as $playerId) {
                     $status = in_array($playerId, $present, true) ? 'waiting' : 'resting';
-                    $this->db->prepare("UPDATE falcon.tournament_players SET queue_status = :status, queued_at = CASE WHEN :status = 'waiting' THEN NOW() ELSE queued_at END WHERE tournament_id = :tid AND player_id = :pid")
-                        ->execute([':status' => $status, ':tid' => $tournamentId, ':pid' => $playerId]);
+                    $this->db->prepare("UPDATE falcon.tournament_players SET queue_status = CAST(:queue_status AS varchar), queued_at = CASE WHEN CAST(:waiting_status AS varchar) = 'waiting' THEN NOW() ELSE queued_at END WHERE tournament_id = :tid AND player_id = :pid")
+                        ->execute([
+                            ':queue_status' => $status,
+                            ':waiting_status' => $status,
+                            ':tid' => $tournamentId,
+                            ':pid' => $playerId,
+                        ]);
                     notifyUser($this->db, $playerId, 'Open Play check-in closed', in_array($playerId, $present, true) ? 'The match was cancelled because another player did not check in. You are back in the queue.' : 'The match was cancelled because you did not check in before the deadline. Ask staff to return you to the queue.', null, APP_URL . '/public/open_play.php');
                 }
                 $this->logAudit($tournamentId, $actorId, 'no_show_match', ['match_id' => (int)$match['id'], 'present' => $present]);

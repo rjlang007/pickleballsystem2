@@ -60,6 +60,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="page-header">
     <h1>Open Play Settings</h1>
     <p>Create or edit the public event posting. Queueing and games are managed separately.</p>
+    <a class="btn btn-sm" href="<?= APP_URL ?>/staff/open_play_control.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">← Back to Court Control</a>
 </div>
 
 <div class="card" style="margin-bottom:20px;">

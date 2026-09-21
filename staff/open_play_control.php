@@ -219,6 +219,9 @@ require_once __DIR__ . '/../includes/header.php';
 .opc-title { font-family: var(--display); font-size: 1.6rem; font-weight: 700; line-height: 1.15; margin: 0; color: #fff; }
 .opc-head-right { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .opc-count { font-size: 14px; color: var(--t45); }
+.opc-section-nav { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; }
+.opc-section-nav a { color:var(--t80); border:1px solid var(--line); background:var(--panel-soft); border-radius:8px; padding:7px 11px; font-size:12px; text-decoration:none; }
+.opc-section-nav a:hover { color:var(--ball); border-color:var(--ball); }
 
 /* buttons */
 .opc-btn, .opc-btn-action, .opc-btn-danger {
@@ -410,6 +413,11 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
     </div>
+    <nav class="opc-section-nav" aria-label="Open Play sections">
+        <a href="#registration">Registration &amp; Approvals</a>
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#raffles">Raffles</a>
+    </nav>
 
     <!-- ── Event + controls panel ── -->
     <div class="opc-panel opc-bar">
@@ -502,9 +510,14 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if ($pendingCount > 0 && !$isClosed): ?>
     <div class="opc-notice opc-notice-warn">
         <span><?= $pendingCount ?> player<?= $pendingCount === 1 ? '' : 's' ?> waiting for join approval.</span>
-        <a href="#roster">Review requests ↓</a>
+        <a href="#registration">Review requests ↓</a>
     </div>
     <?php endif; ?>
+
+    <div class="opc-notice" role="note">
+        <span><strong>Balanced draw rules:</strong> Beginner + Beginner plays only Beginner + Beginner · Beginner + Advance plays Beginner + Advance or Average + Average · Average + Average plays Average + Average or Beginner + Advance · Average + Beginner plays only Average + Beginner · Average + Advance plays only Average + Advance · Advance + Advance plays only Advance + Advance.</span>
+        <span class="opc-sub">Players rotate by waiting time, games played, and recent partner/opponent history. Unlisted matchups are blocked.</span>
+    </div>
 
     <!-- ── Bunot-bunot draw reveal ── -->
     <div class="opc-draw" id="drawPanel" aria-live="polite" hidden>
@@ -573,7 +586,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <!-- ── Registration: manual players + join requests ── -->
-    <section class="opc-section" id="roster">
+    <section class="opc-section" id="registration">
         <div class="opc-section-head">
             <div>
                 <h3 class="opc-h3">Registration &amp; Approvals</h3>
@@ -673,9 +686,9 @@ require_once __DIR__ . '/../includes/header.php';
     </section>
 
     <!-- ── Standings ── -->
-    <section class="opc-section">
+    <section class="opc-section" id="leaderboard">
         <div class="opc-section-head">
-            <h3 class="opc-h3">Current Standings</h3>
+            <h3 class="opc-h3">Current Standings · Leaderboard</h3>
             <span class="opc-meta"><?= count($standings) ?> ranked</span>
         </div>
         <div class="opc-panel">
@@ -713,8 +726,8 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- ── Raffle ── -->
     <?php if (!$isClosed): $latestRaffle = $engine->getLatestRaffleDraw($selected); ?>
-    <section class="opc-section">
-        <div class="opc-section-head"><h3 class="opc-h3">Raffle</h3></div>
+    <section class="opc-section" id="raffles">
+        <div class="opc-section-head"><h3 class="opc-h3">Raffles</h3></div>
         <div class="opc-panel">
             <p class="opc-help">Spins a random winner from players currently seated in an active game. Doesn't affect the queue or standings — it's a side prize draw.</p>
             <div class="opc-raffle-row">
@@ -1113,7 +1126,7 @@ async function doDraw() {
     if (err) {
         stopSpin(); drawMessage('⚠️ ' + err);
     } else if (!games.length) {
-        stopSpin(); drawMessage('Not enough players waiting (or no free courts) for a new game.');
+        stopSpin(); drawMessage('No compatible lineup is available yet. The draw needs enough waiting players, a free court, and a permitted skill combination.');
     } else {
         await ensureSkills(games, []);
         for (const g of games) { await sleep(reduceMotion ? 0 : 1500); drawRows.insertAdjacentHTML('beforeend', drawRow(g)); }
