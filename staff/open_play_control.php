@@ -406,6 +406,29 @@ $recentFinished = $recentFinished->fetchAll();
     </table>
 </div>
 
+<!-- ── Raffle ── -->
+<?php if (!$isClosed): $latestRaffle = $engine->getLatestRaffleDraw($selected); ?>
+<div class="card" style="margin-top:20px;">
+    <div class="card-title mb-1">🎁 Raffle</div>
+    <hr class="divider"/>
+    <p class="text-muted" style="font-size:13px;margin-top:0;">Spins a random winner from players currently seated in an active game. Doesn't affect the queue or standings — it's a side prize draw.</p>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+        <div style="flex:1;min-width:220px;">
+            <label style="display:block;font-size:12px;color:var(--muted);">Prize</label>
+            <input type="text" id="rafflePrize" maxlength="160" placeholder="e.g. Free entry next week"/>
+        </div>
+        <button class="btn btn-primary" id="raffleSpinBtn" onclick="doRaffle()">🎡 Spin Raffle</button>
+    </div>
+    <div id="raffleResult" style="<?= $latestRaffle ? '' : 'display:none;' ?>font-size:14px;">
+        <?php if ($latestRaffle): ?>
+            🏆 Last winner: <strong><?= clean($latestRaffle['winner_name']) ?></strong>
+            — <?= clean($latestRaffle['prize_description']) ?>
+            <span class="text-muted">(<?= (int)count(json_decode($latestRaffle['participant_names'], true) ?: []) ?> entrants, drawn <?= date('M j, g:i A', strtotime($latestRaffle['created_at'])) ?>)</span>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <script nonce="<?= getCspNonce() ?>">
 const APP_URL = '<?= APP_URL ?>';
 const TID = <?= (int)$selected ?>;
@@ -437,6 +460,24 @@ async function doTiebreak(playerIds){
         alert('Tiebreaker game drawn — check Live Courts below.');
         loadLive();
     } catch (e) { alert(e.message); }
+}
+
+async function doRaffle(){
+    const prizeInput = document.getElementById('rafflePrize');
+    const prize = prizeInput.value.trim();
+    if (!prize) { alert('Enter what the raffle winner gets first.'); return; }
+    const btn = document.getElementById('raffleSpinBtn');
+    btn.disabled = true;
+    try {
+        const data = await callApi('raffle_spin', { tournament_id: TID, prize_description: prize });
+        const draw = data.draw;
+        const resultBox = document.getElementById('raffleResult');
+        resultBox.style.display = '';
+        resultBox.innerHTML = `🏆 Winner: <strong>${esc(draw.winner_name)}</strong> — ${esc(draw.prize_description)}
+            <span class="text-muted">(${data.participants.length} entrant${data.participants.length===1?'':'s'})</span>`;
+        prizeInput.value = '';
+    } catch (e) { alert(e.message); }
+    btn.disabled = false;
 }
 
 async function callApi(action, body){

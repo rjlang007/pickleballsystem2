@@ -20,6 +20,7 @@
 //    POST ?action=correct_score   { match_id, score_a, score_b, confirmed? }
 //    POST ?action=cancel_match    { match_id }
 //    POST ?action=tiebreak        { tournament_id, player_ids: [] }
+//    POST ?action=raffle_spin     { tournament_id, prize_description }
 //    POST ?action=finalize        { tournament_id }
 //
 //  finish_match / correct_score may come back with HTTP 409 and
@@ -32,6 +33,7 @@
 //    GET  ?action=roster&tournament_id=X
 //    GET  ?action=leaderboard&tournament_id=X
 //    GET  ?action=ties&tournament_id=X
+//    GET  ?action=raffle_data&tournament_id=X
 //
 //  All state changes go through OpenPlayEngine so the same rules
 //  apply everywhere (staff console, future mobile client, etc).
@@ -50,6 +52,7 @@ $staffActions = [
     'approve_join', 'reject_join',
     'confirm_match', 'sweep_no_shows',
     'finalize', 'create', 'update_event', 'cancel_event',
+    'raffle_spin', 'raffle_data',
 ];
 
 try {
@@ -196,6 +199,22 @@ try {
                 (array)($body['player_ids'] ?? []),
                 $actorId
             ), 'Tiebreaker game created.');
+
+        case 'raffle_data':
+            routeMethod('GET');
+            $tid = (int)($_GET['tournament_id'] ?? 0);
+            apiSuccess([
+                'participants' => $engine->getRaffleParticipants($tid),
+                'latest_draw'  => $engine->getLatestRaffleDraw($tid),
+            ]);
+
+        case 'raffle_spin':
+            routeMethod('POST');
+            apiSuccess($engine->drawRaffle(
+                (int)($body['tournament_id'] ?? 0),
+                (string)($body['prize_description'] ?? ''),
+                $actorId
+            ), 'Raffle drawn.');
 
         case 'finalize':
             routeMethod('POST');

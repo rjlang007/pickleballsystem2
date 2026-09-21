@@ -1592,6 +1592,86 @@ class OpenPlayEngine
     }
 
     // ══════════════════════════════════════════════════════════
+    // RAFFLES
+    // ══════════════════════════════════════════════════════════
+
+    /** Players currently seated in an active (ready/in_progress/paused) match — the raffle's eligible pool. */
+    public function getRaffleParticipants(int $tournamentId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT DISTINCT u.id, COALESCE(u.display_name, u.full_name, u.username) AS name
+               FROM falcon.open_play_matches m
+               JOIN falcon.users u ON u.id IN (m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id)
+              WHERE m.tournament_id = :tid AND m.status IN ('ready','in_progress','paused')
+              ORDER BY name"
+        );
+        $stmt->execute([':tid' => $tournamentId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Most recent raffle draw for this event, or null if none has been run yet. */
+    public function getLatestRaffleDraw(int $tournamentId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM falcon.open_play_raffle_draws
+              WHERE tournament_id = :tid ORDER BY created_at DESC LIMIT 1"
+        );
+        $stmt->execute([':tid' => $tournamentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /**
+     * Spin the wheel among players currently on court and record a winner.
+     * Deliberately doesn't touch queue_status or the match itself — a raffle
+     * is a side prize draw, not a game result.
+     */
+    public function drawRaffle(int $tournamentId, string $prizeDescription, int $actorId): array
+    {
+        $event = $this->getEvent($tournamentId);
+        if (!$event) throw new RuntimeException('Open play event not found.');
+        if (in_array($event['status'], ['completed', 'cancelled'], true)) {
+            throw new RuntimeException('This event is closed — no more raffles can be drawn.');
+        }
+
+        $prize = trim($prizeDescription);
+        if ($prize === '' || mb_strlen($prize) > 160) {
+            throw new RuntimeException('A prize description between 1 and 160 characters is required.');
+        }
+
+        $participants = $this->getRaffleParticipants($tournamentId);
+        if (empty($participants)) {
+            throw new RuntimeException('There are no players in an active game to enter in the raffle.');
+        }
+
+        $winner = $participants[random_int(0, count($participants) - 1)];
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO falcon.open_play_raffle_draws
+                (tournament_id, prize_description, winner_player_id, winner_name,
+                 participant_ids, participant_names, drawn_by)
+             VALUES (:tid, :prize, :wid, :wname, :pids::jsonb, :pnames::jsonb, :actor)
+             RETURNING *"
+        );
+        $stmt->execute([
+            ':tid'    => $tournamentId,
+            ':prize'  => $prize,
+            ':wid'    => $winner['id'],
+            ':wname'  => $winner['name'],
+            ':pids'   => json_encode(array_column($participants, 'id')),
+            ':pnames' => json_encode(array_column($participants, 'name')),
+            ':actor'  => $actorId,
+        ]);
+        $draw = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $this->logAudit($tournamentId, $actorId, 'raffle_drawn', [
+            'prize' => $prize, 'winner_id' => $winner['id'], 'winner_name' => $winner['name'],
+        ]);
+
+        return ['draw' => $draw, 'participants' => $participants];
+    }
+
+    // ══════════════════════════════════════════════════════════
     // LEADERBOARD / STANDINGS
     // ══════════════════════════════════════════════════════════
 
