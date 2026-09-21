@@ -142,7 +142,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="card eu-form-card">
     <form method="POST">
-        <?php csrfField(); ?>
+        <?= csrfField() ?>
 
         <div class="form-group">
             <label class="form-label">Username</label>
