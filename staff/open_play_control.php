@@ -1180,4 +1180,4 @@ setInterval(() => loadLive(false), 6000);
 })();
 </script>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>ss
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
