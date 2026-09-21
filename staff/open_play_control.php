@@ -219,9 +219,10 @@ require_once __DIR__ . '/../includes/header.php';
 .opc-title { font-family: var(--display); font-size: 1.6rem; font-weight: 700; line-height: 1.15; margin: 0; color: #fff; }
 .opc-head-right { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .opc-count { font-size: 14px; color: var(--t45); }
-.opc-section-nav { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; }
-.opc-section-nav a { color:var(--t80); border:1px solid var(--line); background:var(--panel-soft); border-radius:8px; padding:7px 11px; font-size:12px; text-decoration:none; }
-.opc-section-nav a:hover { color:var(--ball); border-color:var(--ball); }
+.opc-section-nav { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; border-bottom:1px solid var(--line); padding-bottom:10px; }
+.opc-section-tab { color:var(--t60); border:1px solid var(--line); background:var(--panel-soft); border-radius:8px; padding:9px 14px; font:inherit; font-size:12px; cursor:pointer; }
+.opc-section-tab:hover, .opc-section-tab[aria-selected="true"] { color:var(--ball-ink); background:var(--ball); border-color:var(--ball); }
+.opc-tab-panel[hidden] { display:none !important; }
 
 /* buttons */
 .opc-btn, .opc-btn-action, .opc-btn-danger {
@@ -413,10 +414,10 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
     </div>
-    <nav class="opc-section-nav" aria-label="Open Play sections">
-        <a href="#registration">Registration &amp; Approvals</a>
-        <a href="#leaderboard">Leaderboard</a>
-        <a href="#raffles">Raffles</a>
+    <nav class="opc-section-nav" aria-label="Open Play sections" role="tablist">
+        <button type="button" class="opc-section-tab" role="tab" data-tab="registration" aria-controls="registration">Registration &amp; Approvals</button>
+        <button type="button" class="opc-section-tab" role="tab" data-tab="leaderboard" aria-controls="leaderboard">Leaderboard</button>
+        <button type="button" class="opc-section-tab" role="tab" data-tab="raffles" aria-controls="raffles">Raffles</button>
     </nav>
 
     <!-- ── Event + controls panel ── -->
@@ -510,7 +511,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if ($pendingCount > 0 && !$isClosed): ?>
     <div class="opc-notice opc-notice-warn">
         <span><?= $pendingCount ?> player<?= $pendingCount === 1 ? '' : 's' ?> waiting for join approval.</span>
-        <a href="#registration">Review requests ↓</a>
+        <button type="button" class="opc-link-btn" data-tab="registration">Review requests ↓</button>
     </div>
     <?php endif; ?>
 
@@ -586,7 +587,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <!-- ── Registration: manual players + join requests ── -->
-    <section class="opc-section" id="registration">
+    <section class="opc-section opc-tab-panel" id="registration" role="tabpanel" data-panel="registration">
         <div class="opc-section-head">
             <div>
                 <h3 class="opc-h3">Registration &amp; Approvals</h3>
@@ -686,7 +687,7 @@ require_once __DIR__ . '/../includes/header.php';
     </section>
 
     <!-- ── Standings ── -->
-    <section class="opc-section" id="leaderboard">
+    <section class="opc-section opc-tab-panel" id="leaderboard" role="tabpanel" data-panel="leaderboard" hidden>
         <div class="opc-section-head">
             <h3 class="opc-h3">Current Standings · Leaderboard</h3>
             <span class="opc-meta"><?= count($standings) ?> ranked</span>
@@ -726,7 +727,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- ── Raffle ── -->
     <?php if (!$isClosed): $latestRaffle = $engine->getLatestRaffleDraw($selected); ?>
-    <section class="opc-section" id="raffles">
+    <section class="opc-section opc-tab-panel" id="raffles" role="tabpanel" data-panel="raffles" hidden>
         <div class="opc-section-head"><h3 class="opc-h3">Raffles</h3></div>
         <div class="opc-panel">
             <p class="opc-help">Spins a random winner from players currently seated in an active game. Doesn't affect the queue or standings — it's a side prize draw.</p>
@@ -790,6 +791,24 @@ const esc = s => { const d = document.createElement('div'); d.textContent = s ==
 const fmt = sec => { sec = Math.max(0, sec | 0); return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0'); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Registration, Leaderboard, and Raffles are separate views in this page.
+const tabButtons = $$('.opc-section-tab, [data-tab]');
+const tabPanels = $$('[data-panel]');
+function activateTab(name, updateHash = true) {
+    const valid = ['registration', 'leaderboard', 'raffles'];
+    const active = valid.includes(name) ? name : 'registration';
+    tabPanels.forEach(panel => { panel.hidden = panel.dataset.panel !== active; });
+    $$('.opc-section-tab').forEach(button => {
+        const selected = button.dataset.tab === active;
+        button.setAttribute('aria-selected', selected ? 'true' : 'false');
+        button.tabIndex = selected ? 0 : -1;
+    });
+    if (updateHash) history.replaceState(null, '', `${location.pathname}${location.search}#${active}`);
+}
+tabButtons.forEach(button => button.addEventListener('click', () => activateTab(button.dataset.tab)));
+activateTab(location.hash.slice(1), false);
+window.addEventListener('hashchange', () => activateTab(location.hash.slice(1), false));
 
 // Move the modal/toast layer out of the animated page wrapper.
 const overlay = $('#opcOverlay');
