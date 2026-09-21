@@ -29,12 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         switch ($action) {
-            case 'create':
-                $t = $engine->createEvent($_POST, (int)$user['id']);
-                setFlash('success', '🎲 Open play event created.');
-                redirect('staff/open_play_control.php?tournament_id=' . $t['id']);
-                break;
-
             case 'add_player':
                 $engine->addPlayerByStaff($tid, (int)$_POST['player_id'], $_POST['skill_level'] ?? 'average', (int)$user['id']);
                 setFlash('success', 'Player added to the pool.');
@@ -58,11 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'remove_player':
                 $engine->leaveEvent($tid, (int)$_POST['player_id']);
                 setFlash('success', 'Player removed.');
-                break;
-
-            case 'update_event':
-                $engine->updateEvent($tid, $_POST, (int)$user['id']);
-                setFlash('success', 'Event settings updated.');
                 break;
 
             case 'cancel_event':
@@ -148,24 +137,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endforeach; ?>
             </select>
         </form>
-        <details style="flex:1;min-width:260px;">
-            <summary style="cursor:pointer;color:var(--accent);">+ New open play event</summary>
-            <form method="POST" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
-                <?= csrfField() ?>
-                <input type="hidden" name="action" value="create"/>
-                <input type="text" name="name" placeholder="Event name (e.g. Friday Night Open Play)" required/>
-                <textarea name="description" placeholder="Description (optional)" rows="2"></textarea>
-                <input type="number" name="price" min="0.01" step="0.01" placeholder="Open Play fee (₱)" required/>
-                <div style="display:flex;gap:8px;">
-                    <select name="format" style="flex:1;">
-                        <option value="doubles">Doubles (2v2)</option>
-                        <option value="singles">Singles (1v1)</option>
-                    </select>
-                    <input type="number" name="game_duration" value="900" min="60" step="60" title="Game duration, seconds" style="flex:1;"/>
-                </div>
-                <button type="submit" class="btn btn-primary">Create Event</button>
-            </form>
-        </details>
+        <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_settings.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Open Play Settings</a>
     </div>
 </div>
 
@@ -182,7 +154,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 <?php endif; ?>
 
-<h2 style="margin:0 0 10px;font-size:20px;">Session Controls</h2>
+<h2 style="margin:0 0 10px;font-size:20px;">Queueing &amp; Match Controls</h2>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
     <div style="display:flex;gap:10px;">
         <a class="btn" href="<?= APP_URL ?>/staff/open_play_kiosk.php?tournament_id=<?= $selected ?>" target="_blank">📺 Open TV Kiosk</a>
@@ -235,48 +207,6 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <?php endif; ?>
 </div>
-
-<?php if (!$isClosed): ?>
-<div class="card" style="margin-bottom:20px;">
-    <h2 style="margin:0 0 12px;font-size:18px;">Basic Event Settings</h2>
-        <form method="POST" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;max-width:420px;">
-            <?= csrfField() ?>
-            <input type="hidden" name="action" value="update_event"/>
-            <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-            <label>Name</label>
-            <input type="text" name="name" value="<?= clean($event['name']) ?>" required/>
-            <label>Description</label>
-            <textarea name="description" rows="2"><?= clean($event['description'] ?? '') ?></textarea>
-                 <label>Date and time</label>
-                 <input type="datetime-local" name="start_date"
-                     value="<?= !empty($event['start_date']) ? date('Y-m-d\TH:i', strtotime($event['start_date'])) : '' ?>" required/>
-            <?php $editSettings = json_decode($event['settings'] ?? '{}', true) ?: []; ?>
-            <label>Open Play fee (₱)</label>
-            <input type="number" name="price" min="0.01" step="0.01" value="<?= number_format((float)($editSettings['price'] ?? 0), 2, '.', '') ?>" required/>
-            <div style="display:flex;gap:8px;">
-                <div style="flex:1;">
-                    <label>Format</label>
-                    <select name="format" style="width:100%;">
-                        <?php $fmt = json_decode($event['settings'] ?? '{}', true)['format'] ?? 'doubles'; ?>
-                        <option value="doubles" <?= $fmt === 'doubles' ? 'selected' : '' ?>>Doubles (2v2)</option>
-                        <option value="singles" <?= $fmt === 'singles' ? 'selected' : '' ?>>Singles (1v1)</option>
-                    </select>
-                </div>
-                <div style="flex:1;">
-                    <label>Game duration (sec)</label>
-                    <input type="number" name="game_duration" min="60" step="60"
-                           value="<?= (int)(json_decode($event['settings'] ?? '{}', true)['game_duration'] ?? 900) ?>" style="width:100%;"/>
-                </div>
-                <div style="flex:1;">
-                    <label>Max players</label>
-                    <input type="number" name="max_players" min="4" value="<?= (int)$event['max_players'] ?>" style="width:100%;"/>
-                </div>
-            </div>
-            <p class="text-muted" style="font-size:12px;margin:0;">Format and duration changes only apply to the <em>next</em> round drawn — games already on a court keep running with their original timer.</p>
-            <button type="submit" class="btn btn-primary" style="align-self:flex-start;">Save Changes</button>
-        </form>
-</div>
-<?php endif; ?>
 
 <!-- ── Spin wheel overlay ── -->
 <div id="wheelOverlay" style="display:none;position:fixed;inset:0;background:rgba(5,10,15,.92);z-index:999;
