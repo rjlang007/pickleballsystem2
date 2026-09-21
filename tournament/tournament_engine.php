@@ -418,7 +418,7 @@ class TournamentEngine
 
             $this->db->prepare(
                 "UPDATE falcon.tournament_players
-                    SET status = 'registered', joined_at = NOW(), seed = NULL
+                    SET status = 'pending_approval', joined_at = NOW(), seed = NULL
                   WHERE id = :id"
             )->execute([':id' => $row['id']]);
             return;
@@ -427,7 +427,7 @@ class TournamentEngine
         $this->db->prepare(
             "INSERT INTO falcon.tournament_players
                  (tournament_id, player_id, status)
-             VALUES (:tid, :pid, 'registered')"
+             VALUES (:tid, :pid, 'pending_approval')"
         )->execute([':tid' => $tournamentId, ':pid' => $playerId]);
 
         try {
@@ -439,6 +439,22 @@ class TournamentEngine
         } catch (Throwable $e) {
             error_log('[Tournament] entry notification failed: ' . $e->getMessage());
         }
+    }
+
+    public function approvePlayer(int $tournamentId, int $playerId, int $actorId): void
+    {
+        $stmt = $this->db->prepare("UPDATE falcon.tournament_players SET status = 'registered' WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending_approval'");
+        $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        if ($stmt->rowCount() < 1) throw new RuntimeException('Pending tournament request not found.');
+        $this->logAudit($tournamentId, $actorId, 'approve_player', ['player_id' => $playerId]);
+    }
+
+    public function rejectPlayer(int $tournamentId, int $playerId, int $actorId): void
+    {
+        $stmt = $this->db->prepare("UPDATE falcon.tournament_players SET status = 'withdrawn' WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending_approval'");
+        $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        if ($stmt->rowCount() < 1) throw new RuntimeException('Pending tournament request not found.');
+        $this->logAudit($tournamentId, $actorId, 'reject_player', ['player_id' => $playerId]);
     }
 
     /**

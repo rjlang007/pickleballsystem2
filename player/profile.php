@@ -119,18 +119,12 @@ $pageTitle = 'My Profile';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<script src="https://unpkg.com/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-
 <?php if ($showFirstLoginAlert): ?>
 <script nonce="<?= getCspNonce() ?>">
 document.addEventListener('DOMContentLoaded', function () {
-    Swal.fire({
-        icon: 'warning', title: '🔑 Change Your Password',
-        html: 'Your account was created by an admin.<br>For your security, please change your password now.',
-        showCancelButton: true, confirmButtonText: 'Change Password Now',
-        cancelButtonText: "I'll do it later", confirmButtonColor: '#00e5a0',
-        cancelButtonColor: '#6b7280', background: '#0f1a14', color: '#f0fdf4',
-    }).then((result) => { if (result.isConfirmed) window.location.href = '<?= APP_URL ?>/player/change_password.php'; });
+    if (window.confirm('Your account was created by an admin. Please change your password now.')) {
+        window.location.href = '<?= APP_URL ?>/player/change_password.php';
+    }
 });
 </script>
 <?php endif; ?>

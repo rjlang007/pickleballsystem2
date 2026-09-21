@@ -17,7 +17,7 @@ try {
     // POST = join
     if ($method === 'POST') {
         $engine->registerPlayer($tid, $pid);
-        apiSuccess(null, 'Successfully joined tournament.');
+        apiSuccess(null, 'Join request submitted. It will appear after staff approval.');
     }
 
     // DELETE = leave

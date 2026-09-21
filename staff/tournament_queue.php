@@ -33,6 +33,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         switch ($action) {
+            case 'approve_player':
+                $engine->approvePlayer($tid, (int)$_POST['player_id'], (int)$user['id']);
+                setFlash('success', '✅ Tournament join request approved.');
+                break;
+
+            case 'reject_player':
+                $engine->rejectPlayer($tid, (int)$_POST['player_id'], (int)$user['id']);
+                setFlash('success', 'Tournament join request declined.');
+                break;
+
             case 'checkin':
                 $engine->setPlayerCheckIn($tid, (int)$_POST['player_id'], $_POST['checked'] === '1', (int)$user['id']);
                 setFlash('success', $_POST['checked'] === '1' ? '✅ Player checked in.' : 'Check-in undone.');
@@ -189,13 +199,31 @@ require_once __DIR__ . '/../includes/header.php';
                         <td style="font-weight:600;"><?= clean($p['display_name'] ?: $p['full_name']) ?></td>
                         <td><?= (int)$p['season_points'] ?></td>
                         <td>
-                            <?php if (!empty($p['checked_in'])): ?>
+                            <?php if (($p['status'] ?? '') === 'pending_approval'): ?>
+                                <span class="badge badge-warn">Pending approval</span>
+                            <?php elseif (!empty($p['checked_in'])): ?>
                                 <span class="badge badge-success">✔ Checked in</span>
                             <?php else: ?>
                                 <span class="badge badge-warn">Not checked in</span>
                             <?php endif; ?>
                         </td>
                         <td>
+                            <?php if (($p['status'] ?? '') === 'pending_approval'): ?>
+                                <form method="POST" style="display:inline;">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="approve_player">
+                                    <input type="hidden" name="tournament_id" value="<?= (int)$selected['id'] ?>">
+                                    <input type="hidden" name="player_id" value="<?= (int)$p['player_id'] ?>">
+                                    <button type="submit" class="btn-primary btn-sm">Approve</button>
+                                </form>
+                                <form method="POST" style="display:inline;">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="reject_player">
+                                    <input type="hidden" name="tournament_id" value="<?= (int)$selected['id'] ?>">
+                                    <input type="hidden" name="player_id" value="<?= (int)$p['player_id'] ?>">
+                                    <button type="submit" class="btn-outline btn-sm">Decline</button>
+                                </form>
+                            <?php endif; ?>
                             <form method="POST" style="display:inline;">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="action" value="checkin">

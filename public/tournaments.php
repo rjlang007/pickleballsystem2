@@ -38,15 +38,22 @@ $tournaments = $engine->listTournaments(['status' => $status]);
 
 // -- Which of these is the current player already registered for? --
 $myRegisteredIds = [];
+$myPendingIds = [];
 if (!empty($tournaments)) {
     $ids  = array_column($tournaments, 'id');
     $in   = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $db->prepare(
-        "SELECT tournament_id FROM falcon.tournament_players
+  $stmt = $db->prepare(
+    "SELECT tournament_id, status FROM falcon.tournament_players
           WHERE player_id = ? AND status != 'withdrawn' AND tournament_id IN ($in)"
     );
     $stmt->execute([$myId, ...$ids]);
-    $myRegisteredIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+  foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $registration) {
+    if ($registration['status'] === 'pending_approval') {
+      $myPendingIds[] = (int)$registration['tournament_id'];
+    } else {
+      $myRegisteredIds[] = (int)$registration['tournament_id'];
+    }
+  }
 }
 
 $pageTitle = 'Tournaments';
@@ -82,6 +89,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php foreach ($tournaments as $t):
             $tid       = (int)$t['id'];
             $isJoined  = in_array($tid, $myRegisteredIds, true);
+            $isPending = in_array($tid, $myPendingIds, true);
             $current   = (int)$t['current_players'];
             $max       = (int)$t['max_players'];
             $isFull    = $current >= $max;
@@ -107,7 +115,9 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
 
           <?php if ($status === 'registration_open'): ?>
-            <?php if ($isJoined): ?>
+            <?php if ($isPending): ?>
+              <div style="text-align:center;font-size:13px;color:var(--warn);">⏳ Awaiting staff approval</div>
+            <?php elseif ($isJoined): ?>
               <button class="tt-leave-btn" data-tid="<?= $tid ?>"
                       style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--danger);
                              background:transparent;color:var(--danger);cursor:pointer;font-weight:600;">
