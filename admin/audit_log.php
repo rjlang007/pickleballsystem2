@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/security.php';
-requireAdmin();
+requireStaff();
 
 $db = getDB();
 $action = trim((string)($_GET['action'] ?? ''));

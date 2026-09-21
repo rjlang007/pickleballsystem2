@@ -21,13 +21,28 @@
 //  — the full set of matches isn't known ahead of time.
 //
 //  Matchmaking is a straight port of the fairness/skill-balance
-//  algorithm from the standalone "Dink Board" open-play app:
+//  algorithm from the standalone "Dink Board" open-play app, with
+//  one hard rule applied before any of it: a team's skill
+//  *composition* (the pair of skill levels making up that team)
+//  restricts which team compositions it's allowed to face at all
+//  — see OpenPlayEngine::COMPOSITION_MATCHUPS. For example, a
+//  beginner+beginner team can only be drawn against another
+//  beginner+beginner team; a beginner+advance team can be drawn
+//  against another beginner+advance team or an average+average
+//  team, and so on. Lineups that break this rule are never
+//  candidates, no matter how fair or well-timed they'd otherwise
+//  be — this is what actually keeps a 2v2 balanced, since a raw
+//  "sum of skill scores" comparison alone would happily approve
+//  beginner+advance vs. average+average-looking totals that are
+//  numerically equal but not fair to play.
+//
+//  Among the lineups that pass that rule:
 //    1. Prefer players who've played the fewest games per hour
 //       since they arrived (so nobody sits out all night while
 //       others double/triple dip).
 //    2. Among equally-fair options, prefer the most skill-
 //       balanced 2v2 split (team score = sum of BEGINNER=1 /
-//       AVERAGE=2 / ADVANCE=3).
+//       AVERAGE=2 / ADVANCE=3) as a tiebreaker.
 //    3. Among those, avoid repeating recent partners/opponents.
 //    4. Ties broken by who's been waiting longest, then by a
 //       genuine random draw ("spin the wheel") — see
@@ -53,6 +68,37 @@ class OpenPlayEngine
     private array $config;
 
     private const SKILL_SCORE = ['beginner' => 1, 'average' => 2, 'advance' => 3];
+
+    /**
+     * Which doubles-team "compositions" (the two skill levels making up a
+     * team, e.g. beginner+advance) are allowed to face which other
+     * compositions. Keyed by a sorted "loScore-hiScore" pair (see
+     * compositionKey()). Every possible 2-player team falls into exactly
+     * one of these six composition buckets:
+     *
+     *   1-1  beginner + beginner
+     *   1-2  average  + beginner
+     *   1-3  beginner + advance
+     *   2-2  average  + average
+     *   2-3  average  + advance
+     *   3-3  advance  + advance
+     *
+     * Rules (as specced by the club):
+     *   - beginner+beginner  only plays beginner+beginner
+     *   - beginner+advance   only plays beginner+advance or average+average
+     *   - average+average    only plays average+average or beginner+advance
+     *   - average+beginner   only plays average+beginner
+     *   - average+advance    only plays average+advance
+     *   - advance+advance    only plays advance+advance
+     */
+    private const COMPOSITION_MATCHUPS = [
+        '1-1' => ['1-1'],
+        '1-3' => ['1-3', '2-2'],
+        '2-2' => ['2-2', '1-3'],
+        '1-2' => ['1-2'],
+        '2-3' => ['2-3'],
+        '3-3' => ['3-3'],
+    ];
 
     public function __construct()
     {
@@ -828,6 +874,15 @@ class OpenPlayEngine
      * then most skill-balanced, then least likely to repeat a recent
      * partner/opponent — with genuine randomness breaking any remaining
      * tie. This mirrors the standalone Open Play app's algorithm.
+     *
+     * A lineup is only "legal" at all if the two teams' skill compositions
+     * are allowed to face each other (COMPOSITION_MATCHUPS) — e.g. a
+     * beginner+beginner team can never be drawn against a beginner+advance
+     * team. That check happens first and disqualifies the pairing entirely,
+     * so no amount of fairness/pace advantage can push an unbalanced
+     * matchup through. If nothing in the pool satisfies it, this returns
+     * null and the round simply draws fewer games until compatible players
+     * are available.
      */
     private function buildDoublesGame(array $pool, callable $pace, array $partners, array $opponents, array $recentLineups = []): ?array
     {
@@ -846,6 +901,16 @@ class OpenPlayEngine
 
                         $teamA = [$shuffled[$a], $shuffled[$b]];
                         $teamB = [$shuffled[$c], $shuffled[$d]];
+
+                        // Skill-composition rule: e.g. a beginner+beginner team
+                        // may only face another beginner+beginner team, a
+                        // beginner+advance team may only face beginner+advance
+                        // or average+average, etc. — see COMPOSITION_MATCHUPS.
+                        // Reject this lineup outright rather than merely
+                        // penalizing it, so an unbalanced draw can never win
+                        // on pace/fairness alone.
+                        if (!$this->compositionsCompatible($teamA, $teamB)) continue;
+
                         $all   = array_merge($teamA, $teamB);
 
                         $maxPace     = max(array_map($pace, $all));
@@ -926,6 +991,22 @@ class OpenPlayEngine
     private function teamSkill(array $team): int
     {
         return array_sum(array_map(fn($p) => self::SKILL_SCORE[$p['skill_level']], $team));
+    }
+
+    /** Sorted "loScore-hiScore" key identifying a team's skill composition — see COMPOSITION_MATCHUPS. */
+    private function compositionKey(array $team): string
+    {
+        $scores = array_map(fn($p) => self::SKILL_SCORE[$p['skill_level']], $team);
+        sort($scores);
+        return implode('-', $scores);
+    }
+
+    /** Is $teamB an allowed opponent composition for $teamA, per COMPOSITION_MATCHUPS? */
+    private function compositionsCompatible(array $teamA, array $teamB): bool
+    {
+        $keyA = $this->compositionKey($teamA);
+        $keyB = $this->compositionKey($teamB);
+        return in_array($keyB, self::COMPOSITION_MATCHUPS[$keyA] ?? [], true);
     }
 
     private function repeatPenalty(array $teamA, array $teamB, array $partners, array $opponents): int

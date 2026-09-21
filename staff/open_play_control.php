@@ -107,6 +107,7 @@ $event    = $selected ? $engine->getEvent($selected) : null;
 $roster   = $event ? $engine->getRoster($selected) : [];
 $standings= $event ? $engine->computeLeaderboard($selected) : [];
 $ties     = $event ? $engine->detectPodiumTies($standings) : [];
+$waitingCount = count(array_filter($roster, static fn($player) => ($player['queue_status'] ?? '') === 'waiting'));
 $db       = getDB();
 $searchablePlayers = $db->query(
     "SELECT id, COALESCE(display_name, full_name, username) AS name FROM falcon.users
@@ -117,16 +118,102 @@ $pageTitle = 'Open Play Control';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="page-header">
-    <h1>🎲 Open Play — Staff Control</h1>
-    <p>Manage the event, review players, run games, and finish the session.</p>
-</div>
+<style nonce="<?= getCspNonce() ?>">
+/* Open Play uses the same floor-operations visual language as the tournament board. */
+body:has(.op-board) { background: #071812; }
+body:has(.op-board) .navbar,
+body:has(.op-board) #nav-hamburger,
+body:has(.op-board) #mobile-nav-overlay,
+body:has(.op-board) .fcp-announce-wrap { display: none !important; }
+body:has(.op-board) .main-content { max-width: 950px; padding: 0 0 44px; animation: none; }
+body:has(.op-board) .footer { max-width: 950px; margin: 0 auto; background: transparent; }
+.op-board { --op-bg:#071812; --op-surface:#10231d; --op-surface-2:#152b24; --op-border:rgba(190,201,112,.18); --op-muted:#7d8d86; --op-text:#edf3e7; --op-gold:#e3bd35; color:var(--op-text); font-family:'DM Sans',system-ui,sans-serif; }
+.op-nav { height:60px; margin:12px 0 34px; padding:0 18px; display:flex; align-items:center; gap:26px; border:1px solid rgba(190,201,112,.2); border-radius:14px; background:#0e211b; }
+.op-brand { display:flex; align-items:center; gap:10px; min-width:190px; color:var(--op-gold); text-decoration:none; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:.04em; }
+.op-brand-mark { width:34px; height:34px; display:grid; place-items:center; border-radius:10px; background:#4f5121; font-size:19px; }
+.op-brand small { display:block; color:#718077; font:600 8px 'DM Sans',sans-serif; letter-spacing:.24em; margin-top:1px; }
+.op-links { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex:1; }
+.op-links a { padding:8px 10px; border-radius:10px; color:#b1b9af; text-decoration:none; font-size:12px; font-weight:600; white-space:nowrap; }
+.op-links a:hover, .op-links a[aria-current="page"] { color:var(--op-text); background:#182e26; }
+.op-heading { position:relative; margin:0 44px 22px; display:flex; align-items:flex-end; justify-content:space-between; gap:18px; }
+.op-heading .page-header { margin:0; }
+.op-heading .page-header h1 { margin:0; color:var(--op-text); font:700 24px/1 'Bebas Neue',sans-serif; letter-spacing:.04em; }
+.op-heading .page-header p { margin:8px 0 0; color:#85958d; font-size:12px; }
+.op-kicker { color:#c3a92c; font-size:8px; font-weight:700; letter-spacing:.28em; text-transform:uppercase; margin-bottom:8px; }
+.op-heading-actions { display:flex; align-items:center; gap:12px; }
+.op-count { color:#83928b; font-size:11px; font-weight:700; white-space:nowrap; }
+.op-board .btn-primary { background:var(--op-gold); color:#171a0d; border:0; box-shadow:0 7px 20px rgba(227,189,53,.18); }
+.op-board .btn-primary:hover { background:#f0cc4b; }
+.op-board .btn, .op-board .btn-outline { border-radius:8px; font-size:11px; min-height:34px; }
+.op-board > .card, .op-board .card { background:linear-gradient(145deg,#12251f,#10211c); border:1px solid var(--op-border); border-radius:12px; box-shadow:none; }
+.op-board > .card { margin-left:44px !important; margin-right:44px !important; }
+.op-board .card:hover { box-shadow:none; border-color:rgba(190,201,112,.28); }
+.op-board .card-title { color:var(--op-text); font-size:16px; letter-spacing:.03em; }
+.op-board .divider { border-color:rgba(190,201,112,.12); }
+.op-event-picker { padding:10px 14px !important; margin-bottom:12px !important; }
+.op-event-picker label { display:none; }
+.op-event-picker select { max-width:360px; padding:8px 10px; font-size:12px; }
+.op-window { padding:14px 16px !important; }
+.op-window .card-title { font:700 11px 'DM Sans',sans-serif; letter-spacing:.12em; text-transform:uppercase; color:#8b9992; }
+.op-window .card-title::before { content:'TOURNAMENT WINDOW'; display:block; margin-bottom:4px; color:#8b9992; font-size:9px; }
+.op-window .card-title { font-size:11px; }
+.op-window .card-title + .divider { display:none; }
+.op-window .op-control-row { display:flex; flex-wrap:wrap; gap:7px; }
+.op-board .table { color:var(--op-text); font-size:12px; }
+.op-board .table th { color:#829189; font-size:9px; letter-spacing:.14em; text-transform:uppercase; }
+.op-board .table td, .op-board .table th { border-color:rgba(190,201,112,.1); }
+.op-live-grid { min-height:72px; }
+.op-board input, .op-board select { background:#172e26; border-color:rgba(190,201,112,.16); color:var(--op-text); }
+.op-board input::placeholder { color:#73837b; }
+.op-board .text-muted { color:var(--op-muted) !important; }
+.op-board h2 { font-family:'Bebas Neue',sans-serif; }
+.op-board .alert { border-radius:9px; }
+@media (max-width:760px) {
+    body:has(.op-board) .main-content { padding:0 12px 30px; }
+    .op-nav { margin:8px 0 22px; height:auto; min-height:58px; padding:10px; gap:10px; overflow:auto; }
+    .op-brand { min-width:150px; }
+    .op-links { justify-content:flex-start; }
+    .op-heading { margin:0 8px 18px; align-items:flex-start; flex-direction:column; }
+    .op-heading-actions { width:100%; justify-content:space-between; }
+    .op-board > .card { margin-left:8px !important; margin-right:8px !important; }
+}
+</style>
 
-<!-- ── Event picker / create ── -->
-<h2 style="margin:0 0 10px;font-size:20px;">Select Event</h2>
-<div class="card" style="margin-bottom:20px;">
-    <div style="display:flex;gap:20px;flex-wrap:wrap;">
-        <form method="GET" style="flex:1;min-width:220px;">
+<div class="op-board">
+    <nav class="op-nav" aria-label="Tournament operations">
+        <a class="op-brand" href="<?= APP_URL ?>/staff/open_play_control.php">
+            <span class="op-brand-mark">🏓</span>
+            <span>Dink Board<small>TOURNAMENT OPS</small></span>
+        </a>
+        <div class="op-links">
+            <a href="<?= APP_URL ?>/staff/open_play_control.php">Registration</a>
+            <a href="<?= APP_URL ?>/staff/open_play_control.php" aria-current="page">Court Control</a>
+            <a href="<?= APP_URL ?>/admin/court_settings.php">Location</a>
+            <a href="<?= APP_URL ?>/staff/open_play_kiosk.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Kiosk</a>
+            <a href="<?= APP_URL ?>/public/leaderboard.php">Leaderboard</a>
+            <a href="<?= APP_URL ?>/staff/tournament_queue.php">Bracket</a>
+            <a href="#rafflePrize">Raffle</a>
+            <a href="<?= APP_URL ?>/staff/dashboard.php">Platform</a>
+            <a href="<?= APP_URL ?>/auth/logout.php">Sign out</a>
+        </div>
+    </nav>
+
+    <div class="op-heading">
+        <div class="page-header">
+            <div class="op-kicker">LIVE TOURNAMENT FEATURE</div>
+            <h1>Court Control</h1>
+            <p>Run live open play games, manage the waiting queue, and update results.</p>
+        </div>
+        <div class="op-heading-actions">
+            <span class="op-count"><?= $waitingCount ?> players waiting</span>
+            <?php if ($event && !$isClosed): ?><button class="btn btn-primary" id="drawBtn">Spin / Draw Next Round</button><?php endif; ?>
+        </div>
+    </div>
+
+<!-- ── Event picker ── -->
+<div class="card op-event-picker" style="margin-bottom:20px;">
+    <form method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;">
             <label>Event</label>
             <select name="tournament_id" onchange="this.form.submit()">
                 <option value="">— Select an event —</option>
@@ -136,14 +223,26 @@ require_once __DIR__ . '/../includes/header.php';
                     </option>
                 <?php endforeach; ?>
             </select>
-        </form>
-        <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_settings.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Open Play Settings</a>
-    </div>
+        </div>
+        <noscript><button type="submit" class="btn-outline btn-sm">Go</button></noscript>
+        <a class="btn-outline btn-sm" href="<?= APP_URL ?>/staff/open_play_settings.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Settings</a>
+    </form>
 </div>
 
 <?php if (!$event): ?>
-    <div class="card"><p class="text-muted">Select or create an open play event to get started.</p></div>
+    <div class="card">
+        <p class="text-muted text-center" style="padding:24px;">Select or create an open play event to get started.</p>
+    </div>
 <?php else: $isClosed = in_array($event['status'], ['completed', 'cancelled'], true); ?>
+
+    <div class="card" style="margin-bottom:20px;">
+        <div class="card-title mb-1"><?= clean($event['name']) ?></div>
+        <p class="text-muted">
+            Open play ·
+            <span class="badge badge-info"><?= clean(str_replace('_', ' ', $event['status'])) ?></span> ·
+            <?= (int)($event['current_players'] ?? count($roster)) ?> players in the pool
+        </p>
+    </div>
 
 <?php if ($isClosed): ?>
 <div class="alert <?= $event['status'] === 'cancelled' ? 'alert-warning' : 'alert-info' ?>" style="margin-bottom:14px;">
@@ -154,49 +253,55 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 <?php endif; ?>
 
-<h2 style="margin:0 0 10px;font-size:20px;">Queueing &amp; Match Controls</h2>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-    <div style="display:flex;gap:10px;">
-        <a class="btn" href="<?= APP_URL ?>/staff/open_play_kiosk.php?tournament_id=<?= $selected ?>" target="_blank">📺 Open TV Kiosk</a>
-        <?php if (!$isClosed): ?>
-        <button class="btn btn-primary" id="drawBtn">🎡 Draw Next Round</button>
-        <?php endif; ?>
-    </div>
-    <?php if (!$isClosed): ?>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+<div class="card op-window" style="margin-bottom:20px;">
+        <div class="card-title mb-1">Court Control</div>
+    <hr class="divider"/>
+        <div class="op-control-row">
+                <a class="btn" href="<?= APP_URL ?>/admin/open_play_settings.php">Set schedule</a>
+                <a class="btn" href="<?= APP_URL ?>/admin/court_create.php">+ Add court</a>
+                <a class="btn" href="<?= APP_URL ?>/admin/court_mode.php">Repair states</a>
+                <a class="btn" href="<?= APP_URL ?>/admin/audit_log.php">Audit history</a>
+                <a class="btn" href="<?= APP_URL ?>/staff/open_play_kiosk.php?tournament_id=<?= $selected ?>" target="_blank">Open kiosk</a>
+        </div>
+          <div style="display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:10px;margin-top:12px;">
+      <?php if (!$isClosed): ?>
+            <div class="op-control-row">
         <?php if ($event['status'] === 'paused'): ?>
             <form method="POST">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="resume_event"/>
                 <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-                <button type="submit" class="btn btn-primary">▶️ Resume Matchmaking</button>
+                <button type="submit" class="btn btn-primary">Resume courts</button>
             </form>
         <?php elseif (!in_array($event['status'], ['completed','cancelled'], true)): ?>
             <form method="POST">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="pause_event"/>
                 <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-                <button type="submit" class="btn">⏸️ Pause Matchmaking</button>
+                <button type="submit" class="btn">Emergency pause</button>
             </form>
         <?php endif; ?>
         <form method="POST" onsubmit="return confirm('Close tonight and disable the nightly schedule from this date onward?');">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="close_tonight"/>
             <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-            <button type="submit" class="btn btn-warning">🚫 Close Tonight</button>
+            <button type="submit" class="btn btn-warning">Close tonight</button>
         </form>
         <form method="POST" onsubmit="return confirm('Finalize this event? This locks in placements and updates the season leaderboard.');">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="finalize"/>
             <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-            <button type="submit" class="btn btn-danger">🏁 Finalize Event</button>
+            <button type="submit" class="btn btn-danger">Finalize now</button>
         </form>
+      </div>
+      <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
 
 <?php if (!$isClosed): $eventSettings = json_decode($event['settings'] ?? '{}', true) ?: []; $currentDuration = (int)($eventSettings['game_duration'] ?? 900); ?>
 <div class="card" style="margin-bottom:14px;padding:14px 18px;">
+    <div class="card-title mb-1">Round Settings</div>
+    <hr class="divider"/>
     <form method="POST" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="update_duration"/>
@@ -244,10 +349,9 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<h2 style="margin:24px 0 10px;font-size:20px;">Draw &amp; Live Games</h2>
 <!-- ── Live courts ── -->
 <div class="card" style="margin-bottom:20px;">
-    <div class="card-title mb-1">🏟️ Live Courts</div>
+    <div class="card-title mb-1">Up Next · Live Courts</div>
     <hr class="divider"/>
     <div id="liveCourts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
 </div>
@@ -268,9 +372,8 @@ $recentFinished = $db->prepare(
 $recentFinished->execute([':tid' => $selected]);
 $recentFinished = $recentFinished->fetchAll();
 ?>
-<h2 style="margin:24px 0 10px;font-size:20px;">Score Corrections</h2>
 <div class="card" style="margin-bottom:20px;">
-    <div class="card-title mb-1">🕓 Recently Finished <span style="font-weight:400;color:var(--muted);font-size:12px;">— made a scoring mistake? Fix it here.</span></div>
+    <div class="card-title mb-1">Finished Games · Editable Results <span style="font-weight:400;color:var(--muted);font-size:12px;">Recently finished games</span></div>
     <hr class="divider"/>
     <?php if (!$recentFinished): ?>
         <p class="text-muted">No finished games yet.</p>
@@ -289,9 +392,8 @@ $recentFinished = $recentFinished->fetchAll();
 </div>
 
 <!-- ── Roster / waiting pool ── -->
-<h2 style="margin:24px 0 10px;font-size:20px;">Queue &amp; Approvals</h2>
 <div class="card" style="margin-bottom:20px;">
-    <div class="card-title mb-1">👥 Roster</div>
+    <div class="card-title mb-1">Waiting Queue <span style="font-weight:400;color:var(--muted);font-size:12px;"><?= $waitingCount ?> players</span></div>
     <hr class="divider"/>
     <form method="POST" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
         <?= csrfField() ?>
@@ -378,7 +480,7 @@ $recentFinished = $recentFinished->fetchAll();
 
 <!-- ── Standings preview ── -->
 <div class="card">
-    <div class="card-title mb-1">📊 Current Standings</div>
+    <div class="card-title mb-1">Current Standings</div>
     <hr class="divider"/>
 
     <?php if (!empty($ties)): foreach ($ties as $tie): ?>
@@ -409,7 +511,7 @@ $recentFinished = $recentFinished->fetchAll();
 <!-- ── Raffle ── -->
 <?php if (!$isClosed): $latestRaffle = $engine->getLatestRaffleDraw($selected); ?>
 <div class="card" style="margin-top:20px;">
-    <div class="card-title mb-1">🎁 Raffle</div>
+    <div class="card-title mb-1">Raffle</div>
     <hr class="divider"/>
     <p class="text-muted" style="font-size:13px;margin-top:0;">Spins a random winner from players currently seated in an active game. Doesn't affect the queue or standings — it's a side prize draw.</p>
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
@@ -428,6 +530,8 @@ $recentFinished = $recentFinished->fetchAll();
     </div>
 </div>
 <?php endif; ?>
+
+</div>
 
 <script nonce="<?= getCspNonce() ?>">
 const APP_URL = '<?= APP_URL ?>';
@@ -635,7 +739,7 @@ function spinWheel(canvas, durationMs){
     });
 }
 
-document.getElementById('drawBtn').addEventListener('click', async () => {
+document.getElementById('drawBtn')?.addEventListener('click', async () => {
     const drawBtn = document.getElementById('drawBtn');
     drawBtn.disabled = true;
     const overlay = document.getElementById('wheelOverlay');

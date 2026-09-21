@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/security.php';
 require_once __DIR__ . '/../tournament/open_play_scheduler.php';
-requireAdmin();
+requireStaff();
 
 $db      = getDB();
 $adminId = (int)$_SESSION['user_id'];
