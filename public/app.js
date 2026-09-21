@@ -1,7 +1,8 @@
 // Section H: Landing Page (Customer-Facing) — plain HTML/JS frontend talking
 // to the Express API. No build step needed, per Section 2's "any frontend"
 // allowance.
-const API = ''; // same-origin
+const APP_BASE = (window.APP_URL || '').replace(/\/$/, '');
+const API = APP_BASE + '/api';
 
 // PWA: register the service worker (public/sw.js) so the landing page is
 // installable and the static shell (HTML/CSS/JS/icons) loads instantly —
@@ -12,7 +13,7 @@ const API = ''; // same-origin
 // itself from loading.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register(APP_BASE + '/sw.js').catch((err) => {
       console.warn('Service worker registration failed:', err);
     });
   });
@@ -83,7 +84,7 @@ state.portalSession = getPortalSession();
 async function tryRefreshAccessToken() {
   if (!state.refreshToken) return false;
   try {
-    const res = await fetch('/auth/refresh', {
+    const res = await fetch(APP_BASE + '/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: state.refreshToken }),
@@ -481,7 +482,7 @@ async function renderBook() {
   // Section 8: show the live T&Cs (rendered from current business_settings)
   // before the customer can submit. The checkbox is a UX gate — the real
   // enforcement is server-side in POST /bookings, since a client can't be trusted.
-  fetch('/settings/terms').then(r => r.json()).then(({ text }) => {
+  fetch(APP_BASE + '/settings/terms').then(r => r.json()).then(({ text }) => {
     document.getElementById('terms-text').textContent = text;
   }).catch(() => {
     document.getElementById('terms-text').textContent = 'Could not load terms — please try again.';

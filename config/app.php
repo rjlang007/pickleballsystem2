@@ -17,6 +17,22 @@ if (defined('APP_ROOT')) return;
 
 define('APP_ROOT', realpath(__DIR__ . '/..'));
 
+if (!function_exists('appBasePath')) {
+    function appBasePath(): string {
+        $path = parse_url(APP_URL ?? '', PHP_URL_PATH) ?: '/';
+        $path = rtrim($path, '/');
+        return ($path === '' || $path === '/') ? '' : $path;
+    }
+}
+
+if (!function_exists('appUrl')) {
+    function appUrl(string $path = ''): string {
+        $base = rtrim(APP_URL ?? '', '/');
+        $path = ltrim($path, '/');
+        return $path === '' ? $base : $base . '/' . $path;
+    }
+}
+
 require_once __DIR__ . '/alerting.php';
 
 // ── Load .env directly (don't rely on config/db.php having run first) ──

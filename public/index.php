@@ -114,6 +114,9 @@ function h(mixed $v, string $fallback = ''): string {
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script>
+    window.APP_URL = <?= json_encode(APP_URL) ?>;
+</script>
 
 <style nonce="<?= getCspNonce() ?>">
 /* ============================================================
@@ -2141,7 +2144,8 @@ window.addEventListener('load', () => {
 
 // ── Live courts auto-refresh (60s) ──────────────────────────
 function updateCourtsGrid() {
-  fetch('/api/courts.php')
+  const apiBase = (window.APP_URL || '').replace(/\/$/, '');
+  fetch(apiBase + '/api/courts.php')
     .then(r => r.json())
     .then(data => {
       const grid = document.getElementById('courts-grid');
@@ -2172,7 +2176,7 @@ function updateCourtsGrid() {
               <div class="status-text ${statusClass}">${statusText}</div>
             </div>
             <div class="court-action">
-              <a href="/player/schedule.php?court=${court.id}" class="btn-primary btn-sm">Book This Court →</a>
+              <a href="${apiBase}/player/schedule.php?court=${court.id}" class="btn-primary btn-sm">Book This Court →</a>
             </div>
           </div>
         `;

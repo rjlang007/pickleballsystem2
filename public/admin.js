@@ -5,6 +5,8 @@
 // collides with a customer session open in another tab.
 // ============================================================
 
+const APP_BASE = (window.APP_URL || '').replace(/\/$/, '');
+
 const state = {
   accessToken: localStorage.getItem('admin_accessToken') || null,
   refreshToken: localStorage.getItem('admin_refreshToken') || null,
@@ -27,7 +29,7 @@ function authHeaders() {
 async function tryRefreshAccessToken() {
   if (!state.refreshToken) return false;
   try {
-    const res = await fetch('/auth/refresh', {
+    const res = await fetch(APP_BASE + '/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: state.refreshToken }),
@@ -47,7 +49,7 @@ async function tryRefreshAccessToken() {
 // by the booking drawer's "Print quotation" / "Print receipt" button.
 async function openQuotationDocument(payload) {
   try {
-    const res = await fetch('/quotation/receipt-html', {
+    const res = await fetch(APP_BASE + '/quotation/receipt-html', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(payload),
@@ -461,7 +463,7 @@ function renderBookingDrawer(b, staffList) {
       <span class="k">Deposit paid</span><span class="v money">${money(b.deposit_paid)}</span>
       <span class="k">Damage deposit</span><span class="v money">${money(b.damage_deposit)}</span>
       <span class="k">Total due</span><span class="v money">${money(b.total_due)}</span>
-      ${b.proof_of_payment_url ? `<span class="k">Payment proof</span><span class="v"><a href="/payments/file/${esc(b.proof_of_payment_url)}" target="_blank">view file</a></span>` : ''}
+      ${b.proof_of_payment_url ? `<span class="k">Payment proof</span><span class="v"><a href="${APP_BASE}/payments/file/${esc(b.proof_of_payment_url)}" target="_blank">view file</a></span>` : ''}
       ${b.review_notes ? `<span class="k">Review notes</span><span class="v">${esc(b.review_notes)}</span>` : ''}
     </div>
 

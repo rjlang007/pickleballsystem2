@@ -23,7 +23,7 @@ class BracketRenderer {
       type:           'single',       // 'single' | 'double' | 'roundrobin' | 'swiss'
       tournamentId:   null,
       data:           null,           // Pre-loaded bracket data (skip fetch)
-      apiBase:        '/pickleball/api',
+      apiBase:        (typeof window !== 'undefined' && window.APP_URL ? window.APP_URL : '') + '/api',
       cardWidth:      200,
       cardHeight:     74,             // 2 players × ~34px + status bar
       colGap:         80,

@@ -9,9 +9,10 @@ require_once __DIR__ . '/../includes/logo.php';
 requireStaff();
 
 $kioskToken = hash('sha256', APP_NAME . '|kiosk|' . date('Y-m-d'));
+$cookiePath = appBasePath() ? appBasePath() . '/court/' : '/court/';
 setcookie('kiosk_token', $kioskToken, [
     'expires'  => strtotime('tomorrow'),
-    'path'     => '/pickleball/court/',
+    'path'     => $cookiePath,
     'httponly' => true,
     'samesite' => 'Strict',
 ]);

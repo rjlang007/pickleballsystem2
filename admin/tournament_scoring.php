@@ -82,7 +82,7 @@ $allTournaments = $engine->listTournaments(['status' => 'in_progress']);
 
     <header class="admin-header">
         <h1>📝 Score Entry</h1>
-        <a href="/pickleball/admin/tournament_admin.php" class="btn btn-secondary">← Admin</a>
+        <a href="<?= appUrl('admin/tournament_admin.php') ?>" class="btn btn-secondary">← Admin</a>
     </header>
 
     <!-- Tournament selector -->

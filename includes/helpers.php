@@ -93,7 +93,7 @@ function notifyUser(PDO $db, int $userId, string $title, string $message, ?int $
 if (!function_exists('requireAdmin')) {
     function requireAdmin(): void {
         if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'] ?? '', ['admin', 'super_admin'])) {
-            header('Location: /pickleball/login.php');
+            header('Location: ' . appUrl('login.php'));
             exit;
         }
     }

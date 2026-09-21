@@ -155,7 +155,7 @@ $statusLabels = [
 
     <header class="admin-header">
         <h1>🏆 Tournament Admin</h1>
-        <a href="/pickleball/admin/tournament_scoring.php" class="btn btn-secondary">Score Entry →</a>
+        <a href="<?= appUrl('admin/tournament_scoring.php') ?>" class="btn btn-secondary">Score Entry →</a>
     </header>
 
     <?php if ($error):   ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
@@ -300,7 +300,7 @@ $statusLabels = [
                     <?php if ($t['status'] === 'registration_open'): ?>
 
                         <!-- Seed editor — adjust seeds BEFORE generating bracket -->
-                        <a href="/pickleball/admin/tournament_bracket_editor.php?id=<?= $t['id'] ?>"
+                        <a href="<?= appUrl('admin/tournament_bracket_editor.php') ?>?id=<?= $t['id'] ?>"
                            class="btn btn-xs btn-secondary">
                             ✏️ Edit Seeds
                         </a>
@@ -319,14 +319,14 @@ $statusLabels = [
                     <?php elseif ($t['status'] === 'in_progress'): ?>
 
                         <!-- Score entry -->
-                        <a href="/pickleball/admin/tournament_scoring.php?id=<?= $t['id'] ?>"
+                        <a href="<?= appUrl('admin/tournament_scoring.php') ?>?id=<?= $t['id'] ?>"
                            class="btn btn-xs btn-warning">
                             📝 Score Entry
                         </a>
 
                         <!-- Seed editor (re-seed while in progress, for swiss/RR) -->
                         <?php if (in_array($t['bracket_type'], ['swiss', 'round_robin'], true)): ?>
-                        <a href="/pickleball/admin/tournament_bracket_editor.php?id=<?= $t['id'] ?>"
+                        <a href="<?= appUrl('admin/tournament_bracket_editor.php') ?>?id=<?= $t['id'] ?>"
                            class="btn btn-xs btn-secondary">
                             ✏️ Edit Seeds
                         </a>
@@ -408,7 +408,7 @@ $statusLabels = [
                     <?php endif; ?>
 
                     <?php if ($t['status'] === 'in_progress'): ?>
-                    <a href="/pickleball/admin/tournament_scoring.php?id=<?= $t['id'] ?>"
+                    <a href="<?= appUrl('admin/tournament_scoring.php') ?>?id=<?= $t['id'] ?>"
                        class="btn btn-xs btn-warning">📝 Score Entry</a>
                     <form method="POST" style="display:inline"
                           onsubmit="return confirm('Complete tournament and update leaderboard?')">
