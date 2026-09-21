@@ -25,6 +25,44 @@ $db     = getDB();
 $engine = new TournamentEngine();
 $myId   = (int)$_SESSION['user_id'];
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'join_tournament') {
+  verifyCsrf();
+  $joinId = (int)($_POST['tournament_id'] ?? 0);
+  try {
+    $joinTournament = $engine->getTournament($joinId);
+    if (!$joinTournament) throw new RuntimeException('Tournament not found.');
+    $joinSettings = json_decode($joinTournament['settings'] ?? '{}', true) ?: [];
+    $joinPrice = round((float)($joinSettings['price'] ?? 0), 2);
+    if ($joinPrice > 0 && (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK)) {
+      throw new RuntimeException('Upload your payment proof before requesting to join.');
+    }
+
+    $proofPath = '';
+    if ($joinPrice > 0) {
+      $file = $_FILES['payment_proof'];
+      if ((int)$file['size'] > 5 * 1024 * 1024) throw new RuntimeException('Payment proof must be 5 MB or smaller.');
+      $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+      $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+      if (!isset($extensions[$mime])) throw new RuntimeException('Payment proof must be a JPG, PNG, or WebP image.');
+      $uploadDir = __DIR__ . '/../uploads/tournament_payments';
+      if (!is_dir($uploadDir) && !mkdir($uploadDir, 0750, true)) throw new RuntimeException('Could not prepare payment upload storage.');
+      $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+      if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) throw new RuntimeException('Could not save payment proof.');
+      $proofPath = 'uploads/tournament_payments/' . $filename;
+    }
+
+    $engine->registerPlayer($joinId, $myId);
+    if ($joinPrice > 0) {
+      getDB()->prepare("INSERT INTO falcon.open_play_payment_requests (tournament_id, player_id, amount, payment_method, reference_no, proof_path) VALUES (?, ?, ?, ?, ?, ?)")
+        ->execute([$joinId, $myId, $joinPrice, $_POST['payment_method'] ?? '', trim($_POST['reference_no'] ?? '') ?: null, $proofPath]);
+    }
+    setFlash('success', 'Join request submitted. Staff will review it before approval.');
+  } catch (Throwable $e) {
+    setFlash('error', '⚠️ ' . $e->getMessage());
+  }
+  redirect('public/tournaments.php');
+}
+
 // -- Tab filter --------------------------------------------------
 $tab     = $_GET['tab'] ?? 'open';
 $tabMap  = [
@@ -114,7 +152,9 @@ require_once __DIR__ . '/../includes/header.php';
             <span>💳 <?= $tournamentPrice > 0 ? '₱' . number_format($tournamentPrice, 2) : 'Free' ?></span>
           </div>
 
-          <?php if ($status === 'registration_open'): ?>
+          <?php if (isStaff()): ?>
+            <a class="btn-primary btn-sm" href="<?= APP_URL ?>/admin/tournament_edit.php?id=<?= $tid ?>">⚙ Manage Tournament</a>
+          <?php elseif ($status === 'registration_open'): ?>
             <?php if ($isPending): ?>
               <div style="text-align:center;font-size:13px;color:var(--warn);">⏳ Awaiting staff approval</div>
             <?php elseif ($isJoined): ?>
@@ -127,11 +167,28 @@ require_once __DIR__ . '/../includes/header.php';
               <button disabled style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);
                                        background:var(--surface2);color:var(--muted);">Full</button>
             <?php else: ?>
-              <button class="tt-join-btn" data-tid="<?= $tid ?>"
+              <button type="button" class="tt-join-btn" data-dialog-id="tournament-join-<?= $tid ?>"
                       style="width:100%;padding:9px;border-radius:8px;border:none;
                              background:var(--accent);color:var(--bg);cursor:pointer;font-weight:600;">
                 Join Tournament
               </button>
+              <?php $joinSettings = json_decode($t['settings'] ?? '{}', true) ?: []; $joinPrice = (float)($joinSettings['price'] ?? 0); ?>
+              <dialog id="tournament-join-<?= $tid ?>" class="open-play-join-dialog">
+                <form method="POST" enctype="multipart/form-data">
+                  <?= csrfField() ?>
+                  <input type="hidden" name="action" value="join_tournament"/>
+                  <input type="hidden" name="tournament_id" value="<?= $tid ?>"/>
+                  <h2>Request tournament slot</h2>
+                  <p>Registration fee: <strong><?= $joinPrice > 0 ? '₱' . number_format($joinPrice, 2) : 'Free' ?></strong></p>
+                  <?php if ($joinPrice > 0): ?>
+                    <label>Payment method</label>
+                    <select name="payment_method" required><option value="">Select payment method</option><option value="gcash">GCash</option><option value="bank_transfer">Bank transfer</option><option value="cash">Cash at venue</option></select>
+                    <label>Payment reference</label><input type="text" name="reference_no" maxlength="120" required/>
+                    <label>Upload proof of payment</label><input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
+                  <?php endif; ?>
+                  <button type="submit" class="btn-primary">Submit Join Request</button>
+                </form>
+              </dialog>
             <?php endif; ?>
           <?php elseif ($isJoined): ?>
             <div style="text-align:center;font-size:13px;color:var(--accent);">✓ You're registered</div>
@@ -174,7 +231,10 @@ async function ttLeave(tid) {
     } catch (e) { ttShowMsg('Network error leaving tournament.', false); }
 }
 
-document.querySelectorAll('.tt-join-btn').forEach(btn => btn.addEventListener('click', () => ttJoin(btn.dataset.tid)));
+document.querySelectorAll('.tt-join-btn').forEach(btn => btn.addEventListener('click', () => {
+  const dialog = document.getElementById(btn.dataset.dialogId);
+  if (dialog) dialog.showModal();
+}));
 document.querySelectorAll('.tt-leave-btn').forEach(btn => btn.addEventListener('click', () => ttLeave(btn.dataset.tid)));
 </script>
 

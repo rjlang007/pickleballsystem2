@@ -208,6 +208,12 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php endif; ?>
                         </td>
                         <td>
+                            <?php if (!empty($p['payment_request_id'])): ?>
+                                <span class="text-muted" title="<?= clean(($p['payment_method'] ?? '') . ' / ' . ($p['reference_no'] ?? '')) ?>">
+                                    💳 ₱<?= number_format((float)($p['payment_amount'] ?? 0), 2) ?>
+                                    <a href="<?= APP_URL ?>/api/open_play_payment_proof.php?id=<?= (int)$p['payment_request_id'] ?>" target="_blank" rel="noopener">Proof</a>
+                                </span>
+                            <?php endif; ?>
                             <?php if (($p['status'] ?? '') === 'pending_approval'): ?>
                                 <form method="POST" style="display:inline;">
                                     <?= csrfField() ?>

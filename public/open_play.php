@@ -170,6 +170,9 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if ($tab === 'done'): ?>
               <a class="btn" href="<?= APP_URL ?>/public/open_play_results.php?tournament_id=<?= (int)$e['id'] ?>">🏆 View Results</a>
 
+            <?php elseif (isStaff()): ?>
+              <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_control.php?tournament_id=<?= (int)$e['id'] ?>">⚙ Manage Open Play</a>
+
             <?php elseif ($mine): ?>
               <span class="badge <?= $mine['queue_status'] === 'pending_approval' ? 'badge-warning' : 'badge-info' ?>">
                 <?= $mine['queue_status'] === 'pending_approval' ? 'Join request pending approval' : "You're " . clean($queueLabels[$mine['queue_status']] ?? ucfirst($mine['queue_status'])) ?> · <?= ucfirst($mine['skill_level']) ?>

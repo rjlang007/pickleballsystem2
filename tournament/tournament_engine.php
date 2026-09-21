@@ -497,6 +497,13 @@ class TournamentEngine
                     COALESCE(lb.rank, 9999)       AS season_rank
                FROM falcon.tournament_players tp
                JOIN falcon.users u ON u.id = tp.player_id
+        LEFT JOIN (
+                SELECT DISTINCT ON (tournament_id, player_id)
+                      tournament_id, player_id, id AS payment_request_id,
+                      amount AS payment_amount, payment_method, reference_no, proof_path
+                  FROM falcon.open_play_payment_requests
+                 ORDER BY tournament_id, player_id, created_at DESC
+                ) pr ON pr.tournament_id = tp.tournament_id AND pr.player_id = tp.player_id
           LEFT JOIN falcon.leaderboard lb
                  ON lb.player_id = tp.player_id
                 AND lb.season    = :season
