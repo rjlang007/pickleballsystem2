@@ -220,9 +220,8 @@ require_once __DIR__ . '/../includes/header.php';
 .opc-head-right { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .opc-count { font-size: 14px; color: var(--t45); }
 .opc-section-nav { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; border-bottom:1px solid var(--line); padding-bottom:10px; }
-.opc-section-tab { color:var(--t60); border:1px solid var(--line); background:var(--panel-soft); border-radius:8px; padding:9px 14px; font:inherit; font-size:12px; cursor:pointer; }
-.opc-section-tab:hover, .opc-section-tab[aria-selected="true"] { color:var(--ball-ink); background:var(--ball); border-color:var(--ball); }
-.opc-tab-panel[hidden] { display:none !important; }
+.opc-section-nav a { color:var(--t60); border:1px solid var(--line); background:var(--panel-soft); border-radius:8px; padding:9px 14px; font-size:12px; text-decoration:none; }
+.opc-section-nav a:hover { color:var(--ball-ink); background:var(--ball); border-color:var(--ball); }
 
 /* buttons */
 .opc-btn, .opc-btn-action, .opc-btn-danger {
@@ -414,10 +413,10 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endif; ?>
         </div>
     </div>
-    <nav class="opc-section-nav" aria-label="Open Play sections" role="tablist">
-        <button type="button" class="opc-section-tab" role="tab" data-tab="registration" aria-controls="registration">Registration &amp; Approvals</button>
-        <button type="button" class="opc-section-tab" role="tab" data-tab="leaderboard" aria-controls="leaderboard">Leaderboard</button>
-        <button type="button" class="opc-section-tab" role="tab" data-tab="raffles" aria-controls="raffles">Raffles</button>
+    <nav class="opc-section-nav" aria-label="Open Play modules">
+        <a href="<?= APP_URL ?>/staff/open_play_registration.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Registration &amp; Approvals</a>
+        <a href="<?= APP_URL ?>/staff/open_play_leaderboard.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Leaderboard</a>
+        <a href="<?= APP_URL ?>/staff/open_play_raffles.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Raffles</a>
     </nav>
 
     <!-- ── Event + controls panel ── -->
@@ -511,7 +510,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php if ($pendingCount > 0 && !$isClosed): ?>
     <div class="opc-notice opc-notice-warn">
         <span><?= $pendingCount ?> player<?= $pendingCount === 1 ? '' : 's' ?> waiting for join approval.</span>
-        <button type="button" class="opc-link-btn" data-tab="registration">Review requests ↓</button>
+        <a class="opc-link-btn" href="<?= APP_URL ?>/staff/open_play_registration.php?tournament_id=<?= $selected ?>">Review requests ↓</a>
     </div>
     <?php endif; ?>
 
@@ -586,6 +585,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
+    <?php if (false): // Registration, leaderboard, and raffles are standalone modules. ?>
     <!-- ── Registration: manual players + join requests ── -->
     <section class="opc-section opc-tab-panel" id="registration" role="tabpanel" data-panel="registration">
         <div class="opc-section-head">
@@ -748,6 +748,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </section>
     <?php endif; ?>
+    <?php endif; // standalone modules are rendered by their dedicated pages. ?>
 
 <?php endif; /* $event */ ?>
 </div><!-- /.opc -->
