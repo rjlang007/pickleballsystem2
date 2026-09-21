@@ -58,6 +58,7 @@ $pageTitle = 'Open Play Registration';
 require_once __DIR__ . '/../includes/header.php';
 $moduleTitle = 'Registration & Approvals';
 $moduleDescription = 'Register players manually and review player requests before they enter the Open Play queue.';
+$moduleEventName = $event['name'] ?? '';
 require __DIR__ . '/open_play_module_header.php';
 ?>
 <div class="op-module-panel">

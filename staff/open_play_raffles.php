@@ -14,6 +14,7 @@ $pageTitle = 'Open Play Raffles';
 require_once __DIR__ . '/../includes/header.php';
 $moduleTitle = 'Raffles';
 $moduleDescription = 'Run a prize draw for players currently seated in an active Open Play game.';
+$moduleEventName = $event['name'] ?? '';
 require __DIR__ . '/open_play_module_header.php';
 ?>
 <div class="op-module-panel"><form method="GET" class="opc-add"><label class="opc-help" for="raffleEvent">Event</label><select id="raffleEvent" name="tournament_id" class="opc-field" data-autosubmit><option value="">Select an event</option><?php foreach ($events as $item): ?><option value="<?= (int)$item['id'] ?>" <?= $selected === (int)$item['id'] ? 'selected' : '' ?>><?= clean($item['name']) ?> · <?= clean(str_replace('_',' ',$item['status'])) ?></option><?php endforeach; ?></select></form></div>

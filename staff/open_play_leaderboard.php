@@ -15,6 +15,7 @@ $pageTitle = 'Open Play Leaderboard';
 require_once __DIR__ . '/../includes/header.php';
 $moduleTitle = 'Leaderboard';
 $moduleDescription = 'Track wins, losses, win rate, and point difference for the selected Open Play event.';
+$moduleEventName = $event['name'] ?? '';
 require __DIR__ . '/open_play_module_header.php';
 ?>
 <div class="op-module-panel"><form method="GET" class="opc-add"><label class="opc-help" for="leaderboardEvent">Event</label><select id="leaderboardEvent" name="tournament_id" class="opc-field" data-autosubmit><option value="">Select an event</option><?php foreach ($events as $item): ?><option value="<?= (int)$item['id'] ?>" <?= $selected === (int)$item['id'] ? 'selected' : '' ?>><?= clean($item['name']) ?> · <?= clean(str_replace('_',' ',$item['status'])) ?></option><?php endforeach; ?></select></form></div>
