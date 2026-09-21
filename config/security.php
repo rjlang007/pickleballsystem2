@@ -211,7 +211,7 @@ die('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
   <div class="box">
     <h2>⚠️ Invalid Request</h2>
     <p>Your session token has expired or is missing.<br>Please go back and try again.</p>
-    <a href="javascript:history.back()">Go Back</a>
+    <a href="' . htmlspecialchars(APP_URL, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">Go Back</a>
   </div>
 </body>
 </html>');
