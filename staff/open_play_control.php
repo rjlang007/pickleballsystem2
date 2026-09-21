@@ -76,9 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 setFlash('success', '▶️ Matchmaking resumed.');
                 break;
 
-            case 'close_registration':
-                $engine->closeRegistration($tid, (int)$user['id']);
-                setFlash('success', '🚪 Registration closed — already queued players may continue.');
+            case 'update_duration':
+                $engine->updateEvent($tid, ['game_duration' => (int)$_POST['game_duration']], (int)$user['id']);
+                setFlash('success', '⏱️ Game duration updated for the next round.');
                 break;
 
             case 'finalize':
@@ -164,14 +164,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <?php if (!$isClosed): ?>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <?php if (in_array($event['status'], ['registration_open', 'in_progress'], true)): ?>
-            <form method="POST">
-                <?= csrfField() ?>
-                <input type="hidden" name="action" value="close_registration"/>
-                <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-                <button type="submit" class="btn">🚪 Close Registration</button>
-            </form>
-        <?php elseif ($event['status'] === 'paused'): ?>
+        <?php if ($event['status'] === 'paused'): ?>
             <form method="POST">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="resume_event"/>
@@ -186,12 +179,6 @@ require_once __DIR__ . '/../includes/header.php';
                 <button type="submit" class="btn">⏸️ Pause Matchmaking</button>
             </form>
         <?php endif; ?>
-        <form method="POST" onsubmit="return confirm('Cancel this entire event? In-progress games will be stopped and this cannot be undone.');">
-            <?= csrfField() ?>
-            <input type="hidden" name="action" value="cancel_event"/>
-            <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-            <button type="submit" class="btn">🗑️ Cancel Event</button>
-        </form>
         <form method="POST" onsubmit="return confirm('Close tonight and disable the nightly schedule from this date onward?');">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="close_tonight"/>
@@ -207,6 +194,22 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <?php endif; ?>
 </div>
+
+<?php if (!$isClosed): $eventSettings = json_decode($event['settings'] ?? '{}', true) ?: []; $currentDuration = (int)($eventSettings['game_duration'] ?? 900); ?>
+<div class="card" style="margin-bottom:14px;padding:14px 18px;">
+    <form method="POST" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <?= csrfField() ?>
+        <input type="hidden" name="action" value="update_duration"/>
+        <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
+        <div>
+            <label style="display:block;font-size:12px;color:var(--muted);">Game duration (seconds)</label>
+            <input type="number" name="game_duration" min="60" step="60" value="<?= $currentDuration ?>" required/>
+        </div>
+        <button type="submit" class="btn">⏱️ Save Duration</button>
+        <span class="text-muted" style="font-size:12px;">Applies to the next round drawn — games already on court keep their original timer.</span>
+    </form>
+</div>
+<?php endif; ?>
 
 <!-- ── Spin wheel overlay ── -->
 <div id="wheelOverlay" style="display:none;position:fixed;inset:0;background:rgba(5,10,15,.92);z-index:999;

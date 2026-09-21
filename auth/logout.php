@@ -126,9 +126,9 @@ require_once __DIR__ . '/../includes/header.php';
             <button type="submit" class="btn-danger">
                 ✓ Yes, Log Out
             </button>
-            <a href="javascript:history.back()" class="btn-outline">
+            <button type="button" class="btn-outline" onclick="history.back()">
                 Cancel
-            </a>
+            </button>
         </form>
 
     </div>

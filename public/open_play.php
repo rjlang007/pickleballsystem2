@@ -146,8 +146,9 @@ require_once __DIR__ . '/../includes/header.php';
           No completed Open Play results are available yet.
         <?php endif; ?>
         <?php if (isStaff()): ?>
-          <div style="margin-top:12px;">
-            <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_control.php">Open Staff Control</a>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_settings.php">✏️ Edit Details</a>
+            <a class="btn" href="<?= APP_URL ?>/staff/open_play_control.php">⚙ Open Play Control</a>
           </div>
         <?php endif; ?>
       </div>
@@ -171,7 +172,10 @@ require_once __DIR__ . '/../includes/header.php';
               <a class="btn" href="<?= APP_URL ?>/public/open_play_results.php?tournament_id=<?= (int)$e['id'] ?>">🏆 View Results</a>
 
             <?php elseif (isStaff()): ?>
-              <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_control.php?tournament_id=<?= (int)$e['id'] ?>">⚙ Manage Open Play</a>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a class="btn" href="<?= APP_URL ?>/staff/open_play_settings.php?tournament_id=<?= (int)$e['id'] ?>" title="Edit name, date, time, capacity, price, and registration/posting status">✏️ Edit Details</a>
+                <a class="btn btn-primary" href="<?= APP_URL ?>/staff/open_play_control.php?tournament_id=<?= (int)$e['id'] ?>" title="Manage the queue, draw/matchmaking, live games, and game duration">⚙ Open Play Control</a>
+              </div>
 
             <?php elseif ($mine): ?>
               <span class="badge <?= $mine['queue_status'] === 'pending_approval' ? 'badge-warning' : 'badge-info' ?>">
