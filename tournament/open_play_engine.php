@@ -125,7 +125,10 @@ class OpenPlayEngine
             'games_per_hour'   => max(1, (int)($data['games_per_hour'] ?? 4)),
             'price'            => max(0, round((float)($data['price'] ?? 0), 2)),
             'registration_closed' => false,
-            'point_distribution' => $this->config['point_distribution'],
+            // NOTE: Open Play always scores 1st=3 / 2nd=2 / 3rd=1 / else=0
+            // (see config/tournament_config.php -> open_play_point_distribution).
+            // finalizeEvent() ignores any point_distribution stored here so
+            // every session — old or new — scores the same fixed way.
         ];
 
         $stmt = $this->db->prepare(
@@ -409,6 +412,13 @@ class OpenPlayEngine
         if ($event['status'] === 'completed') throw new RuntimeException('This event has already been finalized.');
         if ($event['status'] === 'cancelled') throw new RuntimeException('This event was cancelled — cancelled events don\'t get finalized into the season leaderboard.');
 
+        // Snapshot each player's Open Play rank BEFORE this event's points
+        // land, so we can tell afterward whether — and how — it changed.
+        require_once __DIR__ . '/../leaderboard/leaderboard_engine.php';
+        $lbEngine        = new LeaderboardEngine();
+        $season          = $event['start_date'] ? (int) date('Y', strtotime($event['start_date'])) : (int) date('Y');
+        $beforeStandings = $lbEngine->getOpenPlaySeasonStandings($season);
+
         $this->db->beginTransaction();
         try {
             // Same lock key as drawRound() — makes the "any unfinished
@@ -426,9 +436,12 @@ class OpenPlayEngine
             }
 
             $standings = $this->computeLeaderboard($tournamentId);
-            $settings  = json_decode($event['settings'] ?? '{}', true) ?: [];
-            $dist      = $settings['point_distribution'] ?? $this->config['point_distribution'];
-            $partPts   = (int)($settings['participation_points'] ?? $this->config['participation_points']);
+            // Open Play always uses the fixed 3/2/1 scheme, regardless of
+            // whatever point_distribution may be stored in this event's
+            // settings (e.g. from before this scheme was introduced) —
+            // this keeps every Open Play session scoring consistently.
+            $dist      = $this->config['open_play_point_distribution'] ?? [1 => 3, 2 => 2, 3 => 1];
+            $partPts   = (int)($this->config['open_play_participation_points'] ?? 0);
 
             $placement = 0;
             $prevKey   = null;
@@ -455,14 +468,47 @@ class OpenPlayEngine
                 "UPDATE falcon.tournaments SET status = 'completed' WHERE id = :id"
             )->execute([':id' => $tournamentId]);
 
-            require_once __DIR__ . '/../leaderboard/leaderboard_engine.php';
-            (new LeaderboardEngine())->processTournamentCompletion($tournamentId);
+            $lbEngine->processTournamentCompletion($tournamentId);
 
             $this->logAudit($tournamentId, $adminId, 'finalize', ['players' => count($standings)]);
             $this->db->commit();
         } catch (Throwable $e) {
             $this->db->rollBack();
             throw $e;
+        }
+
+        // ── Rank-change notifications ────────────────────────
+        // Best-effort only: the finalize itself already committed, so a
+        // notification hiccup here must never look like the finalize
+        // failed. Only this event's own participants are checked — a
+        // ripple effect on someone else's rank (e.g. being passed by a
+        // player who wasn't in this session) isn't tracked.
+        try {
+            $afterStandings = $lbEngine->getOpenPlaySeasonStandings($season);
+            foreach ($standings as $row) {
+                $pid    = (int) $row['player_id'];
+                $before = $beforeStandings[$pid]['rank'] ?? null;
+                $after  = $afterStandings[$pid]['rank']  ?? null;
+                if ($after === null || $after === $before) continue;
+
+                if ($after === 1) {
+                    $title   = "🏆 You're #1!";
+                    $message = "You're now #1 on the Open Play leaderboard for season {$season}!";
+                } elseif ($before === null) {
+                    $title   = "You're on the leaderboard!";
+                    $message = "You're now ranked #{$after} on the Open Play leaderboard for season {$season}.";
+                } elseif ($after < $before) {
+                    $title   = 'Rank up!';
+                    $message = "You moved up to #{$after} (from #{$before}) on the Open Play leaderboard for season {$season}.";
+                } else {
+                    $title   = 'Leaderboard update';
+                    $message = "Your Open Play rank for season {$season} moved from #{$before} to #{$after}.";
+                }
+
+                notifyUser($this->db, $pid, $title, $message, null, APP_URL . '/public/leaderboard.php?season=' . $season);
+            }
+        } catch (Throwable $e) {
+            error_log('finalizeEvent rank-change notification error: ' . $e->getMessage());
         }
 
         return $standings;

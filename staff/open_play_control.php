@@ -415,7 +415,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <nav class="opc-section-nav" aria-label="Open Play modules">
         <a href="<?= APP_URL ?>/staff/open_play_registration.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Registration &amp; Approvals</a>
-        <a href="<?= APP_URL ?>/staff/open_play_leaderboard.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Leaderboard</a>
+        <a href="<?= APP_URL ?>/staff/open_play_leaderboard.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Standing</a>
         <a href="<?= APP_URL ?>/staff/open_play_raffles.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">Raffles</a>
     </nav>
 
@@ -689,7 +689,7 @@ require_once __DIR__ . '/../includes/header.php';
     <!-- ── Standings ── -->
     <section class="opc-section opc-tab-panel" id="leaderboard" role="tabpanel" data-panel="leaderboard" hidden>
         <div class="opc-section-head">
-            <h3 class="opc-h3">Current Standings · Leaderboard</h3>
+            <h3 class="opc-h3">Standing</h3>
             <span class="opc-meta"><?= count($standings) ?> ranked</span>
         </div>
         <div class="opc-panel">

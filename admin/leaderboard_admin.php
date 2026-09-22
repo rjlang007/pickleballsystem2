@@ -1,23 +1,38 @@
 <?php
 // ============================================================
 //  FILE: admin/leaderboard_admin.php
-//  Admin controls for managing the leaderboard and player points.
+//  Admin controls for managing the Open Play season leaderboard.
 //  Open to both 'admin' and 'super_admin' (requireAdmin() checks
-//  ADMIN_ROLES, which includes both).
+//  ADMIN_ROLES, which includes both) — no other role can view or
+//  edit standings here.
 //
-//  REWRITE NOTE: the previous version of this file referenced an
-//  undefined $pdo, MySQL-only functions (YEAR(), CURDATE()), and
-//  columns/tables (leaderboard.ranking, u.name, u.avatar_url,
-//  audit_log) that don't exist in this app's Postgres schema
-//  (falcon.leaderboard uses total_points/rank, falcon.users uses
-//  full_name/avatar) — so the page could never actually load.
-//  This version uses the real schema via LeaderboardEngine and the
-//  shared app bootstrap, same as every other admin page.
+//  SCORING RULE: each player's score is the SUM of the points
+//  they earned across every finalized Open Play session this
+//  season — 1st place = 3 pts, 2nd = 2 pts, 3rd = 1 pt, everyone
+//  else = 0 pts (see config/tournament_config.php ->
+//  open_play_point_distribution, applied in
+//  OpenPlayEngine::finalizeEvent()). A player who wins repeatedly
+//  across multiple sessions keeps accumulating points — there's
+//  no cap and no reset between sessions within a season. The #1
+//  rank always goes to whoever has the highest accumulated total.
+//
+//  This is computed live from falcon.tournament_scores joined to
+//  falcon.tournaments (bracket_type = 'open_play', status =
+//  'completed') rather than from falcon.leaderboard, because that
+//  table also aggregates regular bracket-style tournaments (a
+//  different, unrelated point scale) and would mix the two.
+//
+//  Manual point adjustments (dispute resolution, penalties, etc.)
+//  are recorded separately in
+//  falcon.open_play_leaderboard_adjustments and added on top of
+//  the live Open Play total, so they survive even though the base
+//  total itself is recalculated fresh on every page load.
 // ============================================================
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/security.php';
 require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../includes/activity_logger.php';
 require_once __DIR__ . '/../leaderboard/leaderboard_engine.php';
 
 requireAdmin();
@@ -37,7 +52,10 @@ if ($season < 2000 || $season > $currentYear + 1) {
 $seasonOptions = range($currentYear, max(2024, $currentYear - 4));
 $search        = trim($_GET['search'] ?? '');
 
-// ── Handle point adjustment ─────────────────────────────────
+// ── Handle manual point adjustment ──────────────────────────
+// Recorded as a delta in its own table (not falcon.leaderboard,
+// which also holds unrelated bracket-tournament points) so it
+// layers cleanly on top of the live Open Play total below.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjust_points') {
     verifyCsrf();
 
@@ -62,14 +80,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjus
                 $message      = 'Player not found.';
                 $message_type = 'error';
             } else {
-                $engine->adjustPoints($playerId, $adjSeason, (int) $pointsChange);
+                $db->prepare(
+                    "INSERT INTO falcon.open_play_leaderboard_adjustments
+                         (player_id, season, points_delta, reason, adjusted_by, created_at)
+                     VALUES (:pid, :season, :delta, :reason, :admin, NOW())"
+                )->execute([
+                    ':pid'    => $playerId,
+                    ':season' => $adjSeason,
+                    ':delta'  => (int) $pointsChange,
+                    ':reason' => $reason,
+                    ':admin'  => $adminId,
+                ]);
 
                 logActivity(
-                    'Leaderboard Points Adjusted',
+                    'Open Play Leaderboard Points Adjusted',
                     'admin',
                     'normal',
                     sprintf(
-                        '%s adjusted %s by %+d pts (season %d): %s',
+                        '%s adjusted %s by %+d pts (Open Play season %d): %s',
                         $_SESSION['username'] ?? 'admin',
                         $player['name'],
                         (int) $pointsChange,
@@ -81,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjus
                 notifyUser(
                     $db,
                     $playerId,
-                    'Leaderboard points updated',
-                    sprintf('An admin adjusted your season %d points by %+d: %s', $adjSeason, (int) $pointsChange, $reason),
+                    'Open Play leaderboard points updated',
+                    sprintf('An admin adjusted your Open Play season %d points by %+d: %s', $adjSeason, (int) $pointsChange, $reason),
                     null,
                     APP_URL . '/public/leaderboard.php?season=' . $adjSeason
                 );
@@ -94,27 +122,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjus
     }
 }
 
-// ── Load leaderboard for the selected season ────────────────
-$params = [':season' => $season];
-$searchSql = '';
-if ($search !== '') {
-    $searchSql = " AND (u.full_name ILIKE :search OR u.username ILIKE :search)";
-    $params[':search'] = "%{$search}%";
-}
-
-$stmt = $db->prepare(
-    "SELECT lb.player_id, lb.season, lb.total_points, lb.total_wins,
-            lb.total_tournaments, lb.rank, lb.last_update,
-            COALESCE(u.full_name, u.username) AS name, u.username, u.avatar
-       FROM falcon.leaderboard lb
-       JOIN falcon.users u ON u.id = lb.player_id
-      WHERE lb.season = :season
-      {$searchSql}
-      ORDER BY lb.rank ASC NULLS LAST, lb.total_points DESC
-      LIMIT 200"
-);
-$stmt->execute($params);
-$leaderboard = $stmt->fetchAll();
+// ── Load the Open Play leaderboard for the selected season ──
+// Every participant of a finalized Open Play event has a row in
+// tournament_scores (even 0-point ones), so this naturally lists
+// every player who has taken part in Open Play this season, with
+// their points summed across every session they played. Shared
+// with public/leaderboard.php and the dashboard widget via
+// LeaderboardEngine::getOpenPlayLeaderboard() so every surface
+// always shows the exact same numbers.
+$lbResult    = $engine->getOpenPlayLeaderboard($season, 200, 0, $search);
+$leaderboard = $lbResult['players'];
 
 $pageTitle = 'Leaderboard Admin';
 require_once __DIR__ . '/../includes/header.php';
@@ -122,7 +139,8 @@ require_once __DIR__ . '/../includes/header.php';
 <style nonce="<?= getCspNonce() ?>">
     .lb-admin-wrap{max-width:1100px;margin:24px auto;padding:0 16px;}
     .lb-admin-header{background:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
-    .lb-admin-header h1{margin:0;flex:1;min-width:200px;}
+    .lb-admin-header h1{margin:0 0 4px;flex:1;min-width:200px;}
+    .lb-admin-header .lb-subtitle{margin:0;font-size:12.5px;color:#777;font-weight:400;flex-basis:100%;}
     .lb-filters{display:flex;gap:8px;flex-wrap:wrap;}
     .lb-filters select,.lb-filters input{padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;}
     .lb-filters button{padding:8px 14px;background:#3498db;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;}
@@ -135,6 +153,10 @@ require_once __DIR__ . '/../includes/header.php';
     table.lb-table th{padding:12px;text-align:left;font-weight:600;color:#333;}
     table.lb-table td{padding:10px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
     .lb-rank{font-weight:700;color:#3498db;width:50px;}
+    .lb-rank.top1{color:#e0a100;}
+    .lb-rank.top2{color:#8a8f98;}
+    .lb-rank.top3{color:#b5651d;}
+    .lb-tie{font-size:10.5px;font-weight:600;color:#999;text-transform:uppercase;}
     .lb-player{display:flex;align-items:center;gap:8px;font-weight:500;}
     .lb-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#eee;}
     .lb-points{color:#27ae60;font-weight:700;}
@@ -157,6 +179,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="lb-admin-wrap">
     <div class="lb-admin-header">
         <h1>🏆 Leaderboard Admin</h1>
+        <p class="lb-subtitle">Accumulated from Open Play sessions only — 1st = 3 pts · 2nd = 2 pts · 3rd = 1 pt. Points keep stacking across every session this season.</p>
         <form method="GET" class="lb-filters">
             <select name="season" onchange="this.form.submit()">
                 <?php foreach ($seasonOptions as $y): ?>
@@ -181,20 +204,23 @@ require_once __DIR__ . '/../includes/header.php';
                         <th>Player</th>
                         <th>Points</th>
                         <th>Wins</th>
-                        <th>Tournaments</th>
+                        <th>Open Plays</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($leaderboard)): ?>
-                        <tr><td colspan="6" class="lb-empty">No leaderboard entries for season <?= $season ?> yet.</td></tr>
-                    <?php else: foreach ($leaderboard as $entry): ?>
+                        <tr><td colspan="6" class="lb-empty">No Open Play leaderboard entries for season <?= $season ?> yet.</td></tr>
+                    <?php else: foreach ($leaderboard as $entry):
+                        $rankNum = (int) $entry['rank'];
+                        $rankClass = $rankNum === 1 ? 'top1' : ($rankNum === 2 ? 'top2' : ($rankNum === 3 ? 'top3' : ''));
+                    ?>
                         <tr>
-                            <td class="lb-rank">#<?= $entry['rank'] !== null ? (int)$entry['rank'] : '—' ?></td>
+                            <td class="lb-rank <?= $rankClass ?>">#<?= $rankNum ?><?= !empty($entry['tied']) ? ' <span class="lb-tie">(tie)</span>' : '' ?></td>
                             <td>
                                 <div class="lb-player">
-                                    <?php if (!empty($entry['avatar'])): ?>
-                                        <img class="lb-avatar" src="<?= clean($entry['avatar']) ?>" alt="">
+                                    <?php if (!empty($entry['avatar_url'])): ?>
+                                        <img class="lb-avatar" src="<?= clean($entry['avatar_url']) ?>" alt="">
                                     <?php else: ?>
                                         <div class="lb-avatar"></div>
                                     <?php endif; ?>
@@ -203,7 +229,7 @@ require_once __DIR__ . '/../includes/header.php';
                             </td>
                             <td class="lb-points"><?= (int)$entry['total_points'] ?></td>
                             <td><?= (int)$entry['total_wins'] ?></td>
-                            <td><?= (int)$entry['total_tournaments'] ?></td>
+                            <td><?= (int)$entry['total_events'] ?></td>
                             <td>
                                 <button type="button" class="lb-adjust-btn"
                                     onclick="lbOpenAdjust(<?= (int)$entry['player_id'] ?>, '<?= clean($entry['name']) ?>')">

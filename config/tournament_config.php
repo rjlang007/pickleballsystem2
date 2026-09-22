@@ -59,6 +59,23 @@ return [
     // Points awarded to every participant regardless of placement
     'participation_points' => 5,
 
+    // ── Open Play point distribution (season leaderboard) ────
+    // Fixed scoring rule for Open Play events specifically:
+    // only the top 3 finishers of each session earn leaderboard
+    // points (1st = 3, 2nd = 2, 3rd = 1); everyone else earns 0.
+    // This is intentionally separate from 'point_distribution'
+    // above, which is only used for bracket-style tournaments.
+    // Used by OpenPlayEngine::finalizeEvent() and is NOT
+    // overridable per-event, so it stays consistent across every
+    // Open Play session regardless of what's stored in an older
+    // event's settings.
+    'open_play_point_distribution' => [
+        1 => 3,
+        2 => 2,
+        3 => 1,
+    ],
+    'open_play_participation_points' => 0,
+
     // ── Status labels + badge CSS classes ───────────────────
     // badge class values must match your CSS (badge-success, etc.)
     'status_labels' => [

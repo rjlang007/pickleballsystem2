@@ -40,7 +40,7 @@ $moduleEventName = $moduleEventName ?? '';
     <a class="op-module-brand" href="<?= APP_URL ?>/staff/open_play_control.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Dink Board · Open Play</a>
     <a href="<?= APP_URL ?>/staff/open_play_control.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Court Control</a>
     <a class="<?= $moduleTitle === 'Registration & Approvals' ? 'active' : '' ?>" href="<?= APP_URL ?>/staff/open_play_registration.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Registration</a>
-    <a class="<?= $moduleTitle === 'Leaderboard' ? 'active' : '' ?>" href="<?= APP_URL ?>/staff/open_play_leaderboard.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Leaderboard</a>
+    <a class="<?= $moduleTitle === 'Standing' ? 'active' : '' ?>" href="<?= APP_URL ?>/staff/open_play_leaderboard.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Standing</a>
     <a class="<?= $moduleTitle === 'Raffles' ? 'active' : '' ?>" href="<?= APP_URL ?>/staff/open_play_raffles.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Raffles</a>
     <a href="<?= APP_URL ?>/staff/open_play_settings.php<?= $moduleEventId ? '?tournament_id=' . $moduleEventId : '' ?>">Settings</a>
     <a href="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '#', ENT_QUOTES, 'UTF-8') ?>" title="Reload this module">Refresh</a>

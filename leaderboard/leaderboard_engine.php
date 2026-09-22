@@ -291,6 +291,153 @@ class LeaderboardEngine
     }
 
     // ══════════════════════════════════════════════════════════
+    // OPEN PLAY LEADERBOARD (season totals from Open Play only)
+    // ══════════════════════════════════════════════════════════
+    // Unlike getLeaderboard() above (which reads falcon.leaderboard
+    // and mixes in regular bracket-tournament points), everything
+    // in this section is computed live and exclusively from
+    // Open Play sessions: falcon.tournament_scores joined to
+    // falcon.tournaments where bracket_type = 'open_play' and
+    // status = 'completed' (1st = 3 pts, 2nd = 2, 3rd = 1, else 0
+    // — see config/tournament_config.php open_play_point_distribution),
+    // plus any manual deltas from
+    // falcon.open_play_leaderboard_adjustments.
+    //
+    // This is the single source of truth shared by
+    // admin/leaderboard_admin.php, public/leaderboard.php, the
+    // dashboard "Your Rank" widget, and the rank-change
+    // notification triggered from OpenPlayEngine::finalizeEvent(),
+    // so every one of those surfaces always agrees on the same
+    // numbers.
+
+    /**
+     * Every player's Open Play standing for a season, keyed by
+     * player_id. Each entry: {player_id, total_points, total_wins,
+     * total_events, rank, tied}. 'tied' is true when one or more
+     * other players share the exact same rank.
+     */
+    public function getOpenPlaySeasonStandings(int $season): array
+    {
+        $stmt = $this->db->prepare(
+            "WITH op_scores AS (
+                 SELECT ts.player_id,
+                        SUM(ts.points)::int                                    AS op_points,
+                        SUM(CASE WHEN ts.placement = 1 THEN 1 ELSE 0 END)::int AS op_wins,
+                        COUNT(DISTINCT ts.tournament_id)::int                  AS op_events
+                   FROM falcon.tournament_scores ts
+                   JOIN falcon.tournaments t ON t.id = ts.tournament_id
+                  WHERE t.bracket_type = 'open_play'
+                    AND t.status = 'completed'
+                    AND EXTRACT(YEAR FROM COALESCE(t.end_date, t.start_date)) = :season
+                  GROUP BY ts.player_id
+             ),
+             adj AS (
+                 SELECT player_id, SUM(points_delta)::int AS adj_points
+                   FROM falcon.open_play_leaderboard_adjustments
+                  WHERE season = :season2
+                  GROUP BY player_id
+             )
+             SELECT COALESCE(op.player_id, adj.player_id)                  AS player_id,
+                    COALESCE(op.op_points, 0) + COALESCE(adj.adj_points, 0) AS total_points,
+                    COALESCE(op.op_wins, 0)                                 AS total_wins,
+                    COALESCE(op.op_events, 0)                               AS total_events,
+                    RANK() OVER (
+                        ORDER BY COALESCE(op.op_points, 0) + COALESCE(adj.adj_points, 0) DESC,
+                                 COALESCE(op.op_wins, 0) DESC
+                    ) AS rnk
+               FROM op_scores op
+               FULL OUTER JOIN adj ON adj.player_id = op.player_id"
+        );
+        $stmt->execute([':season' => $season, ':season2' => $season]);
+        $rows = $stmt->fetchAll();
+
+        $byRank = [];
+        foreach ($rows as $r) {
+            $byRank[(int) $r['rnk']][] = $r['player_id'];
+        }
+
+        $standings = [];
+        foreach ($rows as $r) {
+            $rnk = (int) $r['rnk'];
+            $pid = (int) $r['player_id'];
+            $standings[$pid] = [
+                'player_id'    => $pid,
+                'total_points' => (int) $r['total_points'],
+                'total_wins'   => (int) $r['total_wins'],
+                'total_events' => (int) $r['total_events'],
+                'rank'         => $rnk,
+                'tied'         => count($byRank[$rnk]) > 1,
+            ];
+        }
+        return $standings;
+    }
+
+    /**
+     * Paginated, optionally name-filtered Open Play leaderboard with
+     * display info attached, for admin/public listing pages.
+     *
+     * @return array{players: array[], total: int}
+     */
+    public function getOpenPlayLeaderboard(int $season, int $limit = 50, int $offset = 0, string $search = ''): array
+    {
+        $standings = $this->getOpenPlaySeasonStandings($season);
+        if (empty($standings)) {
+            return ['players' => [], 'total' => 0];
+        }
+
+        $ids          = array_keys($standings);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $sql          = "SELECT id AS player_id,
+                                 COALESCE(display_name, full_name, username) AS name,
+                                 full_name, username, avatar AS avatar_url
+                            FROM falcon.users
+                           WHERE id IN ($placeholders)";
+        $bindArgs = $ids;
+        if ($search !== '') {
+            $sql       .= " AND (full_name ILIKE ? OR username ILIKE ?)";
+            $bindArgs[] = "%{$search}%";
+            $bindArgs[] = "%{$search}%";
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($bindArgs);
+
+        $merged = [];
+        foreach ($stmt->fetchAll() as $u) {
+            $pid = (int) $u['player_id'];
+            if (!isset($standings[$pid])) continue;
+            $merged[] = array_merge($standings[$pid], $u);
+        }
+
+        usort($merged, function ($a, $b) {
+            if ($a['rank'] !== $b['rank']) return $a['rank'] <=> $b['rank'];
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return [
+            'players' => array_slice($merged, $offset, $limit),
+            'total'   => count($merged),
+        ];
+    }
+
+    /**
+     * A single player's Open Play standing for a season, or null if
+     * they have no Open Play points/events/adjustments that season.
+     * Includes 'total_players' — how many players are on the board
+     * at all, for widgets like "Your Rank: #4 of 27".
+     */
+    public function getOpenPlayPlayerStanding(int $playerId, ?int $season = null): ?array
+    {
+        $season    = $season ?? (int) date('Y');
+        $standings = $this->getOpenPlaySeasonStandings($season);
+        $row       = $standings[$playerId] ?? null;
+        if ($row === null) {
+            return null;
+        }
+        $row['total_players'] = count($standings);
+        return $row;
+    }
+
+    // ══════════════════════════════════════════════════════════
     // MANUAL POINT ADJUSTMENT (admin tool)
     // ══════════════════════════════════════════════════════════
 
