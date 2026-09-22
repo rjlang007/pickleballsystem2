@@ -67,11 +67,21 @@ $applied = array_flip($applied);
 $okCount = 0;
 $skipCount = 0;
 $failCount = 0;
+$ignoredMigrations = [
+    // This file contains MySQL backticks/ENUM syntax and is not part of the
+    // PostgreSQL migration sequence used by the application.
+    '2026_05_05_create_tournament_tables.sql',
+];
 
 foreach ($files as $path) {
     $filename = basename($path);
     if ($filename === '000_migration_tracker.sql') {
         continue; // already applied above
+    }
+    if (in_array($filename, $ignoredMigrations, true)) {
+        echo "[migrate] Ignored {$filename} (not PostgreSQL-compatible)\n";
+        $skipCount++;
+        continue;
     }
     if (isset($applied[$filename])) {
         $skipCount++;

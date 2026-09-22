@@ -4,6 +4,16 @@
 --  Run this AFTER v2_multi_court.sql
 -- ============================================================
 
+-- The runner sorts filenames alphabetically, so this compatibility view can
+-- execute before v2_multi_court.sql on a fresh PostgreSQL database.
+ALTER TABLE falcon.courts
+    ADD COLUMN IF NOT EXISTS court_type VARCHAR(20) DEFAULT 'covered',
+    ADD COLUMN IF NOT EXISTS is_maintenance BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS color VARCHAR(7) DEFAULT '#00e5a0',
+    ADD COLUMN IF NOT EXISTS photo TEXT,
+    ADD COLUMN IF NOT EXISTS short_code VARCHAR(5);
+
 -- Drop the view if it exists
 DROP VIEW IF EXISTS falcon.v_court_status;
 
