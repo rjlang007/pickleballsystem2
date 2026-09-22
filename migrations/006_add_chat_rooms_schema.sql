@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS falcon.chat_room_members (
     UNIQUE (room_id, user_id)
 );
 
+-- Older installs may already have this table without the leave timestamp.
+ALTER TABLE falcon.chat_room_members
+    ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_crm_room_active
     ON falcon.chat_room_members (room_id, left_at NULLS FIRST);
 

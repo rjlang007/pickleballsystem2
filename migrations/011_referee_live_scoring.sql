@@ -25,6 +25,11 @@ ALTER TABLE falcon.tournament_matches
 ALTER TABLE falcon.tournament_matches
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+-- Migration 010 may have created this table first without tournament_id.
+-- Keep the compatibility column nullable until migration 027 can backfill it.
+ALTER TABLE falcon.tournament_match_events
+    ADD COLUMN IF NOT EXISTS tournament_id INTEGER;
+
 CREATE TABLE IF NOT EXISTS falcon.tournament_match_events (
     id             SERIAL PRIMARY KEY,
     match_id       INTEGER NOT NULL REFERENCES falcon.tournament_matches(id) ON DELETE CASCADE,

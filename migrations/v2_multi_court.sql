@@ -57,7 +57,7 @@ ON CONFLICT (court_id, key) DO NOTHING;
 
 -- Insert default open-play rules for all courts (8 PM to midnight tonight)
 INSERT INTO falcon.court_slot_modes (court_id, slot_date, day_of_week, time_from, time_to, mode, is_whole_day, note, created_by, created_at)
-SELECT c.id, CURRENT_DATE, NULL, '20:00:00', '00:00:00', 'open_play', FALSE, 'Default evening open play', 1, NOW()
+SELECT c.id, CURRENT_DATE, NULL, '20:00:00', '00:00:00', 'open_play', FALSE, 'Default evening open play', NULL, NOW()
 FROM falcon.courts c
 WHERE NOT EXISTS (
     SELECT 1 FROM falcon.court_slot_modes
