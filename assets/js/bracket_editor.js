@@ -36,36 +36,34 @@ class BracketEditor {
     }
 
     render() {
+        // NOTE: this used to render its own "Tournament Bracket Editor / Drag to
+        // reorder..." heading here, stacked directly under the page's real
+        // heading (which already shows the tournament name + player count) —
+        // two headers back to back for the same widget. Dropped the duplicate;
+        // the instructional copy now lives once, in the page's static header.
         const html = `
-            <div class="bracket-editor-container">
-                <div class="editor-header">
-                    <h2>Tournament Bracket Editor</h2>
-                    <p>Drag to reorder seeds or use buttons below</p>
-                </div>
-
-                <div class="editor-seeds-container" id="seedsContainer">
-                    ${this.renderSeeds()}
-                </div>
-
-                <div class="editor-actions">
-                    <button class="editor-btn editor-btn-primary" id="randomizeBtn">
-                        🎲 Randomize Seeds
-                    </button>
-                    <button class="editor-btn editor-btn-secondary" id="autoSeedBtn">
-                        📊 Auto-Seed by Rating
-                    </button>
-                    <button class="editor-btn editor-btn-success" id="saveBtn">
-                        ✅ Save Changes
-                    </button>
-                    <button class="editor-btn editor-btn-danger" id="cancelBtn">
-                        ❌ Cancel
-                    </button>
-                </div>
-
-                <div id="feedback" class="editor-feedback"></div>
+            <div class="editor-seeds-container" id="seedsContainer">
+                ${this.renderSeeds()}
             </div>
+
+            <div class="editor-actions">
+                <button class="editor-btn editor-btn-primary" id="randomizeBtn">
+                    🎲 Randomize Seeds
+                </button>
+                <button class="editor-btn editor-btn-secondary" id="autoSeedBtn">
+                    📊 Auto-Seed by Rating
+                </button>
+                <button class="editor-btn editor-btn-success" id="saveBtn">
+                    ✅ Save Changes
+                </button>
+                <button class="editor-btn editor-btn-danger" id="cancelBtn">
+                    ❌ Cancel
+                </button>
+            </div>
+
+            <div id="feedback" class="editor-feedback"></div>
         `;
-        
+
         this.container.innerHTML = html;
     }
 

@@ -730,7 +730,7 @@ require_once __DIR__ . '/../includes/header.php';
     <section class="opc-section opc-tab-panel" id="raffles" role="tabpanel" data-panel="raffles" hidden>
         <div class="opc-section-head"><h3 class="opc-h3">Raffles</h3></div>
         <div class="opc-panel">
-            <p class="opc-help">Spins a random winner from players currently seated in an active game. Doesn't affect the queue or standings — it's a side prize draw.</p>
+            <p class="opc-help">Spins a random winner from every player registered or approved for this event. Doesn't affect the queue or standings — it's a side prize draw.</p>
             <div class="opc-raffle-row">
                 <div style="flex:1;min-width:220px;">
                     <label class="opc-label" for="rafflePrize">Prize</label>

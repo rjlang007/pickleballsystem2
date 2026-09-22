@@ -35,15 +35,21 @@ $schedule = getOpenPlaySchedule($db);
 $closedForDate = getOpenPlayClosedDate($db);
 
 // Today's auto-created (or manually created) Open Play event, if any —
-// shown so the admin can see the schedule is actually firing.
-$todayEvent = $db->query("
+// shown so the admin can see the schedule is actually firing. Uses the
+// same 4 AM business-day cutover as ensureNightlyOpenPlayEvent(), so this
+// still shows last night's event (not a not-yet-created "tomorrow") when
+// checked between midnight and 4 AM.
+$businessDate = openPlayBusinessDate();
+$todayEvent = $db->prepare("
     SELECT id, name, status, start_date, end_date, max_players
       FROM falcon.tournaments
      WHERE bracket_type = 'open_play'
-       AND DATE(start_date) = CURRENT_DATE
+       AND DATE(start_date) = :bdate
        AND status != 'cancelled'
      ORDER BY id DESC LIMIT 1
-")->fetch(PDO::FETCH_ASSOC);
+");
+$todayEvent->execute([':bdate' => $businessDate]);
+$todayEvent = $todayEvent->fetch(PDO::FETCH_ASSOC);
 
 $rosterCounts = null;
 if ($todayEvent) {

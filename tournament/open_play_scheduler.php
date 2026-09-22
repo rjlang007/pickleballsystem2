@@ -20,6 +20,27 @@
 
 const OPEN_PLAY_SCHEDULE_SECTION = 'open_play_schedule';
 
+/**
+ * "Business date" for Open Play purposes — the day doesn't roll over at
+ * midnight, it rolls over at 4:00 AM. Open Play sessions routinely run
+ * past midnight (default schedule is 6 PM – 12 AM, and some nights run
+ * later), so anything before 4 AM still belongs to the previous calendar
+ * day's event. Without this, ensureNightlyOpenPlayEvent() would see the
+ * calendar date tick over at 00:00 while last night's event is still in
+ * progress and try to auto-create *tomorrow's* event on top of it. Every
+ * "what date is Open Play on" decision in this file goes through here so
+ * the whole schedule — which event exists, which day-of-week hours apply,
+ * whether the schedule is closed for a date — agrees on the same cutover.
+ */
+function openPlayBusinessDate(?DateTimeImmutable $now = null): string
+{
+    $now = $now ?? new DateTimeImmutable('now', new DateTimeZone('Asia/Manila'));
+    if ((int)$now->format('H') < 4) {
+        $now = $now->modify('-1 day');
+    }
+    return $now->format('Y-m-d');
+}
+
 /** Defaults if the admin has never saved settings yet. */
 function openPlayScheduleDefaults(): array
 {
@@ -212,7 +233,10 @@ function ensureNightlyOpenPlayEvent(): void
     }
 
     try {
-        $today = (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
+        // Business date, not calendar date — see openPlayBusinessDate()
+        // above. Keeps this check from rolling over to "tomorrow" at
+        // midnight while tonight's event is still running.
+        $today = openPlayBusinessDate();
         $closedForDate = getOpenPlayClosedDate($db);
 
         // Sweep every active Open Play event on the same five-minute cadence

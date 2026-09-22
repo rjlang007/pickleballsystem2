@@ -1,6 +1,6 @@
 -- Open Play raffle draws — a staff-run "spin the wheel" prize draw among
--- players currently seated in an active (ready/in_progress/paused) match.
--- Ported from the Dink Board reference system's raffle feature; ignores
+-- every player registered (pending_approval) or approved (active) for the
+-- event. Ported from the Dink Board reference system's raffle feature; ignores
 -- that system's tournament/bracket and venue-location features, which
 -- don't apply to Open Play.
 CREATE TABLE IF NOT EXISTS falcon.open_play_raffle_draws (

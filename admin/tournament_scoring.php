@@ -66,169 +66,295 @@ foreach ($matches as $m) {
 
 // All tournaments for selector
 $allTournaments = $engine->listTournaments(['status' => 'in_progress']);
+
+$pageTitle = 'Score Entry — ' . ($tournament ? $tournament['name'] : 'Select Tournament');
+require_once __DIR__ . '/../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Score Entry — <?= $tournament ? htmlspecialchars($tournament['name']) : 'Select Tournament' ?></title>
-    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/app.css">
-    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_theme.css">
-    <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/tournament_mobile.css">
-</head>
-<body class="admin-body">
-<div class="admin-wrap">
+<style nonce="<?= getCspNonce() ?>">
+    /* ── Tournament selector ── */
+    .tourney-select-form {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        flex-wrap: wrap;
+    }
+    .tourney-select-form label { font-weight: 600; color: var(--text); white-space: nowrap; }
+    .tourney-select-form select { max-width: 360px; }
 
-    <header class="admin-header">
+    .section-note { font-size: 13px; color: var(--muted); margin: -6px 0 var(--space-md); }
+
+    .round-heading {
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 22px;
+        letter-spacing: 0.5px;
+        color: var(--accent);
+        margin-bottom: var(--space-md);
+    }
+
+    /* ── Match cards ── */
+    .match-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: var(--space-md);
+    }
+    .match-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--warn);
+        border-radius: var(--radius);
+        padding: var(--space-md);
+        min-width: 0;
+    }
+    .match-card.match-card--done { border-left-color: var(--success); }
+
+    .match-card__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: var(--space-sm);
+    }
+
+    .match-result {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        padding: 8px 0;
+    }
+    .match-result .winner { font-weight: 700; color: #6ee7b7; }
+    .match-result .loser  { color: var(--muted); }
+    .match-result .score  {
+        font-family: 'DM Mono', 'Courier New', monospace;
+        font-weight: 700;
+        color: var(--text);
+        background: rgba(255,255,255,0.04);
+        border-radius: var(--radius-sm);
+        padding: 2px 10px;
+        flex-shrink: 0;
+    }
+
+    .match-entry-form { margin-top: 4px; }
+    .match-inputs {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        margin-bottom: var(--space-sm);
+    }
+    .player-input { flex: 1; min-width: 0; }
+    .player-input label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .match-inputs .vs {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        padding-bottom: 12px;
+        flex-shrink: 0;
+    }
+
+    .winner-select {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--text);
+        margin-bottom: var(--space-sm);
+    }
+    .winner-select > label:first-child { color: var(--muted); font-weight: 600; }
+    .winner-select label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+    }
+    .winner-select input[type="radio"] { width: auto; min-height: 0; }
+
+    .match-waiting {
+        color: var(--muted);
+        font-size: 13px;
+        font-style: italic;
+        padding: 8px 0;
+    }
+</style>
+
+<!-- Page Header -->
+<div class="page-header flex-between">
+    <div>
         <h1>📝 Score Entry</h1>
-        <a href="<?= appUrl('admin/tournament_admin.php') ?>" class="btn btn-secondary">← Admin</a>
-    </header>
+        <?php if ($tournament): ?>
+            <p><?= clean($tournament['name']) ?></p>
+        <?php endif; ?>
+    </div>
+    <div>
+        <a href="<?= appUrl('admin/tournament_admin.php') ?>" class="btn-outline btn-sm">← Admin</a>
+    </div>
+</div>
 
-    <!-- Tournament selector -->
-    <section class="admin-card">
-        <form method="GET" class="inline-form">
-            <label><strong>Tournament:</strong></label>
-            <select name="id" onchange="this.form.submit()">
-                <option value="">— Select —</option>
-                <?php foreach ($allTournaments as $t): ?>
-                <option value="<?= $t['id'] ?>" <?= $tid == $t['id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($t['name']) ?>
-                </option>
-                <?php endforeach; ?>
-            </select>
-        </form>
-    </section>
+<!-- Tournament selector -->
+<div class="card mb-3">
+    <form method="GET" class="tourney-select-form">
+        <label for="tourneySelect">Tournament:</label>
+        <select name="id" id="tourneySelect" onchange="this.form.submit()">
+            <option value="">— Select —</option>
+            <?php foreach ($allTournaments as $t): ?>
+            <option value="<?= $t['id'] ?>" <?= $tid == $t['id'] ? 'selected' : '' ?>>
+                <?= clean($t['name']) ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </form>
+</div>
 
-    <?php if ($error):   ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-    <?php if ($success): ?><div class="alert alert-success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
+<?php if ($error):   ?><div class="alert alert-error"><span class="alert-icon">⚠️</span><div class="alert-content"><?= clean($error) ?></div></div><?php endif; ?>
+<?php if ($success): ?><div class="alert alert-success"><span class="alert-icon">✅</span><div class="alert-content"><?= clean($success) ?></div></div><?php endif; ?>
 
-    <?php if ($tournament): ?>
+<?php if ($tournament): ?>
 
-    <!-- ── Match Entry by Round ──────────────────────────── -->
-    <?php foreach ($byRound as $round => $roundMatches): ?>
-    <section class="admin-card">
-        <h2>Round <?= $round <= 99 ? $round : ($round === 200 ? 'Grand Final' : 'Losers R' . ($round - 100)) ?></h2>
-        <div class="match-grid">
-        <?php foreach ($roundMatches as $m):
-            $p1Name = htmlspecialchars($m['player1_display'] ?: $m['player1_name'] ?: 'TBD');
-            $p2Name = htmlspecialchars($m['player2_display'] ?: $m['player2_name'] ?: 'TBD');
-            $isDone = $m['status'] === 'completed';
-        ?>
-        <div class="match-card <?= $isDone ? 'match-card--done' : '' ?>">
-            <div class="match-card__header">
-                Match #<?= $m['match_number'] ?>
-                <?php if ($isDone): ?>
-                    <span class="badge badge-success">✓ Done</span>
-                <?php else: ?>
-                    <span class="badge badge-warning">Pending</span>
-                <?php endif; ?>
-            </div>
-
+<!-- ── Match Entry by Round ──────────────────────────── -->
+<?php foreach ($byRound as $round => $roundMatches): ?>
+<div class="card mb-3">
+    <div class="round-heading">
+        Round <?= $round <= 99 ? $round : ($round === 200 ? 'Grand Final' : 'Losers R' . ($round - 100)) ?>
+    </div>
+    <div class="match-grid">
+    <?php foreach ($roundMatches as $m):
+        $p1Name = clean($m['player1_display'] ?: $m['player1_name'] ?: 'TBD');
+        $p2Name = clean($m['player2_display'] ?: $m['player2_name'] ?: 'TBD');
+        $isDone = $m['status'] === 'completed';
+    ?>
+    <div class="match-card <?= $isDone ? 'match-card--done' : '' ?>">
+        <div class="match-card__header">
+            <span>Match #<?= $m['match_number'] ?></span>
             <?php if ($isDone): ?>
-            <div class="match-result">
-                <span class="<?= $m['winner_id'] == $m['player1_id'] ? 'winner' : 'loser' ?>"><?= $p1Name ?></span>
-                <span class="score"><?= $m['score_player1'] ?> – <?= $m['score_player2'] ?></span>
-                <span class="<?= $m['winner_id'] == $m['player2_id'] ? 'winner' : 'loser' ?>"><?= $p2Name ?></span>
-            </div>
-            <?php elseif ($m['player1_id'] && $m['player2_id']): ?>
-            <form method="POST" class="match-entry-form">
-                <input type="hidden" name="action"    value="record_match">
-                <input type="hidden" name="match_id"  value="<?= $m['id'] ?>">
-                <?= csrfField() ?>
-                <div class="match-inputs">
-                    <div class="player-input">
-                        <label><?= $p1Name ?></label>
-                        <input type="number" name="score_player1" min="0" max="99" required placeholder="Score">
-                    </div>
-                    <span class="vs">VS</span>
-                    <div class="player-input">
-                        <label><?= $p2Name ?></label>
-                        <input type="number" name="score_player2" min="0" max="99" required placeholder="Score">
-                    </div>
-                </div>
-                <div class="winner-select">
-                    <label>Winner:</label>
-                    <label>
-                        <input type="radio" name="winner_id" value="<?= $m['player1_id'] ?>" required>
-                        <?= $p1Name ?>
-                    </label>
-                    <label>
-                        <input type="radio" name="winner_id" value="<?= $m['player2_id'] ?>">
-                        <?= $p2Name ?>
-                    </label>
-                </div>
-                <button type="submit" class="btn btn-primary btn-sm">Save Result</button>
-            </form>
+                <span class="badge badge-success">✓ Done</span>
             <?php else: ?>
-                <p class="waiting">Waiting for players to advance...</p>
+                <span class="badge badge-warning">Pending</span>
             <?php endif; ?>
         </div>
-        <?php endforeach; ?>
-        </div>
-    </section>
-    <?php endforeach; ?>
 
-    <!-- ── Manual Score Override ─────────────────────────── -->
-    <section class="admin-card">
-        <h2>Manual Score Override / Dispute Resolution</h2>
-        <p class="hint">Use this to correct placements or override points after the fact.</p>
-        <form method="POST" class="tournament-form">
-            <input type="hidden" name="action"        value="manual_score">
-            <input type="hidden" name="tournament_id" value="<?= $tid ?>">
+        <?php if ($isDone): ?>
+        <div class="match-result">
+            <span class="<?= $m['winner_id'] == $m['player1_id'] ? 'winner' : 'loser' ?>"><?= $p1Name ?></span>
+            <span class="score"><?= $m['score_player1'] ?> – <?= $m['score_player2'] ?></span>
+            <span class="<?= $m['winner_id'] == $m['player2_id'] ? 'winner' : 'loser' ?>"><?= $p2Name ?></span>
+        </div>
+        <?php elseif ($m['player1_id'] && $m['player2_id']): ?>
+        <form method="POST" class="match-entry-form">
+            <input type="hidden" name="action"    value="record_match">
+            <input type="hidden" name="match_id"  value="<?= $m['id'] ?>">
             <?= csrfField() ?>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Player</label>
-                    <select name="player_id" required>
-                        <?php foreach ($engine->getTournamentPlayers($tid) as $p): ?>
-                        <option value="<?= $p['player_id'] ?>">
-                            <?= htmlspecialchars($p['display_name'] ?: $p['full_name']) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+            <div class="match-inputs">
+                <div class="player-input">
+                    <label><?= $p1Name ?></label>
+                    <input type="number" name="score_player1" min="0" max="99" required placeholder="Score">
                 </div>
-                <div class="form-group">
-                    <label>Placement</label>
-                    <input type="number" name="placement" min="1" max="64" required placeholder="1">
+                <span class="vs">VS</span>
+                <div class="player-input">
+                    <label><?= $p2Name ?></label>
+                    <input type="number" name="score_player2" min="0" max="99" required placeholder="Score">
                 </div>
-                <div class="form-group">
-                    <label>Points</label>
-                    <input type="number" name="points" min="0" max="1000" required placeholder="100">
-                </div>
+            </div>
+            <div class="winner-select">
+                <label>Winner:</label>
+                <label>
+                    <input type="radio" name="winner_id" value="<?= $m['player1_id'] ?>" required>
+                    <?= $p1Name ?>
+                </label>
+                <label>
+                    <input type="radio" name="winner_id" value="<?= $m['player2_id'] ?>">
+                    <?= $p2Name ?>
+                </label>
+            </div>
+            <button type="submit" class="btn-primary btn-sm">Save Result</button>
+        </form>
+        <?php else: ?>
+            <p class="match-waiting">Waiting for players to advance...</p>
+        <?php endif; ?>
+    </div>
+    <?php endforeach; ?>
+    </div>
+</div>
+<?php endforeach; ?>
+
+<!-- ── Manual Score Override ─────────────────────────── -->
+<div class="card mb-3">
+    <div class="card-title mb-2">Manual Score Override / Dispute Resolution</div>
+    <hr class="divider" style="margin: 0 0 var(--space-md);">
+    <p class="section-note">Use this to correct placements or override points after the fact.</p>
+    <form method="POST">
+        <input type="hidden" name="action"        value="manual_score">
+        <input type="hidden" name="tournament_id" value="<?= $tid ?>">
+        <?= csrfField() ?>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Player</label>
+                <select name="player_id" required>
+                    <?php foreach ($engine->getTournamentPlayers($tid) as $p): ?>
+                    <option value="<?= $p['player_id'] ?>">
+                        <?= clean($p['display_name'] ?: $p['full_name']) ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Placement</label>
+                <input type="number" name="placement" min="1" max="64" required placeholder="1">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Points</label>
+                <input type="number" name="points" min="0" max="1000" required placeholder="100">
             </div>
             <div class="form-group">
                 <label>Note / Reason</label>
                 <input type="text" name="note" placeholder="Dispute resolution note...">
             </div>
-            <button type="submit" class="btn btn-warning">Override Score</button>
-        </form>
-    </section>
-
-    <!-- ── Current Scores ────────────────────────────────── -->
-    <?php if (!empty($scores)): ?>
-    <section class="admin-card">
-        <h2>Current Scores &amp; Placements</h2>
-        <table class="admin-table">
-            <thead>
-                <tr><th>Placement</th><th>Player</th><th>Points</th><th>Recorded By</th><th>At</th></tr>
-            </thead>
-            <tbody>
-            <?php foreach ($scores as $s): ?>
-            <tr>
-                <td>#<?= $s['placement'] ?></td>
-                <td><?= htmlspecialchars($s['display_name'] ?: $s['full_name']) ?></td>
-                <td><?= $s['points'] ?></td>
-                <td><?= htmlspecialchars($s['recorded_by_name']) ?></td>
-                <td><?= date('M d H:i', strtotime($s['recorded_at'])) ?></td>
-            </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </section>
-    <?php endif; ?>
-
-    <?php endif; // tournament selected ?>
+        </div>
+        <button type="submit" class="btn-warn">Override Score</button>
+    </form>
 </div>
-</body>
-</html>
+
+<!-- ── Current Scores ────────────────────────────────── -->
+<?php if (!empty($scores)): ?>
+<div class="card">
+    <div class="card-title mb-2">Current Scores &amp; Placements</div>
+    <hr class="divider" style="margin: 0 0 var(--space-md);">
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr><th>Placement</th><th>Player</th><th>Points</th><th>Recorded By</th><th>At</th></tr>
+        </thead>
+        <tbody>
+        <?php foreach ($scores as $s): ?>
+        <tr>
+            <td>#<?= $s['placement'] ?></td>
+            <td><?= clean($s['display_name'] ?: $s['full_name']) ?></td>
+            <td><?= $s['points'] ?></td>
+            <td><?= clean($s['recorded_by_name']) ?></td>
+            <td><?= date('M d H:i', strtotime($s['recorded_at'])) ?></td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php endif; // tournament selected ?>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -1736,14 +1736,14 @@ class OpenPlayEngine
     // RAFFLES
     // ══════════════════════════════════════════════════════════
 
-    /** Players currently seated in an active (ready/in_progress/paused) match — the raffle's eligible pool. */
+    /** Every player registered (pending_approval) or approved (active) for this event — the raffle's eligible pool. */
     public function getRaffleParticipants(int $tournamentId): array
     {
         $stmt = $this->db->prepare(
             "SELECT DISTINCT u.id, COALESCE(u.display_name, u.full_name, u.username) AS name
-               FROM falcon.open_play_matches m
-               JOIN falcon.users u ON u.id IN (m.team1_player1_id, m.team1_player2_id, m.team2_player1_id, m.team2_player2_id)
-              WHERE m.tournament_id = :tid AND m.status IN ('ready','in_progress','paused')
+               FROM falcon.tournament_players tp
+               JOIN falcon.users u ON u.id = tp.player_id
+              WHERE tp.tournament_id = :tid AND tp.status IN ('active', 'pending_approval')
               ORDER BY name"
         );
         $stmt->execute([':tid' => $tournamentId]);
@@ -1763,9 +1763,9 @@ class OpenPlayEngine
     }
 
     /**
-     * Spin the wheel among players currently on court and record a winner.
-     * Deliberately doesn't touch queue_status or the match itself — a raffle
-     * is a side prize draw, not a game result.
+     * Spin the wheel among all registered/approved players for the event and
+     * record a winner. Deliberately doesn't touch queue_status or any match
+     * — a raffle is a side prize draw, not a game result.
      */
     public function drawRaffle(int $tournamentId, string $prizeDescription, int $actorId): array
     {
@@ -1782,7 +1782,7 @@ class OpenPlayEngine
 
         $participants = $this->getRaffleParticipants($tournamentId);
         if (empty($participants)) {
-            throw new RuntimeException('There are no players in an active game to enter in the raffle.');
+            throw new RuntimeException('There are no registered or approved players to enter in the raffle.');
         }
 
         $winner = $participants[random_int(0, count($participants) - 1)];
