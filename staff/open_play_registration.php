@@ -16,7 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         switch ($action) {
             case 'add_player':
-                $engine->addPlayerByStaff($tid, (int)$_POST['player_id'], $_POST['skill_level'] ?? 'average', (int)$user['id']);
+                $playerId = (int)($_POST['player_id'] ?? 0);
+                $skillLevel = $_POST['skill_level'] ?? 'average';
+                if ($playerId > 0) {
+                    $engine->addPlayerByStaff($tid, $playerId, $skillLevel, (int)$user['id']);
+                } else {
+                    $engine->addGuestByStaff($tid, (string)($_POST['player_name_lookup'] ?? ''), $skillLevel, (int)$user['id']);
+                }
                 setFlash('success', 'Player registered successfully.');
                 break;
             case 'approve_join':
@@ -53,7 +59,7 @@ if (!$selected) {
 $event = $selected ? $engine->getEvent($selected) : null;
 $roster = $event ? $engine->getRoster($selected) : [];
 $db = getDB();
-$players = $db->query("SELECT id, COALESCE(display_name, full_name, username) AS name FROM falcon.users WHERE role = 'player' AND is_banned = FALSE ORDER BY name LIMIT 500")->fetchAll();
+    $players = $db->query("SELECT id, COALESCE(display_name, full_name, username) AS name FROM falcon.users WHERE role = 'player' AND is_banned = FALSE AND is_guest = FALSE ORDER BY name LIMIT 500")->fetchAll();
 $pageTitle = 'Open Play Registration';
 require_once __DIR__ . '/../includes/header.php';
 $moduleTitle = 'Registration & Approvals';
@@ -81,7 +87,7 @@ require __DIR__ . '/open_play_module_header.php';
     <form method="POST" class="opc-add">
         <?= csrfField() ?><input type="hidden" name="action" value="add_player"/><input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
         <input type="text" list="playerList" name="player_name_lookup" class="opc-field" placeholder="Search player name" autocomplete="off" required/>
-        <input type="hidden" name="player_id" id="player_id_field" required/>
+        <input type="hidden" name="player_id" id="player_id_field"/>
         <datalist id="playerList"><?php foreach ($players as $player): ?><option data-id="<?= (int)$player['id'] ?>" value="<?= clean($player['name']) ?>"></option><?php endforeach; ?></datalist>
         <select name="skill_level" class="opc-field"><option value="beginner">Beginner</option><option value="average" selected>Average</option><option value="advance">Advance</option></select>
         <button class="opc-btn-action opc-sm" type="submit">Register player</button>
@@ -107,7 +113,6 @@ require __DIR__ . '/open_play_module_header.php';
 <script nonce="<?= getCspNonce() ?>">
 const playerInput = document.querySelector('input[name="player_name_lookup"]');
 playerInput?.addEventListener('input', () => { const option = [...document.querySelectorAll('#playerList option')].find(item => item.value === playerInput.value); document.getElementById('player_id_field').value = option?.dataset.id || ''; });
-playerInput?.closest('form')?.addEventListener('submit', event => { if (!document.getElementById('player_id_field').value) { event.preventDefault(); alert('Select a player from the suggestions.'); } });
 </script>
 </div>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -564,11 +564,52 @@ class OpenPlayEngine
         $this->logAudit($tournamentId, $actorId, 'add_player', ['player_id' => $playerId]);
     }
 
+    /** Add a walk-in without requiring a registered account. */
+    public function addGuestByStaff(int $tournamentId, string $displayName, string $skillLevel, int $actorId): void
+    {
+        $displayName = trim(preg_replace('/\s+/', ' ', $displayName) ?? '');
+        if ($displayName === '') {
+            throw new RuntimeException('Enter the walk-in player\'s name.');
+        }
+        if (mb_strlen($displayName) > 120) {
+            throw new RuntimeException('Player name must be 120 characters or fewer.');
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $token = bin2hex(random_bytes(12));
+            $stmt = $this->db->prepare(
+                "INSERT INTO falcon.users
+                    (username, email, password_hash, display_name, full_name, role, is_active, is_banned, is_guest)
+                 VALUES (:username, :email, :password_hash, :display_name, :full_name, 'player', TRUE, FALSE, TRUE)
+                 RETURNING id"
+            );
+            $stmt->execute([
+                ':username' => 'guest_' . $token,
+                ':email' => 'guest_' . $token . '@invalid.local',
+                ':password_hash' => password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT),
+                ':display_name' => $displayName,
+                ':full_name' => $displayName,
+            ]);
+            $playerId = (int)$stmt->fetchColumn();
+            $this->joinEventInternal($tournamentId, $playerId, $skillLevel, true);
+            $this->logAudit($tournamentId, $actorId, 'add_guest_player', [
+                'player_id' => $playerId,
+                'display_name' => $displayName,
+            ]);
+            $this->db->commit();
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            throw $e;
+        }
+    }
+
     private function joinEventInternal(int $tournamentId, int $playerId, string $skillLevel, bool $preApproved): void
     {
         $event = $this->getEvent($tournamentId);
         if (!$event) throw new RuntimeException('Open play event not found.');
-        if (!in_array($event['status'], ['registration_open', 'in_progress', 'paused'], true)) {
+        $staffLateAdd = $preApproved && $event['status'] === 'registration_closed';
+        if (!in_array($event['status'], ['registration_open', 'in_progress', 'paused'], true) && !$staffLateAdd) {
             throw new RuntimeException('This Open Play event is no longer accepting join requests.');
         }
 

@@ -30,7 +30,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         switch ($action) {
             case 'add_player':
-                $engine->addPlayerByStaff($tid, (int)$_POST['player_id'], $_POST['skill_level'] ?? 'average', (int)$user['id']);
+                $playerId = (int)($_POST['player_id'] ?? 0);
+                $skillLevel = $_POST['skill_level'] ?? 'average';
+                if ($playerId > 0) {
+                    $engine->addPlayerByStaff($tid, $playerId, $skillLevel, (int)$user['id']);
+                } else {
+                    $engine->addGuestByStaff($tid, (string)($_POST['player_name_lookup'] ?? ''), $skillLevel, (int)$user['id']);
+                }
                 setFlash('success', 'Player added to the pool.');
                 break;
 
@@ -110,7 +116,7 @@ $ties     = $event ? $engine->detectPodiumTies($standings) : [];
 $db       = getDB();
 $searchablePlayers = $db->query(
     "SELECT id, COALESCE(display_name, full_name, username) AS name FROM falcon.users
-      WHERE role = 'player' AND is_banned = FALSE ORDER BY name LIMIT 500"
+    WHERE role = 'player' AND is_banned = FALSE AND is_guest = FALSE ORDER BY name LIMIT 500"
 )->fetchAll();
 
 // ── Extra data for the court-control layout ─────────────────
@@ -601,7 +607,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <input type="hidden" name="action" value="add_player"/>
                 <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
                 <input type="text" list="playerList" name="player_name_lookup" class="opc-field" placeholder="Type a player's name…" autocomplete="off" aria-label="Player name"/>
-                <input type="hidden" name="player_id" id="player_id_field" required/>
+                <input type="hidden" name="player_id" id="player_id_field"/>
                 <datalist id="playerList">
                     <?php foreach ($searchablePlayers as $p): ?>
                         <option data-id="<?= (int)$p['id'] ?>" value="<?= clean($p['name']) ?>"></option>
@@ -864,7 +870,7 @@ if (lookup) {
         }
     });
     lookup.closest('form').addEventListener('submit', e => {
-        if (!idField.value) { e.preventDefault(); toast('Pick a player from the suggestions list.', 'error'); }
+        if (!lookup.value.trim()) { e.preventDefault(); toast('Enter a player name.', 'error'); }
     });
 }
 
