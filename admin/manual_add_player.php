@@ -1,7 +1,7 @@
 <?php
 // ============================================================
 //  FILE: admin/manual_add_player.php
-//  Admin override — adds a player to queue without QR.
+//  Admin override — adds a player to the queue directly.
 //
 //  FIX v2 (MULTI-COURT):
 //
@@ -303,7 +303,7 @@ if ($action === 'add') {
         http_response_code(500);
         echo json_encode([
             'status'  => 'error',
-            'message' => 'Database error: ' . $e->getMessage(),
+            'message' => 'Database error. Please try again.',
         ]);
     }
     exit;

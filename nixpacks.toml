@@ -2,7 +2,16 @@
 nixPkgs = ["php", "phpExtensions.pdo", "phpExtensions.pdo_pgsql", "phpExtensions.mbstring", "phpExtensions.gd", "phpExtensions.curl", "phpExtensions.openssl", "nginx"]
 
 [phases.build]
-cmds = ["chmod +x /app/start.sh"]
+# NOTE: railway.json pins the build to the Dockerfile, which already strips
+# these two files (unauthenticated setup/debug scripts — create_admins.php
+# can create a super_admin account on every request, no auth guard). This
+# nixpacks path is a fallback build method that was NOT stripping them, so
+# if it's ever used instead of the Dockerfile, both files would ship live
+# in the web root. Kept in sync here so neither build path can regress.
+cmds = [
+    "chmod +x /app/start.sh",
+    "rm -f /app/create_admins.php /app/generate_hash.php"
+]
 
 [start]
 cmd = "bash /app/start.sh"

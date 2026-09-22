@@ -947,7 +947,7 @@ if (isset($user) && $user) {
                     <div class="section-label">Settings</div>
                     <a href="<?= APP_URL ?>/admin/court_settings.php">🏟️ Manage Courts</a>
                     <a href="<?= APP_URL ?>/admin/game_history.php">📋 Game History</a>
-                    <a href="<?= APP_URL ?>/admin/scan_logs.php">📊 Scan Logs</a>
+                    <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener">📺 Open Play TV Kiosk</a>
                 </div>
             </div>
             <div class="nav-group" id="ng-players">
@@ -1089,7 +1089,7 @@ if (isset($user) && $user) {
             <a href="<?= APP_URL ?>/admin/court_mode.php">🏓 Court Mode</a>
             <a href="<?= APP_URL ?>/staff/tournament_queue.php">🏆 Tournament Queue</a>
             <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play</a>
-            <a href="<?= APP_URL ?>/admin/kiosk.php">🖥️ Kiosk</a>
+            <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener">📺 Open Play TV Kiosk</a>
             <a href="<?= APP_URL ?>/admin/food_orders.php">🍔 Food Orders</a>
 
             <div class="nav-group" id="ng-staff-acct">
@@ -1269,7 +1269,7 @@ if (isset($user) && $user) {
                 <div class="section-label">Settings</div>
                 <a href="<?= APP_URL ?>/admin/court_settings.php">🏟️ Manage Courts</a>
                 <a href="<?= APP_URL ?>/admin/game_history.php">📋 Game History</a>
-                <a href="<?= APP_URL ?>/admin/scan_logs.php">📊 Scan Logs</a>
+                <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener">📺 Open Play TV Kiosk</a>
             </div>
         </div>
         <div class="mob-section-label">Players &amp; Finance</div>
@@ -1389,7 +1389,7 @@ if (isset($user) && $user) {
         <div class="mob-section-label">Tournaments</div>
         <a href="<?= APP_URL ?>/staff/tournament_queue.php">🏆 Tournament Queue</a>
             <a href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play</a>
-        <a href="<?= APP_URL ?>/admin/kiosk.php">🖥️ Kiosk Display</a>
+        <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener">📺 Open Play TV Kiosk</a>
 
         <div class="mob-section-label">Food</div>
         <a href="<?= APP_URL ?>/admin/food_orders.php">🍔 Food Orders</a>

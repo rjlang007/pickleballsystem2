@@ -84,5 +84,5 @@ try {
     }
 } catch (Throwable $e) {
     error_log('[staff/tournament_ops] ' . $e->getMessage());
-    respond(['ok' => false, 'error' => $e->getMessage()], 400);
+    respond(['ok' => false, 'error' => 'Server error. Please try again.'], 500);
 }

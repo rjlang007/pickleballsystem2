@@ -114,7 +114,7 @@ function h(mixed $v, string $fallback = ''): string {
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script>
+<script nonce="<?= getCspNonce() ?>">
     window.APP_URL = <?= json_encode(APP_URL) ?>;
 </script>
 
@@ -1122,10 +1122,10 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
         <div class="section-label"><?= h($about['tagline'] ?? 'About Padol') ?></div>
         <h2 class="section-title"><?= h($about['heading'] ?? 'Where Champions Are Made') ?></h2>
         <p class="section-desc"><?= h($about['description'] ?? "Padol Pickleball Court is South Cotabato's premier pickleball destination. Professional-grade courts, smart credit-based booking, and a passionate community — in the heart of Polomolok.") ?></p>
-        <p class="about-desc2"><?= h($about['description2'] ?? "Whether you're a beginner picking up your first paddle or a seasoned competitor, Padol is your court. Our QR-powered access system means less waiting, more playing.") ?></p>
+        <p class="about-desc2"><?= h($about['description2'] ?? "Whether you're a beginner picking up your first paddle or a seasoned competitor, Padol is your court. Our live Open Play queue means less waiting, more playing.") ?></p>
         <div class="about-features">
           <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Professional Courts</div>
-          <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Smart QR Access</div>
+          <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Live Open Play Queue</div>
           <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Active Community</div>
           <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> <?= h($location['hours'] ?? '10 AM – Midnight') ?></div>
           <div class="feature-chip"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> GCash &amp; Maya</div>
@@ -1795,7 +1795,7 @@ footer { background:var(--bg2);border-top:1px solid var(--border);padding:clamp(
         <li><a href="player/schedule.php">Reserve a Court</a></li>
         <li><a href="#">Wallet &amp; Credits</a></li>
         <li><a href="#">Game History</a></li>
-        <li><a href="#">QR Pass</a></li>
+        <li><a href="public/open_play.php">Open Play</a></li>
       </ul>
     </div>
     <div>

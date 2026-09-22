@@ -61,24 +61,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $avatarPath = $currentAvatar;
     if (!empty($_FILES['avatar']['name'])) {
-        $file = $_FILES['avatar'];
-        $allowed  = ['image/jpeg','image/png','image/webp','image/gif'];
-        $maxBytes = MAX_UPLOAD_MB * 1024 * 1024;
-        if (!in_array($file['type'], $allowed)) {
-            $errors['avatar'] = 'Only JPG, PNG, WebP, or GIF allowed.';
-        } elseif ($file['size'] > $maxBytes) {
-            $errors['avatar'] = 'Image must be under ' . MAX_UPLOAD_MB . 'MB.';
+        if (!is_dir(UPLOAD_AVATARS)) mkdir(UPLOAD_AVATARS, 0755, true);
+        // Server-side MIME sniff + extension lock + double-extension check +
+        // GD re-encode (strips EXIF/metadata/polyglot payloads) — never trust
+        // the browser-supplied Content-Type or the original filename alone.
+        $filename = moveUploadedImageSafe($_FILES['avatar'], UPLOAD_AVATARS, 'avatar_' . $uid);
+        if ($filename !== null) {
+            if ($currentAvatar && file_exists(UPLOAD_AVATARS . $currentAvatar)) unlink(UPLOAD_AVATARS . $currentAvatar);
+            $avatarPath = $filename;
         } else {
-            if (!is_dir(UPLOAD_AVATARS)) mkdir(UPLOAD_AVATARS, 0755, true);
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = 'avatar_' . $uid . '_' . time() . '.' . $ext;
-            $dest = UPLOAD_AVATARS . $filename;
-            if (move_uploaded_file($file['tmp_name'], $dest)) {
-                if ($currentAvatar && file_exists(UPLOAD_AVATARS . $currentAvatar)) unlink(UPLOAD_AVATARS . $currentAvatar);
-                $avatarPath = $filename;
-            } else {
-                $errors['avatar'] = 'Upload failed. Check folder permissions.';
-            }
+            $errors['avatar'] = 'Upload failed. Please use a JPG, PNG, WebP, or GIF under ' . MAX_UPLOAD_MB . 'MB.';
         }
     }
 

@@ -135,7 +135,7 @@ if (
     $_GET['_session_ping'] === '1' &&
     $_SERVER['REQUEST_METHOD'] === 'GET'
 ) {
-    if (!checkRateLimit('ping_' . ($_SERVER['REMOTE_ADDR'] ?? ''), 60, 60)) {
+    if (!checkRateLimit('ping_' . getClientIp(), 60, 60)) {
         http_response_code(429);
         header('Content-Type: application/json');
         echo json_encode(['ok' => false, 'reason' => 'rate_limited']);
@@ -186,7 +186,7 @@ function verifyCsrf(): void {
     if (empty($stored) || empty($submitted) || !hash_equals($stored, $submitted)) {
         error_log(sprintf(
             '[CSRF] Mismatch — IP:%s UA:%s stored_empty:%s submitted_empty:%s',
-            $_SERVER['REMOTE_ADDR'] ?? 'n/a',
+            getClientIp(),
             substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 80),
             empty($stored)    ? 'yes' : 'no',
             empty($submitted) ? 'yes' : 'no'

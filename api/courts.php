@@ -22,7 +22,7 @@ header('Cache-Control: public, max-age=10');
 date_default_timezone_set('Asia/Manila');
 
 // ── Rate limiting — 30 req/min per IP ────────────────────────
-$ip    = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+$ip    = getClientIp();
 $rlKey = sys_get_temp_dir() . '/rl_api_courts_' . md5($ip) . '.json';
 $now   = time();
 $rlData = ['attempts' => [], 'blocked_until' => 0];

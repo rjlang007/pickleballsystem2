@@ -175,7 +175,7 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?= APP_URL ?>/admin/court_mode.php" class="btn-outline btn-sm">🏓 Switch Court Mode</a>
         <a href="<?= APP_URL ?>/staff/tournament_queue.php" class="btn-outline btn-sm">🏆 Tournament Queue &amp; Bracket</a>
         <a href="<?= APP_URL ?>/admin/food_orders.php" class="btn-outline btn-sm">🍔 Food Order Queue</a>
-        <a href="<?= APP_URL ?>/admin/kiosk.php" class="btn-outline btn-sm">🖥️ Open Kiosk Display</a>
+        <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener" class="btn-outline btn-sm">📺 Open Play TV Kiosk</a>
         <a href="<?= APP_URL ?>/admin/game_history.php" class="btn-outline btn-sm">📋 Game History</a>
     </div>
 </div>

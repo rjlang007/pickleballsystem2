@@ -1,49 +1,21 @@
 <?php
-/**
- * API endpoint to get current user's QR token
- * Returns JSON with the token needed for scanning
- */
-
+// ============================================================
+//  FILE: api/get_user_token.php  — RETIRED
+//
+//  Handed the caller their scannable pass token. Nothing scans
+//  tokens anymore, and continuing to serve them would leave a
+//  live credential for a workflow that no longer has an owner.
+// ============================================================
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/security.php';
 
-// Force JSON response
 header('Content-Type: application/json');
+header('Cache-Control: no-store');
 
-try {
-    requireLogin();
-    $db  = getDB();
-    $uid = $_SESSION['user_id'] ?? null;
-
-    if (!$uid) {
-        throw new Exception('Not logged in');
-    }
-
-    $stmt = $db->prepare(
-        "SELECT p.qr_token, COALESCE(w.balance, 0) AS balance
-         FROM falcon.player_passes p
-         LEFT JOIN falcon.wallets w ON w.user_id = p.user_id
-         WHERE p.user_id = ?
-         LIMIT 1"
-    );
-    $stmt->execute([$uid]);
-    $player = $stmt->fetch();
-
-    if (!$player || empty($player['qr_token'])) {
-        throw new Exception('Player token not found');
-    }
-
-    echo json_encode([
-        'success' => true,
-        'token' => $player['qr_token'],
-        'has_balance' => ((float)$player['balance']) > 0
-    ]);
-
-} catch (Exception $e) {
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage()
-    ]);
-}
+http_response_code(410);
+echo json_encode([
+    'success'  => false,
+    'error'    => 'Pass tokens have been retired. Join the Open Play queue instead.',
+    'redirect' => appUrl('public/open_play.php'),
+]);

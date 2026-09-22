@@ -48,19 +48,14 @@ function logActivity(
             }
         }
 
-        // ── IP — take only the first address in the chain ─────
-        // HTTP_X_FORWARDED_FOR is client-controlled; never trust
-        // the whole string. Taking only the left-most value is
-        // still spoofable without a trusted proxy layer, but it
-        // prevents log injection via crafted header values.
-        $rawIp = $_SERVER['HTTP_X_FORWARDED_FOR']
-                 ?? $_SERVER['REMOTE_ADDR']
-                 ?? 'unknown';
-        $ip = trim(explode(',', $rawIp)[0]);
-        // Validate it looks like an IP; fall back if garbage
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        }
+        // ── IP ──────────────────────────────────────────────────
+        // getClientIp() (includes/security_helpers.php) only trusts
+        // X-Forwarded-For once REMOTE_ADDR matches a known proxy in
+        // TRUSTED_PROXY_IPS, and walks the chain right-to-left past
+        // any trusted hops — the previous left-most-entry approach
+        // here was spoofable by anyone (append a fake IP at the
+        // front of the header) even behind a real proxy.
+        $ip = getClientIp();
 
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
 

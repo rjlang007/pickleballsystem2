@@ -491,9 +491,8 @@ require_once __DIR__ . '/../includes/header.php';
                 style="background:rgba(0,229,160,0.12);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
             👤+ Manual Add
         </button>
-        <a href="<?= APP_URL ?>/admin/kiosk.php" target="_blank" class="btn-primary btn-sm">📺 TV / Kiosk</a>
+        <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener" class="btn-primary btn-sm">📺 Open Play TV Kiosk</a>
         <a href="<?= APP_URL ?>/staff/open_play_control.php" class="btn-outline btn-sm">🎲 Open Play Queue</a>
-        <a href="<?= APP_URL ?>/admin/scan_logs.php"     class="btn-outline btn-sm">📋 Scan Logs</a>
         <a href="<?= APP_URL ?>/admin/court_settings.php"class="btn-outline btn-sm">⚙️ Settings</a>
         <a href="<?= APP_URL ?>/admin/dashboard.php"     class="btn-outline btn-sm">← Dashboard</a>
         <div class="auto-refresh-pill" id="ar-pill">

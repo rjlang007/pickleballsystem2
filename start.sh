@@ -2,6 +2,24 @@
 set -e
 
 mkdir -p /app/uploads/activity_photos /app/logs /app/storage/logs
+
+# Defense-in-depth: nginx.conf already blocks script execution under
+# /uploads/, but /app/uploads/ (lowercase — where avatars, payment QR
+# codes, and activity photos actually land) ships with no .htaccess of
+# its own, unlike the legacy /app/Uploads/ folder. Write one on every
+# boot so an Apache-based deployment (or a future nginx misconfig) isn't
+# relying on a single point of protection for user-submitted files.
+if [ ! -f /app/uploads/.htaccess ]; then
+    cat > /app/uploads/.htaccess << 'HTACCESS'
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|sh|cgi)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+Options -Indexes
+HTACCESS
+fi
+
 chown -R www-data:www-data /app/uploads /app/logs /app/storage
 chmod -R 775 /app/uploads /app/logs /app/storage
 

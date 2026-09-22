@@ -257,7 +257,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <input type="radio" name="role" value="player" checked/>
                     <div class="role-icon">🎾</div>
                     <div class="role-name">Player</div>
-                    <div class="role-desc">Can scan in, join queue, manage credits</div>
+                    <div class="role-desc">Can join Open Play, book courts, manage credits</div>
                 </label>
                 <label class="role-card" id="card-admin" onclick="selectRole('admin')">
                     <input type="radio" name="role" value="admin"/>

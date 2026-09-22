@@ -20,10 +20,10 @@ $values = ['username' => '', 'full_name' => '', 'email' => '', 'phone' => ''];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
 
-   /* $rateLimitKey = 'register_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $rateLimitKey = 'register_' . getClientIp();
     if (!checkRateLimit($rateLimitKey, 3, 600)) {
         $errors['general'] = 'Too many registration attempts. Please wait a few minutes.';
-    } else {*/
+    } else {
         $username  = sanitizeString($_POST['username']  ?? '', 50);
         $full_name = sanitizeString($_POST['full_name'] ?? '', 120);
         $email     = sanitizeEmail($_POST['email']      ?? '');
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $userId = $stmt->fetch()['id'];
 
                 $db->commit();
-                /*clearRateLimit($rateLimitKey);*/
+                clearRateLimit($rateLimitKey);
 
                 session_regenerate_id(true);
                 $_SESSION['user_id'] = (int)$userId;
@@ -100,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors['general'] = 'Registration failed: ' . $e->getMessage();
 }
         }
+    }
 }
 
 $pageTitle = 'Register';

@@ -35,7 +35,7 @@ if (in_array($action, ['send'], true)) {
         exit;
     }
     verifySameOrigin();
-    if (!checkRateLimit('chat_send_' . ($_SESSION['user_id'] ?? $_SERVER['REMOTE_ADDR'] ?? 'anon'), 30, 60)) {
+    if (!checkRateLimit('chat_send_' . ($_SESSION['user_id'] ?? getClientIp()), 30, 60)) {
         http_response_code(429);
         echo json_encode(['ok' => false, 'error' => 'Too many messages. Please slow down.']);
         exit;

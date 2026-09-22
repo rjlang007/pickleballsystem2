@@ -360,6 +360,33 @@ class OpenPlayEngine
         return $row ?: null;
     }
 
+    /**
+     * The Open Play event the floor is running right now.
+     *
+     * Used by every entry point that has no tournament_id in hand —
+     * the TV kiosk, the staff console and the legacy kiosk redirects —
+     * so they all land on the same event instead of drifting apart.
+     * Live events win over ones still taking signups; ties break on
+     * the most recently created.
+     */
+    public function getActiveEventId(): int
+    {
+        $stmt = $this->db->query(
+            "SELECT id FROM falcon.tournaments
+              WHERE bracket_type = 'open_play'
+                AND status IN ('in_progress','paused','registration_closed','registration_open')
+              ORDER BY CASE status
+                         WHEN 'in_progress'          THEN 1
+                         WHEN 'paused'               THEN 2
+                         WHEN 'registration_closed'  THEN 3
+                         ELSE 4
+                       END,
+                       start_date DESC NULLS LAST, id DESC
+              LIMIT 1"
+        );
+        return (int)($stmt->fetchColumn() ?: 0);
+    }
+
     public function listEvents(array $filters = []): array
     {
         $sql    = "SELECT * FROM falcon.tournaments WHERE bracket_type = 'open_play'";
@@ -1978,14 +2005,126 @@ class OpenPlayEngine
 
         $waiting = $this->getWaitingPool($tournamentId);
 
+        // ── Court board ──────────────────────────────────────
+        // Every active court, with whatever is happening on it right
+        // now. This is what lets the kiosk show idle, paused and
+        // unavailable courts instead of only courts with a live game.
+        $settings   = json_decode((string)($event['settings'] ?? '{}'), true) ?: [];
+        $format     = $settings['format'] ?? 'doubles';
+        $perGame    = $format === 'singles' ? 2 : 4;
+        $duration   = max(60, (int)($settings['game_duration'] ?? 900));
+
+        $matchByCourt = [];
+        foreach ($nowPlaying as $m) {
+            $matchByCourt[(int)$m['court_id']] = $m;
+        }
+
+        $courts     = $this->getCourtBoard($tournamentId, $matchByCourt);
+        $playable   = array_values(array_filter($courts, fn($c) => $c['state'] !== 'unavailable'));
+        $courtCount = max(1, count($playable));
+
+        // ── Estimated wait ───────────────────────────────────
+        // Soonest court free wins; otherwise assume a court frees up
+        // every (duration / playable courts). Each additional full
+        // game's worth of people ahead of you pushes you back a slot.
+        $freeSoon = [];
+        foreach ($playable as $c) {
+            $freeSoon[] = $c['state'] === 'playing' ? max(0, (int)$c['time_left']) : 0;
+        }
+        sort($freeSoon);
+        $queuedAhead = count($upNext) * $perGame;
+        $noCapacity  = empty($freeSoon);   // every court in maintenance / reserved / none set up
+
+        foreach ($waiting as $i => &$w) {
+            $w['position'] = $i + 1;
+
+            if ($noCapacity) {
+                // Nothing can free up, so any number we printed would be a
+                // guess with no basis. Say so instead of inventing one.
+                $w['est_wait_secs'] = null;
+                $w['est_wait_mins'] = null;
+                continue;
+            }
+
+            $slot  = intdiv($queuedAhead + $i, $perGame);          // which court turnover they catch
+            $base  = $freeSoon[min($slot, count($freeSoon) - 1)] ?? 0;
+            $extra = max(0, $slot - (count($freeSoon) - 1)) * intdiv($duration, $courtCount);
+            $w['est_wait_secs']  = (int)($base + $extra);
+            $w['est_wait_mins']  = (int)ceil($w['est_wait_secs'] / 60);
+        }
+        unset($w);
+
         return [
-            'event'        => $event,
-            'now_playing'  => $nowPlaying,
-            'up_next'      => $upNext,
-            'waiting_pool' => $waiting,
-            'waiting_count'=> count($waiting),
-            'server_time'  => time(),
+            'event'            => $event,
+            'now_playing'      => $nowPlaying,
+            'up_next'          => $upNext,
+            'waiting_pool'     => $waiting,
+            'waiting_count'    => count($waiting),
+            'courts'           => $courts,
+            'court_count'      => count($courts),
+            'courts_available' => count(array_filter($courts, fn($c) => $c['state'] === 'open')),
+            'players_per_game' => $perGame,
+            'game_duration'    => $duration,
+            'next_free_secs'   => $freeSoon ? (int)$freeSoon[0] : 0,
+            'event_paused'     => $event['status'] === 'paused',
+            'server_time'      => time(),
         ];
+    }
+
+    /**
+     * Every active court with its live Open Play state.
+     * state: playing | paused | open | unavailable
+     */
+    private function getCourtBoard(int $tournamentId, array $matchByCourt): array
+    {
+        $rows = $this->db->query(
+            "SELECT id, name, short_code, COALESCE(is_maintenance, FALSE) AS is_maintenance
+               FROM falcon.courts WHERE is_active = TRUE ORDER BY sort_order NULLS LAST, id"
+        )->fetchAll(PDO::FETCH_ASSOC);
+
+        // Courts blocked right now by a confirmed reservation.
+        $resStmt = $this->db->query(
+            "SELECT DISTINCT court_id FROM falcon.reservations
+              WHERE status IN ('pending','confirmed')
+                AND slot_date = CURRENT_DATE
+                AND CURRENT_TIME BETWEEN slot_time AND slot_end"
+        );
+        $reserved = array_map('intval', $resStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        $board = [];
+        foreach ($rows as $c) {
+            $id    = (int)$c['id'];
+            $maint = in_array($c['is_maintenance'], [true, 't', '1', 1], true);
+            $match = $matchByCourt[$id] ?? null;
+
+            if ($match) {
+                $state  = $match['status'] === 'paused' ? 'paused' : 'playing';
+                $reason = $match['status'] === 'paused' ? 'Game paused' : null;
+            } elseif ($maint) {
+                $state  = 'unavailable';
+                $reason = 'Under maintenance';
+            } elseif (in_array($id, $reserved, true)) {
+                $state  = 'unavailable';
+                $reason = 'Reserved booking';
+            } elseif ($this->resolvedCourtMode($id) === 'reservation') {
+                $state  = 'unavailable';
+                $reason = 'Reservations only';
+            } else {
+                $state  = 'open';
+                $reason = null;
+            }
+
+            $board[] = [
+                'id'         => $id,
+                'name'       => (string)$c['name'],
+                'short_code' => (string)($c['short_code'] ?? ''),
+                'state'      => $state,
+                'reason'     => $reason,
+                'time_left'  => $match ? (int)$match['time_left'] : 0,
+                'match'      => $match,
+            ];
+        }
+        return $board;
     }
 
     // ══════════════════════════════════════════════════════════

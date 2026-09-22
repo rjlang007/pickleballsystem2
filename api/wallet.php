@@ -324,6 +324,7 @@ if ($method === 'PATCH') {
 
     } catch (RuntimeException $e) {
         if ($db->inTransaction()) $db->rollBack();
+        error_log('[wallet PATCH] ' . $e->getMessage());
         apiError('SERVER_ERROR', $e->getMessage(), [], 500);
     } catch (Throwable $e) {
         if ($db->inTransaction()) $db->rollBack();

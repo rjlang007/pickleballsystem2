@@ -18,18 +18,13 @@ define('UPLOAD_PAYMENT_QR', APP_ROOT . '/uploads/payment_qr/');
 if (!is_dir(UPLOAD_PAYMENT_QR)) mkdir(UPLOAD_PAYMENT_QR, 0755, true);
 
 // ── QR image upload helper ────────────────────────────────────
+// Delegates to moveUploadedImageSafe() (includes/security_helpers.php),
+// which locks the extension to the sniffed MIME type, rejects
+// double-extension tricks, and re-encodes through GD to strip any
+// embedded payload — the previous version trusted the uploader's own
+// filename for the saved extension.
 function uploadQR(array $file): ?string {
-    if ($file['error'] !== UPLOAD_ERR_OK) return null;
-    $allowed = ['image/jpeg','image/png','image/webp','image/gif'];
-    $finfo   = finfo_open(FILEINFO_MIME_TYPE);
-    $mime    = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
-    if (!in_array($mime, $allowed)) return null;
-    if ($file['size'] > (MAX_UPLOAD_MB * 1024 * 1024)) return null;
-    $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    $filename = 'qr_' . uniqid('', true) . '.' . $ext;
-    $dest     = UPLOAD_PAYMENT_QR . $filename;
-    return move_uploaded_file($file['tmp_name'], $dest) ? $filename : null;
+    return moveUploadedImageSafe($file, UPLOAD_PAYMENT_QR, 'qr');
 }
 
 // ── POST handlers ─────────────────────────────────────────────

@@ -48,7 +48,17 @@ switch ($action) {
         break;
 
     case 'broadcast_test':
-        // Test broadcast
+        // Debug-only action. Was reachable by anyone with no auth and ran a
+        // real DB query per hit; gated behind admin auth + a rate limit so
+        // it can't be hammered anonymously. (It currently has no visible
+        // effect either way — see the notice at the top of
+        // includes/websocket.php for why.)
+        requireAdmin();
+        if (!checkRateLimit('ws_broadcast_test_' . getClientIp(), 10, 60)) {
+            http_response_code(429);
+            echo json_encode(['error' => 'Too many requests.']);
+            exit;
+        }
         $courtId = (int)($_GET['court_id'] ?? 1);
         broadcastCourtStatus($courtId);
         echo json_encode(['status' => 'broadcast_sent']);

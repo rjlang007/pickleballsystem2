@@ -38,5 +38,6 @@ try {
     }
     apiError('Invalid request.', 400);
 } catch (Throwable $e) {
-    apiError($e->getMessage());
+    error_log('[api/brackets] ' . $e->getMessage());
+    apiError('Server error. Please try again.');
 }

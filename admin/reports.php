@@ -136,7 +136,7 @@ $creditsDistributed = (float) $db->query("
     WHERE type = 'topup' AND status = 'approved'
 ")->fetchColumn();
 
-// Credits actually deducted via QR scan in completed games
+// Credits actually deducted from players in completed games
 $creditsSpentInGames = (float) $db->query("
     SELECT COALESCE(SUM(gp.credits_charged), 0)
     FROM falcon.game_players gp
@@ -382,7 +382,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div style="font-size:22px;margin-bottom:6px;">🎾</div>
             <div class="cf-val" style="color:var(--danger);">₱<?= number_format($creditsSpentInGames, 0) ?></div>
             <div class="cf-label">Spent in Games</div>
-            <div class="cf-sub">Deducted via QR scan</div>
+            <div class="cf-sub">Deducted from completed games</div>
         </div>
 
         <div class="cf-block" style="border-color:rgba(0,229,160,0.3);">

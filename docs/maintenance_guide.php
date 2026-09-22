@@ -361,7 +361,7 @@ require_once __DIR__ . '/../includes/header.php';
         <span class="freq-badge daily">⏱️ 5 Minutes — Every Morning</span>
         <div class="doc-checklist">
             <div class="doc-check-item"><div class="doc-check-box">☐</div><div class="doc-check-label"><strong>Website loads</strong><span>Go to your site URL — should load in under 3 seconds</span></div></div>
-            <div class="doc-check-item"><div class="doc-check-box">☐</div><div class="doc-check-label"><strong>Scanner works</strong><span>Go to <code>/court/scanner.php</code> — queue should be visible</span></div></div>
+            <div class="doc-check-item"><div class="doc-check-box">☐</div><div class="doc-check-label"><strong>Open Play queue works</strong><span>Go to <code>/staff/open_play_control.php</code> — the waiting queue should be visible</span></div></div>
             <div class="doc-check-item"><div class="doc-check-box">☐</div><div class="doc-check-label"><strong>Database connected</strong><span>Admin dashboard should show live stats — no red errors</span></div></div>
             <div class="doc-check-item"><div class="doc-check-box">☐</div><div class="doc-check-label"><strong>Courts available</strong><span>Check court schedule — courts should show as available for today</span></div></div>
             <div class="doc-check-item"><div class="doc-check-box">☐</div><div class="doc-check-label"><strong>Pending top-ups</strong><span>Review and approve/reject any overnight top-up requests</span></div></div>
@@ -371,7 +371,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <thead><tr><th>Problem</th><th>Quick Fix</th><th>Time</th></tr></thead>
                 <tbody>
                     <tr><td>Website won't load</td><td>Check internet. Restart router. Contact developer.</td><td>2–3 min</td></tr>
-                    <tr><td>Scanner shows "Database Error"</td><td>Refresh page. If still broken, restart tablet.</td><td>1 min</td></tr>
+                    <tr><td>Open Play board shows "Database Error"</td><td>Refresh page. If still broken, restart tablet.</td><td>1 min</td></tr>
                     <tr><td>Dashboard shows "Connection Timeout"</td><td>Wait 2 minutes. Refresh. If it persists, contact developer.</td><td>2 min</td></tr>
                     <tr><td>Courts not showing up</td><td>Refresh page. Check for recent admin changes.</td><td>1 min</td></tr>
                 </tbody>
@@ -565,8 +565,8 @@ require_once __DIR__ . '/../includes/header.php';
             <?php
             $playerFaqs = [
                 ["Verify a New Player", "Go to Admin → Players → filter by Status = 'Unverified'. Click the player's name. Review their info (name, valid phone number, etc.). Click 'Verify' → Save. Effect: Player can now join games and use all system features."],
-                ["Ban a Player (Rule Violations)", "Go to Admin → Players → find the player → click 'Ban' → enter a reason (e.g., 'Aggressive behavior, yelling at other players') → Save. Effect: Player gets a suspension notification, cannot login, QR code stops working, cannot book courts."],
-                ["Unban a Player", "Go to Admin → Players → find the banned player → click 'Unban' → confirm. Effect: Player can login again, QR code works, can join games."],
+                ["Ban a Player (Rule Violations)", "Go to Admin → Players → find the player → click 'Ban' → enter a reason (e.g., 'Aggressive behavior, yelling at other players') → Save. Effect: Player gets a suspension notification, cannot login, cannot join Open Play, cannot book courts."],
+                ["Unban a Player", "Go to Admin → Players → find the banned player → click 'Unban' → confirm. Effect: Player can login again, can join Open Play and book courts."],
                 ["Reset Player Password", "Go to Admin → Players → find the player → click 'Reset Password' → enter a temporary password (e.g., Temp123456) → Save. Tell the player their temp password. They will be forced to change it on next login."],
                 ["Manually Add Credits (Top-Up at Counter)", "Go to Admin → Players → find the player → click 'Adjust Balance' → select 'Add Credits' → enter amount (e.g., 500) → reason: 'Cash top-up at counter' → Save. Effect: Player's balance increases immediately."],
                 ["Deduct Credits (Refund or Correction)", "Go to Admin → Players → find the player → click 'Adjust Balance' → select 'Deduct Credits' → enter amount → reason: 'Refund - cancelled reservation' or 'Correction - double charged' → Save."],
@@ -599,7 +599,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <tr><td><code>Connection Timeout</code></td><td>Database unreachable</td><td>Wait 2 min. Refresh. If persists, restart Railway app. Contact developer.</td></tr>
                     <tr><td><code>Insufficient Balance</code></td><td>Player has &lt; ₱10</td><td>Player must top up credits. Show them the top-up page.</td></tr>
                     <tr><td><code>Account Suspended</code></td><td>Player was banned</td><td>Check Admin → Players. Unban if appropriate.</td></tr>
-                    <tr><td><code>Invalid QR Code</code></td><td>Scanner can't read QR</td><td>Clean scanner lens. Try manual entry. Check USB connection.</td></tr>
+                    <tr><td><code>Player not in queue</code></td><td>Never joined, or join still pending approval</td><td>Add or approve them from Open Play Control.</td></tr>
                     <tr><td><code>Password Too Weak</code></td><td>Doesn't meet requirements</td><td>Must be 8+ chars, 1 UPPERCASE, 1 number. Example: <code>Court2026</code></td></tr>
                     <tr><td><code>Username Already Taken</code></td><td>Someone else has that username</td><td>Try a variation: <code>juan_2024</code>, <code>jdelaCruz99</code></td></tr>
                     <tr><td><code>Email Already Used</code></td><td>Email on another account</td><td>Verify email. One account per email allowed.</td></tr>
@@ -689,20 +689,20 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
         <div style="margin-bottom:10px;font-weight:700;font-size:13px;color:var(--text);">Template for a Good Support Email:</div>
-        <div class="doc-email-template"><strong>Subject: [URGENT] QR Scanner Not Working</strong>
+        <div class="doc-email-template"><strong>Subject: [URGENT] Open Play Queue Not Working</strong>
 
 Hi [Developer],
 
-This morning at 10:30 AM, I tried to scan a player's QR code at the
-court. The scanner displayed "Invalid QR Code" even though the player
-has a ₱500 balance.
+This morning at 10:30 AM, I tried to add a player to the Open Play
+queue from Open Play Control. The page showed "Database Error" even
+though the player has a ₱500 balance.
 
 I tried:
-- Cleaning the scanner lens
+- Refreshing the page
 - Restarting the tablet
-- Scanning a different player's QR (same error)
+- Adding a different player (same error)
 
-The scanner worked fine yesterday. Players cannot join games.
+The queue worked fine yesterday. Players cannot join games.
 
 Browser: Chrome (latest)
 Device: iPad Air 2024

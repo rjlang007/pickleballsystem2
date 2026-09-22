@@ -80,33 +80,18 @@ CREATE INDEX IF NOT EXISTS idx_tm_round
     ON falcon.tournament_matches(tournament_id, bracket_round);
 
 -- ── TABLE 4: leaderboard ─────────────────────────────────────
-CREATE TABLE IF NOT EXISTS falcon.leaderboard (
-    id                SERIAL PRIMARY KEY,
-    player_id         INTEGER      NOT NULL
-                          REFERENCES falcon.users(id) ON DELETE CASCADE,
-    season            SMALLINT     NOT NULL DEFAULT EXTRACT(YEAR FROM NOW())::SMALLINT,
-    tournament_id     INTEGER
-                          REFERENCES falcon.tournaments(id) ON DELETE CASCADE,
-    total_points      INTEGER      NOT NULL DEFAULT 0,
-    total_wins        INTEGER      NOT NULL DEFAULT 0,
-    total_losses      INTEGER      NOT NULL DEFAULT 0,
-    total_tournaments INTEGER      NOT NULL DEFAULT 0,
-    rank              INTEGER,
-    last_updated      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (player_id, season, tournament_id)
-);
-
--- Partial unique index so (player, season, NULL) is also unique
-CREATE UNIQUE INDEX IF NOT EXISTS idx_lb_season_agg
-    ON falcon.leaderboard(player_id, season)
-    WHERE tournament_id IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_lb_season_rank
-    ON falcon.leaderboard(season, total_points DESC)
-    WHERE tournament_id IS NULL;
-
-CREATE INDEX IF NOT EXISTS idx_lb_player
-    ON falcon.leaderboard(player_id);
+-- REMOVED (see migrations/027_fix_duplicate_migration_schema_conflicts.sql
+-- and config/db.php's ensureLeaderboardTable()): this used to define a
+-- per-tournament leaderboard (extra tournament_id/total_losses/last_updated
+-- columns). The table was already created earlier by
+-- 002_tournament_enhancement.sql with the season-only schema the app
+-- actually uses, so this CREATE TABLE always no-op'd — and the index
+-- below then failed on every run because tournament_id was never really
+-- added. config/db.php's ensureLeaderboardTable() runs on every request
+-- and explicitly drops tournament_id/total_losses/last_updated as stale
+-- if it ever finds them, confirming the season-only schema is the
+-- intended one. Nothing to do here; falcon.leaderboard is fully owned
+-- by 002_tournament_enhancement.sql + the runtime self-healer.
 
 -- ── TABLE 5: tournament_scores ────────────────────────────────
 CREATE TABLE IF NOT EXISTS falcon.tournament_scores (

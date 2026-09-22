@@ -14,7 +14,8 @@
 //
 //  3. mode_now added to response — current slot mode
 //     (open_play / reservation) for the selected court at
-//     the current time. Uses same logic as court/scanner.php.
+//     the current time. (Previously shared logic with the retired
+//     court/scanner.php.)
 //
 //  4. court_unavailable error shape:
 //     { "slots": [], "court": null, "error": "court_unavailable",
@@ -46,7 +47,7 @@ if (detectSuspiciousUserAgent()) {
 }
 
 // ── Rate limiting — 100 req/min per IP ───────────────────────
-if (shouldRateLimit($_SERVER['REMOTE_ADDR'], 'api_' . basename(__FILE__), 100, 60)) {
+if (shouldRateLimit(getClientIp(), 'api_' . basename(__FILE__), 100, 60)) {
     http_response_code(429);
     header('Content-Type: application/json');
     exit(json_encode(['error' => 'Too many requests. Try again in 1 minute.']));

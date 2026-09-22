@@ -2,11 +2,21 @@
 // ============================================================
 //  FILE: includes/websocket.php
 //
-//  WebSocket server for real-time updates.
-//
 //  Broadcasts court status changes, queue updates, game events.
 //
 //  Requires: ReactPHP WebSocket or similar server
+//
+//  ⚠ CURRENT STATUS: NOT FUNCTIONAL AS REAL-TIME.
+//  $clients is instantiated fresh on every PHP-FPM request (there is no
+//  long-running WebSocket process behind this), so it is always empty by
+//  the time broadcast() runs. Every call to broadcastCourtStatus() /
+//  broadcastQueueStatus() / broadcast() below is a real cost (extra DB
+//  queries in the Court*Status helpers) for zero effect — nothing is
+//  actually delivered to any client. The app's real-time UI updates come
+//  from client-side polling elsewhere, not from this. Left in place
+//  (rather than ripped out) as the intended integration point for a real
+//  WebSocket server later, but until one exists, don't rely on this for
+//  anything and don't add more call sites — it silently does nothing.
 // ============================================================
 
 class WebSocketBroadcaster {

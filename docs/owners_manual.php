@@ -324,7 +324,7 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="#court-mode">🎮 Court Mode</a>
         <a href="#payments">💳 Payments</a>
         <a href="#reports">📈 Reports</a>
-        <a href="#scanner">📷 Scanner</a>
+        <a href="#scanner">📺 Open Play Kiosk</a>
         <a href="#security">🔒 Security</a>
         <a href="#backup">🗄️ Backup</a>
         <a href="#troubleshooting">🛠️ Troubleshooting</a>
@@ -349,7 +349,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="doc-info-grid">
             <div class="doc-info-card"><div class="doc-info-card-icon">👤</div><div class="doc-info-card-title">Player Management</div><div class="doc-info-card-desc">Registration, verification, banning, account adjustments</div></div>
             <div class="doc-info-card"><div class="doc-info-card-icon">💰</div><div class="doc-info-card-title">Credit Wallet</div><div class="doc-info-card-desc">Players load credits like prepaid cards to play games</div></div>
-            <div class="doc-info-card"><div class="doc-info-card-icon">🎮</div><div class="doc-info-card-title">Open Play Queue</div><div class="doc-info-card-desc">Players scan QR code and join a live waiting list</div></div>
+            <div class="doc-info-card"><div class="doc-info-card-icon">🎮</div><div class="doc-info-card-title">Open Play Queue</div><div class="doc-info-card-desc">Players join a live waiting list and are drawn into balanced games</div></div>
             <div class="doc-info-card"><div class="doc-info-card-icon">📅</div><div class="doc-info-card-title">Reservations</div><div class="doc-info-card-desc">Players book specific time slots in advance</div></div>
             <div class="doc-info-card"><div class="doc-info-card-icon">💳</div><div class="doc-info-card-title">Payment Processing</div><div class="doc-info-card-desc">Admin approves top-up requests via GCash, bank, or cash</div></div>
             <div class="doc-info-card"><div class="doc-info-card-icon">📈</div><div class="doc-info-card-title">Reports & Analytics</div><div class="doc-info-card-desc">Revenue tracking, player statistics, peak hours analysis</div></div>
@@ -357,7 +357,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="doc-callout blue">
             <div class="doc-callout-icon">🔄</div>
             <div class="doc-callout-text">
-                <strong>Key Business Flow:</strong> Players register → load credits via top-up → pay through GCash/Bank/Cash → admin approves → credits appear in wallet → players scan QR to play → system deducts <strong>₱10.00 credits per game</strong> (configurable).
+                <strong>Key Business Flow:</strong> Players register → load credits via top-up → pay through GCash/Bank/Cash → admin approves → credits appear in wallet → players join the Open Play queue to play → system deducts <strong>₱10.00 credits per game</strong> (configurable).
             </div>
         </div>
     </div>
@@ -475,7 +475,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="doc-step-num">🚫</div>
                 <div>
                     <div class="doc-step-title">Ban a Player</div>
-                    <div class="doc-step-desc">For rule violations (violence, theft, harassment, non-payment). Click <strong>"Ban"</strong> on the player's row, enter a reason (e.g., <code>Aggressive behavior on court</code>), confirm. Banned players are immediately locked out — can't login, can't scan QR, can't make reservations.</div>
+                    <div class="doc-step-desc">For rule violations (violence, theft, harassment, non-payment). Click <strong>"Ban"</strong> on the player's row, enter a reason (e.g., <code>Aggressive behavior on court</code>), confirm. Banned players are immediately locked out — can't login, can't join Open Play, can't make reservations.</div>
                 </div>
             </div>
             <div class="doc-step">
@@ -533,7 +533,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <tr><td><strong>Game Duration</strong></td><td>How long each game lasts</td><td><code>45</code>, <code>60</code>, or <code>90</code> min</td></tr>
                     <tr><td><strong>Warmup Time</strong></td><td>Grace period before game starts</td><td><code>5</code> min</td></tr>
                     <tr><td><strong>Players Per Game</strong></td><td>Min 2, Max 40 (standard = 4 for doubles)</td><td><code>4</code></td></tr>
-                    <tr><td><strong>Pass Duration</strong></td><td>How long a QR pass stays active after first scan</td><td><code>8</code> hours</td></tr>
+                    <tr><td><strong>Session Duration</strong></td><td>How long a player stays active in the Open Play queue</td><td><code>8</code> hours</td></tr>
                 </tbody>
             </table>
         </div>
@@ -594,7 +594,7 @@ require_once __DIR__ . '/../includes/header.php';
             <table class="doc-table">
                 <thead><tr><th>Mode</th><th>What Happens</th><th>Best For</th></tr></thead>
                 <tbody>
-                    <tr><td><strong>🎮 Open Play</strong></td><td>Players scan QR → join queue → play when their turn comes</td><td>Evenings, weekends, walk-in traffic</td></tr>
+                    <tr><td><strong>🎮 Open Play</strong></td><td>Players join the queue → get drawn into a game → play when their turn comes</td><td>Evenings, weekends, walk-in traffic</td></tr>
                     <tr><td><strong>📅 Reservation</strong></td><td>Only pre-booked players can use the court in that time slot</td><td>Daytime, serious players, tournaments</td></tr>
                 </tbody>
             </table>
@@ -690,27 +690,28 @@ December 25 · Whole Day · Reservation · "Holiday — reservations only"</div>
         </div>
     </div>
 
-    <!-- ══ 10. SCANNER ══ -->
+    <!-- ══ 10. OPEN PLAY KIOSK ══ -->
     <div class="doc-section" id="scanner">
         <div class="doc-section-head">
-            <div class="doc-section-icon green">📷</div>
+            <div class="doc-section-icon green">📺</div>
             <div>
-                <div class="doc-section-title">Court Scanner Operations</div>
-                <div class="doc-section-sub">Kiosk QR scanning for game entry</div>
+                <div class="doc-section-title">Open Play Kiosk &amp; Queue Operations</div>
+                <div class="doc-section-sub">Running the live queue and the TV board</div>
             </div>
         </div>
         <div class="doc-callout green">
-            <div class="doc-callout-icon">📷</div>
-            <div class="doc-callout-text">The Scanner is a <strong>kiosk interface</strong> displayed on a tablet or PC at the court entrance. Players scan here to join the open play queue or check in for their reservation.</div>
+            <div class="doc-callout-icon">📺</div>
+            <div class="doc-callout-text">QR scanning has been retired. Staff run the floor from <strong>Open Play Control</strong> (<code>/staff/open_play_control.php</code>) — adding players, drawing rounds, and starting or finishing games. The <strong>Open Play TV Kiosk</strong> (<code>/staff/open_play_kiosk.php</code>) is the read-only big-screen view players watch for their name. Both read the same queue, so what staff see and what the TV shows can never disagree.</div>
         </div>
         <div class="doc-table-wrap">
             <table class="doc-table">
-                <thead><tr><th>Scanner Error</th><th>Cause</th><th>Fix</th></tr></thead>
+                <thead><tr><th>Situation</th><th>Cause</th><th>Fix</th></tr></thead>
                 <tbody>
-                    <tr><td><code>QR won't scan</code></td><td>Scanner disconnected or screen dirty</td><td>Unplug/replug USB scanner · Clean phone screen · Try 45° angle</td></tr>
-                    <tr><td><code>Player not found</code></td><td>Not registered in system</td><td>Direct player to register at the landing page first</td></tr>
-                    <tr><td><code>Insufficient balance</code></td><td>Player has < ₱10 credits</td><td>Direct player to top up wallet; play once approved</td></tr>
-                    <tr><td><code>Game won't start</code></td><td>May need ≥4 players for auto-start</td><td>Click "Start Game" manually once all QR codes are green</td></tr>
+                    <tr><td><code>Player isn't in the queue</code></td><td>Never joined, or their join is still pending approval</td><td>Add them from Open Play Control → Add Player, or approve their pending request</td></tr>
+                    <tr><td><code>Player not found</code></td><td>Not registered in the system</td><td>Direct player to register at the landing page first</td></tr>
+                    <tr><td><code>Insufficient balance</code></td><td>Player has &lt; ₱10 credits</td><td>Direct player to top up wallet; they can join once approved</td></tr>
+                    <tr><td><code>No game can be drawn</code></td><td>Not enough waiting players, or every court is busy/unavailable</td><td>Check the kiosk court tiles — a court marked Unavailable is in maintenance, reserved, or set to Reservations Only</td></tr>
+                    <tr><td><code>TV board looks frozen</code></td><td>Kiosk lost its connection to the server</td><td>An "offline" badge appears bottom-left after ~12s; refresh the TV browser tab</td></tr>
                 </tbody>
             </table>
         </div>
@@ -807,7 +808,7 @@ December 25 · Whole Day · Reservation · "Holiday — reservations only"</div>
             $faqs = [
                 ["Database Connection Error", "Go to Railway.app and check if the service is up. Try refreshing the page (Ctrl+R). If still down, go to Railway → Padol Pickleball project → click Redeploy and wait 2 minutes."],
                 ["Player Can't Login", "Go to Admin → Players → search for the player. Check if they are Banned (✅ = yes, ❌ = no) or Unverified. Unban or verify as needed. If still failing, use Reset Password and send them a temporary password."],
-                ["QR Scanner Not Working", "Unplug and replug the USB scanner. Try a different USB port. Clean the phone screen. Improve lighting. Try holding the QR at a 45° angle. If using phone camera, ensure the camera is in focus before scanning."],
+                ["Open Play TV Kiosk Not Updating", "The kiosk polls the server every 4 seconds. If an \u0022live board offline\u0022 badge appears, refresh the browser tab on the TV. Check the TV\u0027s network connection. Confirm an Open Play event is actually running under Open Play Control — with no live event the board shows an idle state by design."],
                 ["Player Balance Shows Wrong Amount", "Refresh the page first. If still wrong, go to Admin → Players → find the player → Adjust Balance → manually correct the amount → add reason 'Balance correction — sync issue'."],
                 ["Top-Up Request Stuck as Pending", "Go to Admin → Top-Up Requests → find the request. Check the payment screenshot. If valid, click Approve. If payment was not received, click Reject and add a reason for the player."],
                 ["Reservation Not Showing in Schedule", "Go to Admin → Schedule → check the correct date. Look for blue (pending) or dark blue (confirmed) slots. If not found, ask the player for their confirmation email with the date and time, then check if they may have booked a different court."],
@@ -857,7 +858,8 @@ December 25 · Whole Day · Reservation · "Holiday — reservations only"</div>
                     <tr><td>Payment Settings</td><td><code>/admin/payment_settings.php</code></td></tr>
                     <tr><td>Top-Up Requests</td><td><code>/admin/topup_requests.php</code></td></tr>
                     <tr><td>Reports</td><td><code>/admin/reports.php</code></td></tr>
-                    <tr><td>Court Scanner</td><td><code>/court/scanner.php</code></td></tr>
+                    <tr><td>Open Play Control</td><td><code>/staff/open_play_control.php</code></td></tr>
+                    <tr><td>Open Play TV Kiosk</td><td><code>/staff/open_play_kiosk.php</code></td></tr>
                 </tbody>
             </table>
         </div>

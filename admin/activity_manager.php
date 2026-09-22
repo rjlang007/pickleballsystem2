@@ -22,17 +22,11 @@ if (!is_dir(UPLOAD_ACTIVITY_PHOTOS)) {
     }
 }
 
+// Delegates to moveUploadedImageSafe() (includes/security_helpers.php) for
+// real MIME sniffing, an extension whitelist, double-extension detection,
+// and a GD re-encode that strips any embedded payload.
 function uploadActivityPhoto(array $file): ?string {
-    if ($file['error'] !== UPLOAD_ERR_OK) return null;
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime  = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
-    $allowed = ['image/jpeg','image/png','image/webp','image/gif'];
-    if (!in_array($mime, $allowed)) return null;
-    if ($file['size'] > MAX_UPLOAD_MB * 1024 * 1024) return null;
-    $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    $name = 'act_' . uniqid('',true) . '.' . $ext;
-    return move_uploaded_file($file['tmp_name'], UPLOAD_ACTIVITY_PHOTOS . $name) ? $name : null;
+    return moveUploadedImageSafe($file, UPLOAD_ACTIVITY_PHOTOS, 'act');
 }
 
 // ── POST handlers ─────────────────────────────────────────

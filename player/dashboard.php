@@ -4,7 +4,6 @@
 // ============================================================
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/app.php';
-require_once __DIR__ . '/../includes/qr.php';
 require_once __DIR__ . '/../config/security.php';
 requireLogin();
 
@@ -15,7 +14,11 @@ $walletStmt = $db->prepare("SELECT balance FROM falcon.wallets WHERE user_id = ?
 $walletStmt->execute([$uid]);
 $balance = (float)($walletStmt->fetchColumn() ?? 0);
 
-$passStmt = $db->prepare("SELECT id, qr_token, is_active FROM falcon.player_passes WHERE user_id = ? LIMIT 1");
+// falcon.player_passes no longer backs a scannable QR/barcode pass — QR
+// check-in is retired. The row is kept purely as the opaque bearer
+// credential api/mobile.php authenticates against, so it's still minted
+// for new players; nothing the player sees depends on it.
+$passStmt = $db->prepare("SELECT id FROM falcon.player_passes WHERE user_id = ? LIMIT 1");
 $passStmt->execute([$uid]);
 $pass = $passStmt->fetch();
 
@@ -28,13 +31,12 @@ if (!$pass) {
             ON CONFLICT (user_id) DO NOTHING
         ")->execute([$uid, $token]);
     } catch (PDOException $e) {
-        error_log('dashboard pass auto-create error: ' . $e->getMessage());
+        error_log('dashboard mobile credential auto-create error: ' . $e->getMessage());
     }
-    $passStmt->execute([$uid]);
-    $pass = $passStmt->fetch();
 }
 
-$isActive   = $pass ? syncPassActive($db, $uid, $balance) : false;
+// What actually gates getting on a court now: do they have credits?
+$hasCredits = $balance > 0;
 $creditCost = getCourtCreditCost();
 
 $allCourts = $db->query("SELECT id, name, short_code, color, live_status FROM falcon.v_court_status WHERE is_active = TRUE ORDER BY sort_order, id")->fetchAll();
@@ -1174,12 +1176,16 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php else: ?>
             <div class="scanner-screen">
-                <div class="scanner-icon">📷</div>
+                <div class="scanner-icon">🎲</div>
                 <div class="scanner-text">Not In Queue</div>
                 <div class="scanner-sub mt-1">
-                    <?= $isActive
-                        ? 'Scan your QR at the court entrance to join the queue.'
-                        : 'Load credits to activate your QR and start playing.' ?>
+                    <?= $hasCredits
+                        ? 'Join the live Open Play queue to get on a court.'
+                        : 'Load credits, then join the Open Play queue to start playing.' ?>
+                </div>
+                <div class="qr-actions mt-2">
+                    <a href="<?= APP_URL ?>/public/open_play.php" class="btn-primary btn-sm">🎲 Join Open Play</a>
+                    <a href="<?= APP_URL ?>/player/schedule.php" class="btn-outline btn-sm">📅 Reserve a Court</a>
                 </div>
             </div>
             <?php
@@ -1253,7 +1259,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div style="text-align:center;padding:28px 20px;">
             <div style="font-size:40px;margin-bottom:8px;">🎯</div>
             <p style="color:var(--muted);font-size:14px;">
-                <?= $isActive ? 'No games yet. Scan your QR at the court entrance to start!' : 'No games yet. Load credits and scan your QR to start playing.' ?>
+                <?= $hasCredits ? 'No games yet. Join the Open Play queue to get started!' : 'No games yet. Load credits, then join Open Play to start playing.' ?>
             </p>
         </div>
     <?php else: ?>

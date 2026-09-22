@@ -180,10 +180,13 @@ try {
     if ($db->inTransaction()) $db->rollBack();
     error_log('game_engine: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode([
+    $payload = [
         'status'  => 'error',
         'message' => 'Database error starting game.',
-        'detail'  => $e->getMessage(),   // visible in Network tab during dev
         'code'    => 'db_error',
-    ]);
+    ];
+    if (!IS_PRODUCTION) {
+        $payload['detail'] = $e->getMessage(); // local/dev only, never sent in production
+    }
+    echo json_encode($payload);
 }

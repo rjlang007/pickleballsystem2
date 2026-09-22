@@ -4,7 +4,7 @@
 //  Tournament-mode polling endpoint for the kiosk display —
 //  sibling to kiosk_data.php, same 10s polling cadence, but a
 //  separate JSON payload so the working walk-in-queue polling in
-//  kiosk_data.php is untouched.
+//  kiosk_data.php is now retired (see that file).
 //
 //  Returns whether the given court currently has a tournament
 //  match assigned to it (pending or in_progress), and if so: both
@@ -20,8 +20,8 @@ require_once __DIR__ . '/../config/security.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
-// Same access level as the page itself (admin/kiosk.php uses
-// requireStaff()) — kiosk_data.php only checks isAdmin(), which
+// Same access level as the page itself (the kiosk pages use
+// requireStaff()) — the retired kiosk_data.php only checked isAdmin(), which
 // would 403 out staff-role users; don't repeat that here.
 if (!isLoggedIn() || !in_array(currentUserRole(), STAFF_ROLES, true)) {
     http_response_code(403);

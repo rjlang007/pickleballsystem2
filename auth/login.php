@@ -34,7 +34,7 @@ if (detectSuspiciousUserAgent()) {
 }
 
 // Rate limiting for login attempts
-if (shouldRateLimit($_SERVER['REMOTE_ADDR'], 'auth_' . basename(__FILE__), 100, 60)) {
+if (shouldRateLimit(getClientIp(), 'auth_' . basename(__FILE__), 100, 60)) {
     http_response_code(429);
     $errors['general'] = 'Too many requests. Try again in 1 minute.';
     $blocked = true;

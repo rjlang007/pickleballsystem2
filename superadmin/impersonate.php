@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $logStmt->execute([
         $_SESSION['user_id'],
         $targetId,
-        $_SERVER['REMOTE_ADDR'] ?? null,
+        getClientIp(),
     ]);
     $impLogId = (int)$logStmt->fetchColumn();
 

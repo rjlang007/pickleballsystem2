@@ -235,6 +235,6 @@ try {
 
 } catch (Exception $e) {
     error_log('Bracket edit API error: ' . $e->getMessage());
-    return apiError('Server error: ' . $e->getMessage(), 500);
+    return apiError('Server error. Please try again.', 500);
 }
 ?>

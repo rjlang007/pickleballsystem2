@@ -245,7 +245,7 @@ try {
     }
 } catch (Throwable $e) {
     error_log('[referee/score_action] ' . $e->getMessage());
-    respond(['ok' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
+    respond(['ok' => false, 'error' => 'Server error. Please try again.'], 500);
 }
 
 respond(['ok' => true, 'match' => loadMatch($db, $matchId)]);

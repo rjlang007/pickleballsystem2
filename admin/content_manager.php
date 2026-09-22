@@ -346,7 +346,8 @@ if (!empty($_POST['action'])) {
                         if ($img && str_contains($img, '/')) deleteFromCloudinary($img);
                         $img = $result['public_id'];
                     } catch (RuntimeException $e) {
-                        jErr('Image upload failed: ' . $e->getMessage());
+                        error_log('[ContentManager] Cloudinary upload failed: ' . $e->getMessage());
+                        jErr('Image upload failed. Please try again.');
                     }
                 }
                 if ($id > 0) {
@@ -405,7 +406,8 @@ if (!empty($_POST['action'])) {
                         if ($photo && str_contains($photo, '/')) deleteFromCloudinary($photo);
                         $photo = $result['public_id'];
                     } catch (RuntimeException $e) {
-                        jErr('Image upload failed: ' . $e->getMessage());
+                        error_log('[ContentManager] Cloudinary upload failed: ' . $e->getMessage());
+                        jErr('Image upload failed. Please try again.');
                     }
                 }
                 if ($id > 0) {
@@ -443,7 +445,7 @@ if (!empty($_POST['action'])) {
         jErr('Database error. Please try again.');
     } catch (Throwable $e) {
         error_log('[ContentManager] '.$e->getMessage());
-        jErr('Server error: '.$e->getMessage());
+        jErr('Server error. Please try again.');
     }
 }
 

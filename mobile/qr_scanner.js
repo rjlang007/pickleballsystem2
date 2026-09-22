@@ -1,88 +1,33 @@
 // ============================================================
-//  FILE: mobile/qr_scanner.js
+//  FILE: mobile/qr_scanner.js  — RETIRED
 //
-//  QR Scanner for mobile apps (iOS/Android).
+//  Camera-based QR scanner used by the mobile shell to check
+//  players in at a court. Scanner check-in has been removed:
+//  players join the live Open Play queue, or book under Court
+//  Reservations.
 //
-//  Uses device camera to scan QR codes for court check-in.
-//
-//  Dependencies: Requires camera permissions, QR library (e.g., ZXing)
+//  Kept as an inert shim so older bundles that still <script>
+//  this file don't throw a ReferenceError on `new QRScanner(...)`
+//  and take the whole page down with them. Every method is a
+//  no-op that reports the feature as unavailable.
 // ============================================================
 
 class QRScanner {
-    constructor(videoElement, onScanCallback) {
-        this.video = videoElement;
-        this.onScan = onScanCallback;
-        this.stream = null;
+    constructor() {
+        console.warn('[QRScanner] Retired: QR check-in has been replaced by the Open Play queue.');
         this.scanning = false;
+        this.retired  = true;
     }
 
     async start() {
-        try {
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
-            this.video.srcObject = this.stream;
-            this.scanning = true;
-            this.scanLoop();
-        } catch (error) {
-            console.error('Camera access failed:', error);
-            alert('Camera access required for QR scanning');
-        }
+        return Promise.reject(new Error('QR check-in has been retired. Join the Open Play queue instead.'));
     }
 
-    stop() {
-        this.scanning = false;
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
-        }
-    }
-
-    async scanLoop() {
-        if (!this.scanning) return;
-
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
-        ctx.drawImage(this.video, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-        // Use QR library to decode (placeholder - integrate ZXing or similar)
-        const qrCode = await this.decodeQR(imageData);
-
-        if (qrCode) {
-            this.onScan(qrCode);
-            this.stop();
-        } else {
-            requestAnimationFrame(() => this.scanLoop());
-        }
-    }
-
-    async decodeQR(imageData) {
-        // Placeholder: Integrate with QR decoding library
-        // For example: return ZXing.decode(imageData);
-        return null; // No QR found
-    }
+    stop()      { /* no-op */ }
+    scanLoop()  { /* no-op */ }
+    isAvailable() { return false; }
 }
 
-// Usage example:
-/*
-const scanner = new QRScanner(
-    document.getElementById('qr-video'),
-    (qrData) => {
-        console.log('Scanned QR:', qrData);
-        // Send to server
-        fetch('/api/mobile.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + userToken
-            },
-            body: JSON.stringify({ action: 'scan', qr_data: qrData })
-        });
-    }
-);
-
-scanner.start();
-*/
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = QRScanner;
+}

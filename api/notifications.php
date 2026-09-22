@@ -17,7 +17,7 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 require_once __DIR__ . '/../includes/api_response.php';
 
 // ── Rate limiting — 100 req/min per IP ───────────────────────
-if (shouldRateLimit($_SERVER['REMOTE_ADDR'], 'api_' . basename(__FILE__), 100, 60)) {
+if (shouldRateLimit(getClientIp(), 'api_' . basename(__FILE__), 100, 60)) {
     http_response_code(429);
     header('Content-Type: application/json');
     exit(json_encode(['error' => 'Too many requests. Try again in 1 minute.']));

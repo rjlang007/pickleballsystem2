@@ -1191,7 +1191,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <a href="<?= APP_URL ?>/admin/schedule.php">         <span>📅</span>Schedule</a>
                 <a href="<?= APP_URL ?>/admin/reports.php">          <span>📈</span>Reports</a>
                 <a href="<?= APP_URL ?>/admin/court_settings.php">   <span>🏟️</span>Courts</a>
-                <a href="<?= APP_URL ?>/admin/scan_logs.php">        <span>📊</span>Scan Logs</a>
+                <a href="<?= APP_URL ?>/staff/open_play_kiosk.php" target="_blank" rel="noopener"><span>📺</span>Open Play TV Kiosk</a>
                 <a href="<?= APP_URL ?>/admin/export_csv.php">       <span>⬇️</span>Export CSV</a>
                 <a href="<?= APP_URL ?>/admin/content_manager.php">  <span>✏️</span>Content</a>
             </div>

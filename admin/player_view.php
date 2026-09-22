@@ -12,11 +12,9 @@ $pid = (int)($_GET['id'] ?? 0);
 if (!$pid) redirect('admin/players.php');
 
 $pStmt = $db->prepare("
-    SELECT u.*, COALESCE(w.balance, 0) AS balance,
-           pp.is_active AS qr_active, pp.qr_token
+    SELECT u.*, COALESCE(w.balance, 0) AS balance
     FROM falcon.users u
     LEFT JOIN falcon.wallets w ON w.user_id = u.id
-    LEFT JOIN falcon.player_passes pp ON pp.user_id = u.id
     WHERE u.id = ? AND u.role = 'player'
 ");
 $pStmt->execute([$pid]);
@@ -228,8 +226,8 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php else: ?>
                         <span class="badge badge-success">✅ Active</span>
                     <?php endif; ?>
-                    <span class="badge badge-<?= $player['qr_active'] ? 'success' : 'danger' ?>">
-                        <?= $player['qr_active'] ? '📱 QR Active' : '📵 QR Inactive' ?>
+                    <span class="badge badge-<?= ((float)$player['balance'] > 0) ? 'success' : 'warn' ?>">
+                        <?= ((float)$player['balance'] > 0) ? '💳 Has Credits' : '💳 No Credits' ?>
                     </span>
                 </div>
             </div>

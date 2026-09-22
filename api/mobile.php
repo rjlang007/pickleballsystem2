@@ -6,7 +6,7 @@
 //
 //  Endpoints:
 //  - GET /api/mobile.php/status  → Court status for mobile
-//  - POST /api/mobile.php/scan   → QR scan for mobile
+//  - POST /api/mobile.php/scan   → RETIRED (was QR scan check-in)
 //  - GET /api/mobile.php/history → Player game history
 //
 //  Auth: Bearer token required
@@ -22,7 +22,7 @@ header('Content-Type: application/json; charset=UTF-8');
 // Added rate limiting: this endpoint takes an opaque token straight off
 // the wire with no other check, so without a limiter it's brute-forceable
 // (each guess = one more falcon.player_passes lookup).
-if (!checkRateLimit('mobile_auth_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 30, 60)) {
+if (!checkRateLimit('mobile_auth_' . getClientIp(), 30, 60)) {
     http_response_code(429);
     echo json_encode(['error' => 'RateLimited', 'message' => 'Too many requests. Please wait.']);
     exit;
@@ -39,7 +39,12 @@ if (!preg_match('/Bearer\s+(.+)/', $authHeader, $matches)) {
 $token = $matches[1];
 $db = getDB();
 
-// Verify token
+// Verify token.
+//
+// NOTE: player_passes.qr_token is used here purely as an opaque API
+// bearer credential for the mobile client — it is NOT a scannable pass.
+// Scanner check-in is retired, but this is authentication, so the lookup
+// stays. Treat the column as "mobile API key" going forward.
 $userStmt = $db->prepare("
     SELECT u.id, u.username, u.full_name, u.role
     FROM falcon.users u
@@ -72,12 +77,15 @@ switch ($path) {
         break;
 
     case 'scan':
-        if ($method !== 'POST') {
-            http_response_code(405);
-            echo json_encode(['error' => 'Method not allowed']);
-            exit;
-        }
-        handleScan();
+        // RETIRED — QR scan check-in no longer exists. Old app builds
+        // still posting here get a clear, parseable answer pointing at
+        // the Open Play queue instead of a silent fake success.
+        http_response_code(410);
+        echo json_encode([
+            'error'    => 'Gone',
+            'message'  => 'QR scan check-in has been retired. Join the Open Play queue instead.',
+            'redirect' => appUrl('public/open_play.php'),
+        ]);
         break;
 
     case 'history':
@@ -121,29 +129,6 @@ function getCourtStatus() {
     if ($cache->isAvailable()) {
         $cache->set('mobile_court_status', $response, 30);
     }
-
-    echo json_encode($response);
-}
-
-function handleScan() {
-    global $db, $userId;
-
-    $body = json_decode(file_get_contents('php://input'), true);
-    $qrData = $body['qr_data'] ?? '';
-
-    if (!$qrData) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Bad request', 'message' => 'QR data required']);
-        exit;
-    }
-
-    // Process scan (similar to court/process_scan.php)
-    // This is a simplified version for mobile
-    $response = [
-        'success' => true,
-        'message' => 'Scan processed',
-        'user_id' => $userId,
-    ];
 
     echo json_encode($response);
 }

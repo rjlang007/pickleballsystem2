@@ -1,5 +1,18 @@
 <?php
 // ============================================================
+//  ⚠️  ORPHANED — NO LIVE CALLER
+//
+//  This ticker drove the legacy scanner/credits game loop
+//  (falcon.game_sessions + falcon.game_queue). Its only caller was
+//  court/process_scan.php, which is retired along with QR check-in.
+//  Open Play match timers are owned by OpenPlayEngine instead
+//  (startMatch / pauseMatch / adjustTimer / finishMatch).
+//
+//  Left in place — not deleted — because the legacy game_sessions
+//  tables are still read by admin/active_game.php and
+//  admin/reports.php. Retire this together with those.
+// ============================================================
+// ============================================================
 //  FILE: court/game_ticker.php
 //
 //  FIX v4 (MULTI-COURT):
@@ -347,7 +360,7 @@ function startGameInternal(PDO $db, int $courtId, array $court): array
     } catch (PDOException $e) {
         if ($db->inTransaction()) $db->rollBack();
         error_log('[game_ticker] startGameInternal error: ' . $e->getMessage());
-        return ['status' => 'error', 'message' => $e->getMessage(), 'court_id' => $courtId];
+        return ['status' => 'error', 'message' => 'Could not start game. Please try again.', 'court_id' => $courtId];
     }
 }
 
@@ -497,6 +510,6 @@ try {
         exit;
     }
 
-    $GLOBALS['_ticker_result'] = ['status' => 'error', 'message' => $e->getMessage()];
+    $GLOBALS['_ticker_result'] = ['status' => 'error', 'message' => 'Ticker error. Please try again.'];
     return;
 }

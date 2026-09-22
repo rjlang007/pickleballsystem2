@@ -71,7 +71,7 @@ body{display:flex;flex-direction:column;min-height:100vh;}
 
 <div id="topbar">
   <h1>🏆 Tournament Mode</h1>
-  <a href="<?= APP_URL ?>/admin/kiosk.php">← Back to Court Kiosk</a>
+  <a href="<?= APP_URL ?>/staff/open_play_kiosk.php">← Back to Open Play Kiosk</a>
 </div>
 
 <div id="empty-state">
