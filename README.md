@@ -69,6 +69,16 @@ an in-house payment + QR-scanning workflow.
 For Docker/Railway deployment, see `Dockerfile`, `docker-compose.yml`,
 `railway.json`, `entrypoint.sh`, and `start.sh`.
 
+### Railway PostgreSQL connection
+
+The web service must be connected to the Railway PostgreSQL service. In the
+web service's Variables tab, add Railway references for either `DATABASE_URL`
+or all of `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, and `PGPASSWORD` from the
+PostgreSQL service. Do not set `DB_HOST` to `localhost` in production; that
+points back to the web container, not PostgreSQL. The container now stops with
+an explicit configuration error when production starts without a real database
+host.
+
 ## Core features
 
 - **Player accounts & wallet** — registration with email verification,

@@ -3,6 +3,17 @@ set -e
 
 mkdir -p /app/uploads/activity_photos /app/logs /app/storage/logs
 
+# Railway must inject a real Postgres connection. Without these variables the
+# PHP fallback is localhost, which is never the database inside this image.
+if [ "${RAILWAY_ENVIRONMENT:-}" = "production" ] || [ "${APP_ENV:-}" = "production" ]; then
+    database_host="${PGHOST:-${DB_HOST:-}}"
+    if [ -z "${DATABASE_URL:-}" ] && { [ -z "$database_host" ] || [ "$database_host" = "localhost" ] || [ "$database_host" = "127.0.0.1" ]; }; then
+        echo "ERROR: PostgreSQL is not configured for production." >&2
+        echo "Set Railway's DATABASE_URL or reference the Postgres service's PGHOST, PGPORT, PGDATABASE, PGUSER, and PGPASSWORD variables." >&2
+        exit 1
+    fi
+fi
+
 # Defense-in-depth: nginx.conf already blocks script execution under
 # /uploads/, but /app/uploads/ (lowercase — where avatars, payment QR
 # codes, and activity photos actually land) ships with no .htaccess of
