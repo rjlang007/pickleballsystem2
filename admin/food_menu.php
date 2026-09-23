@@ -88,7 +88,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php foreach ($items as $it): ?>
             <div class="card fm-card" data-item='<?= json_encode($it, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
                 <?php if (!empty($it['image'])): ?>
-                    <img class="fm-img" src="<?= APP_URL ?>/Uploads/food/<?= urlencode($it['image']) ?>" alt="<?= clean($it['name']) ?>">
+                    <img class="fm-img" src="<?= APP_URL ?>/uploads/food/<?= urlencode($it['image']) ?>" alt="<?= clean($it['name']) ?>">
                 <?php else: ?>
                     <div class="fm-noimg">🍽️</div>
                 <?php endif; ?>
@@ -199,7 +199,7 @@ function editItem(btn) {
     document.getElementById('fm-available').checked = !!(data.is_available === true || data.is_available === 't' || data.is_available === 1);
     document.getElementById('fm-img-input').value = '';
     document.getElementById('fm-imgprev').innerHTML = data.image
-        ? `<img src="<?= APP_URL ?>/Uploads/food/${encodeURIComponent(data.image)}" alt="">`
+        ? `<img src="<?= APP_URL ?>/uploads/food/${encodeURIComponent(data.image)}" alt="">`
         : '';
     document.getElementById('fm-modal').classList.add('open');
 }

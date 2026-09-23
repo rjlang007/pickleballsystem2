@@ -349,7 +349,7 @@ if ($method === 'POST') {
         $existingImage = trim((string)($body['existing_image'] ?? ''));
         $image = $existingImage !== '' ? $existingImage : null;
         if (isset($_FILES['image']) && $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $foodUploadDir = APP_ROOT . '/Uploads/food/';
+            $foodUploadDir = APP_ROOT . '/uploads/food/';
             if (!is_dir($foodUploadDir)) @mkdir($foodUploadDir, 0755, true);
             $saved = moveUploadedImageSafe($_FILES['image'], $foodUploadDir, 'food');
             if ($saved === null) {
@@ -393,7 +393,7 @@ if ($method === 'POST') {
         $existing = $row->fetch(PDO::FETCH_ASSOC);
         $db->prepare("DELETE FROM falcon.food_items WHERE id = ?")->execute([$id]);
         if ($existing && !empty($existing['image'])) {
-            $imgPath = APP_ROOT . '/Uploads/food/' . basename($existing['image']);
+            $imgPath = APP_ROOT . '/uploads/food/' . basename($existing['image']);
             if (is_file($imgPath)) @unlink($imgPath);
         }
         apiSuccess(['data' => ['deleted' => $id]]);

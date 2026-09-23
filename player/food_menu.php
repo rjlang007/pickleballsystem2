@@ -155,7 +155,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php foreach ($catItems as $it): ?>
                         <div class="card food-item-card">
                             <?php if (!empty($it['image'])): ?>
-                                <img class="food-item-img" src="<?= APP_URL ?>/Uploads/food/<?= urlencode($it['image']) ?>" alt="<?= clean($it['name']) ?>" onerror="this.style.display='none'">
+                                <img class="food-item-img" src="<?= APP_URL ?>/uploads/food/<?= urlencode($it['image']) ?>" alt="<?= clean($it['name']) ?>" onerror="this.style.display='none'">
                             <?php else: ?>
                                 <div class="food-item-noimg">🍽️</div>
                             <?php endif; ?>

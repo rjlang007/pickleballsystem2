@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ── Optional photo upload ────────────────────────────────
     $photo = null;
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
-        $courtUploadDir = APP_ROOT . '/Uploads/courts/';
+        $courtUploadDir = APP_ROOT . '/uploads/courts/';
         if (!is_dir($courtUploadDir)) @mkdir($courtUploadDir, 0755, true);
         $savedPhoto = moveUploadedImageSafe($_FILES['photo'], $courtUploadDir, 'court');
         if ($savedPhoto === null) {

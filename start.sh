@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-mkdir -p /app/uploads/activity_photos /app/logs /app/storage/logs
+mkdir -p /app/uploads/activity_photos /app/uploads/courts /app/uploads/food /app/logs /app/storage/logs
 
 # Railway must inject a real Postgres connection. Without these variables the
 # PHP fallback is localhost, which is never the database inside this image.

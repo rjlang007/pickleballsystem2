@@ -111,12 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $photo = $court['photo'] ?? null; // keep existing unless replaced/removed
         if (isset($_POST['remove_photo']) && $_POST['remove_photo'] === '1') {
             if (!empty($court['photo'])) {
-                $oldPath = APP_ROOT . '/Uploads/courts/' . basename($court['photo']);
+                $oldPath = APP_ROOT . '/uploads/courts/' . basename($court['photo']);
                 if (is_file($oldPath)) @unlink($oldPath);
             }
             $photo = null;
         } elseif (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $courtUploadDir = APP_ROOT . '/Uploads/courts/';
+            $courtUploadDir = APP_ROOT . '/uploads/courts/';
             if (!is_dir($courtUploadDir)) @mkdir($courtUploadDir, 0755, true);
             $savedPhoto = moveUploadedImageSafe($_FILES['photo'], $courtUploadDir, 'court');
             if ($savedPhoto === null) {
@@ -386,7 +386,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div style="display:flex;align-items:center;gap:14px;">
                         <div id="photo-preview-wrap" style="width:88px;height:66px;border-radius:9px;overflow:hidden;background:var(--surface2);border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
                             <?php if (!empty($court['photo'])): ?>
-                                <img id="photo-preview-img" src="<?= APP_URL ?>/Uploads/courts/<?= urlencode($court['photo']) ?>"
+                                <img id="photo-preview-img" src="<?= APP_URL ?>/uploads/courts/<?= urlencode($court['photo']) ?>"
                                      alt="" style="width:100%;height:100%;object-fit:cover;">
                             <?php else: ?>
                                 <span id="photo-preview-placeholder" style="font-size:22px;opacity:.4;">🏓</span>

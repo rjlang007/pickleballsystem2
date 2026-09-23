@@ -668,7 +668,7 @@ $undoSecondsLeft = ($undoBackup && $undoBackup['expires'] > time()) ? ($undoBack
             <div class="court-header">
                 <div style="display:flex;gap:10px;align-items:flex-start;">
                     <?php if (!empty($c['photo'])): ?>
-                    <img src="<?= APP_URL ?>/Uploads/courts/<?= urlencode($c['photo']) ?>" alt=""
+                    <img src="<?= APP_URL ?>/uploads/courts/<?= urlencode($c['photo']) ?>" alt=""
                          class="court-thumb" onerror="this.style.display='none'">
                     <?php endif; ?>
                     <div>

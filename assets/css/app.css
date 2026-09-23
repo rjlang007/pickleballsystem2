@@ -365,6 +365,9 @@ body::before {
 /* ══════════════════════════════════════════════════════════
    BUTTONS
 ══════════════════════════════════════════════════════════ */
+.btn,
+.btn-secondary,
+.btn-tertiary,
 .btn-primary,
 .btn-outline,
 .btn-danger,
@@ -397,12 +400,26 @@ body::before {
     text-overflow: ellipsis;
     max-width: 100%;
 }
+.btn:active,
+.btn-secondary:active,
+.btn-tertiary:active,
 .btn-primary:active,
 .btn-outline:active,
 .btn-danger:active,
 .btn-success:active,
 .btn-warn:active,
 .btn-ghost:active { transform: scale(0.97); }
+
+/* Plain .btn (no variant) = default secondary look, same as .btn-ghost.
+   :where() keeps specificity at 0 so any variant class (btn-primary, etc.) still wins. */
+:where(.btn)       { background: var(--surface2); color: var(--text); border-color: var(--border); }
+:where(.btn:hover) { background: var(--surface3); border-color: var(--accent); transform: translateY(-1px); }
+
+/* Secondary = quiet bordered button; Tertiary = borderless text-style button */
+.btn-secondary { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover { background: var(--surface3); border-color: var(--accent); transform: translateY(-1px); }
+.btn-tertiary  { background: transparent; color: var(--muted); border-color: transparent; }
+.btn-tertiary:hover  { background: rgba(255,255,255,0.05); color: var(--text); }
 
 .btn-primary  { background: var(--grad-accent); color: #04120c; border-color: transparent; box-shadow: 0 4px 16px rgba(0,229,160,0.22); }
 .btn-primary:hover  { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,160,0.32); }
@@ -417,7 +434,7 @@ body::before {
 .btn-warn     { background: var(--warn);     color: #000; border-color: var(--warn); }
 .btn-warn:hover     { background: #d97706; transform: translateY(-1px); }
 
-.btn-primary:disabled, .btn-outline:disabled, .btn-danger:disabled,
+.btn:disabled, .btn-secondary:disabled, .btn-tertiary:disabled, .btn-primary:disabled, .btn-outline:disabled, .btn-danger:disabled,
 .btn-success:disabled, .btn-warn:disabled, .btn-ghost:disabled {
     opacity: 0.5; cursor: not-allowed; transform: none !important; filter: none !important;
 }
