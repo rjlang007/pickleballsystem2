@@ -169,6 +169,17 @@ require_once __DIR__ . '/../includes/header.php';
       </div>
 
       <div class="card">
+        <label class="form-label">Registration fee (PHP)</label>
+        <input type="number" name="price" class="form-input" min="0" max="100000" step="0.01"
+               value="<?= number_format((float)$schedule['price'], 2, '.', '') ?>" required />
+        <div style="color:var(--muted);font-size:12px;margin-top:4px;">
+          Charged on every auto-posted event. Because each night's event is a brand-new
+          posting — not a reuse of last night's — this fee (and payment collection) is
+          fresh for every new post, and the roster starts back at zero players.
+        </div>
+      </div>
+
+      <div class="card">
         <div style="font-weight:700;margin-bottom:6px;">Courts for Open Play</div>
         <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">
           Choose all active courts, or reserve the remaining courts for reservations and other events.

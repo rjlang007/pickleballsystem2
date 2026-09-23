@@ -485,6 +485,58 @@ class OpenPlayEngine
                 throw new RuntimeException('Finish or cancel all in-progress games before finalizing.');
             }
 
+            // Anyone still sitting on 'pending_approval' when the event
+            // closes never actually got admitted into the queue — leaving
+            // them as-is would let them slip into computeLeaderboard()'s
+            // standings (it only excludes 'withdrawn') despite never
+            // playing a single game, and would leave their payment
+            // request stuck as "pending" against an event that can no
+            // longer approve into it. Close both out the same way
+            // rejectJoin() would, and remember who so they (and staff)
+            // can be told about it once this commits.
+            $lapsedStmt = $this->db->prepare(
+                "SELECT player_id FROM falcon.tournament_players
+                  WHERE tournament_id = :tid AND status = 'pending_approval'"
+            );
+            $lapsedStmt->execute([':tid' => $tournamentId]);
+            $lapsedPlayerIds = array_map('intval', $lapsedStmt->fetchAll(PDO::FETCH_COLUMN));
+
+            if ($lapsedPlayerIds) {
+                $this->db->prepare(
+                    "UPDATE falcon.tournament_players SET status = 'withdrawn', queue_status = 'left'
+                      WHERE tournament_id = :tid AND status = 'pending_approval'"
+                )->execute([':tid' => $tournamentId]);
+
+                // One row at a time under its own SAVEPOINT (not a single
+                // bulk UPDATE, and not just a PHP try/catch — Postgres
+                // aborts the *whole* transaction on the first failed
+                // statement, so a plain catch here wouldn't stop the
+                // standings insert right below this from failing too).
+                // If one player's payment-request history happens to
+                // collide with the unique constraint fixed in migration
+                // 031 on a database that hasn't picked that migration up
+                // yet, only that one row is left as-is (still visible to
+                // staff as 'pending' for manual follow-up) instead of the
+                // whole finalize failing for every player in the event.
+                $rejectPayment = $this->db->prepare(
+                    "UPDATE falcon.open_play_payment_requests
+                        SET status = 'rejected', reviewed_by = :actor, reviewed_at = NOW(),
+                            review_note = 'Event closed before staff reviewed this request — flagged for refund/credit.',
+                            updated_at = NOW()
+                      WHERE tournament_id = :tid AND player_id = :pid AND status = 'pending'"
+                );
+                foreach ($lapsedPlayerIds as $lapsedId) {
+                    $this->db->exec('SAVEPOINT sp_payment_reject');
+                    try {
+                        $rejectPayment->execute([':actor' => $adminId, ':tid' => $tournamentId, ':pid' => $lapsedId]);
+                        $this->db->exec('RELEASE SAVEPOINT sp_payment_reject');
+                    } catch (Throwable $e) {
+                        $this->db->exec('ROLLBACK TO SAVEPOINT sp_payment_reject');
+                        error_log("finalizeEvent: couldn't flag payment request for player {$lapsedId} on tournament {$tournamentId}: " . $e->getMessage());
+                    }
+                }
+            }
+
             $standings = $this->computeLeaderboard($tournamentId);
             // Open Play always uses the fixed 3/2/1 scheme, regardless of
             // whatever point_distribution may be stored in this event's
@@ -525,6 +577,30 @@ class OpenPlayEngine
         } catch (Throwable $e) {
             $this->db->rollBack();
             throw $e;
+        }
+
+        // ── Lapsed join-request notifications ────────────────
+        // Best-effort, same rationale as the rank-change block below —
+        // the finalize itself already committed. Only fires when someone
+        // was actually caught mid-review when the event closed.
+        if (!empty($lapsedPlayerIds)) {
+            try {
+                foreach ($lapsedPlayerIds as $lapsedId) {
+                    notifyUser(
+                        $this->db, $lapsedId,
+                        'Open Play closed before your request was reviewed',
+                        "Tonight's Open Play ended before staff could review your join request, so you weren't included and weren't scored for this session. Please contact the venue about your payment — you're due a refund or credit toward the next Open Play.",
+                        null, APP_URL . '/public/open_play.php'
+                    );
+                }
+                notifyOperations(
+                    $this->db,
+                    '⚠️ Open Play — unreviewed join requests',
+                    count($lapsedPlayerIds) . ' player(s) who submitted a join request for "' . $event['name'] . '" were never reviewed before the event closed. Their payment requests were flagged as rejected — please follow up on refunds/credit.'
+                );
+            } catch (Throwable $e) {
+                error_log('finalizeEvent lapsed-request notification error: ' . $e->getMessage());
+            }
         }
 
         // ── Rank-change notifications ────────────────────────

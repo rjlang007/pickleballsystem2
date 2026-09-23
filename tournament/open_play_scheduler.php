@@ -49,6 +49,7 @@ function openPlayScheduleDefaults(): array
         'start_time'   => '18:00',   // 6:00 PM
         'end_time'     => '00:00',   // 12:00 AM (midnight — spans past the start time)
         'max_players'  => '24',
+        'price'        => '0',       // registration fee charged for each auto-posted event
         'format'       => 'doubles',
         'court_scope'  => 'all',
         'court_ids'    => [],
@@ -134,6 +135,11 @@ function saveOpenPlaySchedule(PDO $db, array $data, int $actorId): array
         throw new RuntimeException('Capacity must be between 4 and 200 players.');
     }
 
+    $price = round((float)($data['price'] ?? 0), 2);
+    if ($price < 0 || $price > 100000) {
+        throw new RuntimeException('Registration fee must be between 0 and 100,000.');
+    }
+
     $format = in_array($data['format'] ?? 'doubles', ['singles', 'doubles'], true)
         ? $data['format'] : 'doubles';
 
@@ -162,6 +168,7 @@ function saveOpenPlaySchedule(PDO $db, array $data, int $actorId): array
         'start_time'  => $startTime ?: '18:00',
         'end_time'    => $endTime ?: '00:00',
         'max_players' => (string)$maxPlayers,
+        'price'       => (string)$price,
         'format'      => $format,
         'court_scope' => $courtScope,
         'court_ids'   => json_encode($courtIds),
@@ -257,21 +264,35 @@ function ensureNightlyOpenPlayEvent(): void
         $today = openPlayBusinessDate();
         $closedForDate = getOpenPlayClosedDate($db);
 
-        // Sweep every active Open Play event on the same five-minute cadence
-        // as event creation, so no-shows are handled even when staff do not
-        // press Draw again after a match expires.
+        // One admin/superadmin account to attribute automatic system
+        // actions to (no-show sweeps, auto-finalize, auto-created events) —
+        // there's always at least one in a working install.
         $systemActorId = (int)($db->query(
             "SELECT id FROM falcon.users WHERE role IN ('super_admin','admin') ORDER BY id LIMIT 1"
         )->fetchColumn() ?: 0);
+
         if ($systemActorId > 0) {
             require_once __DIR__ . '/open_play_engine.php';
             $engine = new OpenPlayEngine();
+
+            // Sweep every active Open Play event on the same five-minute
+            // cadence as event creation, so no-shows are handled even when
+            // staff do not press Draw again after a match expires.
             $activeEvents = $db->query("SELECT id FROM falcon.tournaments WHERE bracket_type = 'open_play' AND status IN ('registration_open','in_progress','registration_closed','paused')")->fetchAll(PDO::FETCH_COLUMN);
             foreach ($activeEvents as $activeEventId) {
                 try { $engine->sweepNoShows((int)$activeEventId, $systemActorId); }
                 catch (Throwable $e) { error_log('[open_play_scheduler] no-show sweep failed: ' . $e->getMessage()); }
             }
+
+            // Safety net for the night an admin/operator forgets to hit
+            // "Finalize": once the business date has rolled past 4 AM,
+            // any Open Play event still open from a *previous* business
+            // day is closed out automatically — final standings written,
+            // podium recorded to the season leaderboard — exactly like a
+            // manual finalize, just run by the system instead of a person.
+            autoFinalizeStaleOpenPlayEvents($db, $engine, $today, $systemActorId);
         }
+
         if ($closedForDate !== null && $today >= $closedForDate) {
             return; // master schedule disabled from the closed date onward
         }
@@ -302,22 +323,23 @@ function ensureNightlyOpenPlayEvent(): void
             : $today;
         $endDate = $endDay . ' ' . $schedule['end_time'] . ':00';
 
-        require_once __DIR__ . '/open_play_engine.php';
-        $engine = new OpenPlayEngine();
-
         // tournaments.created_by is a real FK to falcon.users(id), so the
         // auto-created event still needs to be attributed to a real admin
-        // account (there's always at least one in a working install) —
-        // it's just not tied to whichever staff member happens to be on
-        // shift when the nightly check fires.
-        $systemActorId = (int)($db->query(
-            "SELECT id FROM falcon.users WHERE role IN ('super_admin','admin') ORDER BY id LIMIT 1"
-        )->fetchColumn() ?: 0);
+        // account — it's just not tied to whichever staff member happens
+        // to be on shift when the nightly check fires.
         if ($systemActorId <= 0) {
             error_log('[open_play_scheduler] no admin account found — skipping auto-create.');
             return;
         }
 
+        require_once __DIR__ . '/open_play_engine.php';
+        $engine = $engine ?? new OpenPlayEngine();
+
+        // Fresh post for the new day: a brand-new event row means a brand
+        // new roster (nobody carries over from last night — everyone who
+        // wants in joins and pays again) and, since price comes from the
+        // schedule settings rather than the finished event, a fresh
+        // registration fee/payment collection too.
         $event = $engine->createEvent([
             'name'         => $schedule['name'],
             'description'  => $schedule['description'],
@@ -325,6 +347,7 @@ function ensureNightlyOpenPlayEvent(): void
             'court_scope'  => $schedule['court_scope'],
             'court_ids'    => json_decode($schedule['court_ids'] ?? '[]', true) ?: [],
             'max_players'  => (int)$schedule['max_players'],
+            'price'        => (float)($schedule['price'] ?? 0),
             'start_date'   => $startDate,
         ], $systemActorId);
 
@@ -334,5 +357,97 @@ function ensureNightlyOpenPlayEvent(): void
         }
     } catch (Throwable $e) {
         error_log('[open_play_scheduler] auto-create failed: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Safety net for a forgotten "Finalize": any Open Play event that's still
+ * open (registration_open / in_progress / registration_closed / paused)
+ * from a *previous* business day gets closed out automatically —
+ *
+ *   1. Anything still sitting on a court (ready/in_progress/paused) is
+ *      cancelled — the venue is closed by 4 AM, so there's no final score
+ *      coming for those games.
+ *   2. finalizeEvent() runs exactly as it would if staff had clicked
+ *      "Finalize" themselves: final standings are written to
+ *      tournament_scores, the event is marked 'completed', and the podium
+ *      (1st/2nd/3rd) is rolled into the season leaderboard via
+ *      LeaderboardEngine::processTournamentCompletion().
+ *   3. Operations gets a notification either way, so staff can see it
+ *      happened and review it rather than being surprised by it later.
+ *
+ * Called from ensureNightlyOpenPlayEvent() on its existing 5-minute
+ * rate-limited cadence, so this runs shortly after 4 AM without needing
+ * its own cron entry.
+ */
+function autoFinalizeStaleOpenPlayEvents(PDO $db, OpenPlayEngine $engine, string $today, int $systemActorId): void
+{
+    try {
+        $stmt = $db->query("
+            SELECT id, name, start_date FROM falcon.tournaments
+             WHERE bracket_type = 'open_play'
+               AND status IN ('registration_open','in_progress','registration_closed','paused')
+        ");
+        $candidates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        error_log('[open_play_scheduler] stale-event lookup failed: ' . $e->getMessage());
+        return;
+    }
+
+    foreach ($candidates as $row) {
+        $tournamentId = (int)$row['id'];
+
+        // Same 4 AM cutover as everything else in this file — an event
+        // that started tonight (or is still within tonight's window) is
+        // left alone; only a *previous* business day's leftover event
+        // gets swept up.
+        $eventBusinessDate = openPlayBusinessDate(
+            new DateTimeImmutable((string)($row['start_date'] ?? 'now'), new DateTimeZone('Asia/Manila'))
+        );
+        if ($eventBusinessDate >= $today) {
+            continue;
+        }
+
+        try {
+            // Clear anything still "in play" so finalizeEvent() doesn't
+            // reject the close for having unfinished games.
+            $stuck = $db->prepare("
+                SELECT id FROM falcon.open_play_matches
+                 WHERE tournament_id = :tid AND status IN ('ready','in_progress','paused')
+            ");
+            $stuck->execute([':tid' => $tournamentId]);
+            foreach ($stuck->fetchAll(PDO::FETCH_COLUMN) as $matchId) {
+                try {
+                    $engine->cancelMatch((int)$matchId, $systemActorId);
+                } catch (Throwable $e) {
+                    error_log("[open_play_scheduler] auto-cancel match {$matchId} failed: " . $e->getMessage());
+                }
+            }
+
+            $standings = $engine->finalizeEvent($tournamentId, $systemActorId);
+
+            if (function_exists('logActivity')) {
+                try {
+                    logActivity('open_play_auto_finalized', 'tournament', 'normal', json_encode([
+                        'tournament_id' => $tournamentId,
+                        'players'       => count($standings),
+                        'reason'        => '4am_cutover_not_finalized_by_staff',
+                    ]), $systemActorId);
+                } catch (Throwable $e) {
+                    // non-critical
+                }
+            }
+
+            if (function_exists('notifyOperations')) {
+                $eventName = (string)($row['name'] ?? 'Open Play');
+                notifyOperations(
+                    $db,
+                    '🌙 Open Play auto-finalized',
+                    "\"{$eventName}\" wasn't finalized before 4 AM, so it was closed out automatically — final standings were recorded and the podium was posted to the season leaderboard."
+                );
+            }
+        } catch (Throwable $e) {
+            error_log("[open_play_scheduler] auto-finalize failed for tournament {$tournamentId}: " . $e->getMessage());
+        }
     }
 }
