@@ -40,8 +40,10 @@ if ($tid && !$event) { redirect('staff/open_play_control.php'); }
 <style nonce="<?= clean(getCspNonce()) ?>">
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#050d12; --surface:#0a1520; --surface2:#0f1e2b; --border:#1a2a35; --text:#f0fdf4;
-  --muted:#64748b; --accent:#00e5a0; --accent2:#00aaff; --warn:#f59e0b; --danger:#ef4444;
+  /* Same palette as the rest of the app (assets/css/app.css). --muted is lifted from #8695ad
+     so secondary text stays readable on a TV from across the courts. */
+  --bg:#090d18; --surface:#111827; --surface2:#1a2332; --border:#26364f; --text:#e9eef7;
+  --muted:#a3b1c6; --accent:#00e5a0; --accent2:#00aaff; --warn:#f59e0b; --danger:#ef4444;
   --p1:#00aaff; --p2:#f59e0b;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;overflow:hidden;}
@@ -60,7 +62,12 @@ body{display:flex;flex-direction:column;min-height:100vh;}
 .metric{text-align:center;}
 .metric .n{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;color:var(--accent);}
 .metric .l{color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
-#clock{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--muted);line-height:1;}
+#clockbox{text-align:right;min-width:150px;}
+#clock{font-family:'Bebas Neue',sans-serif;font-size:38px;color:var(--text);line-height:1;letter-spacing:1px;
+  font-variant-numeric:tabular-nums;white-space:nowrap;}
+#clock .ampm{font-size:18px;color:var(--accent);margin-left:5px;letter-spacing:1px;}
+#clock .sec{color:var(--accent);}
+#clockdate{color:var(--muted);font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-top:3px;white-space:nowrap;}
 #topbar a.back{color:var(--muted);text-decoration:none;font-size:12px;border:1px solid var(--border);
   padding:8px 13px;border-radius:8px;white-space:nowrap;}
 #topbar a.back:hover{color:var(--text);}
@@ -146,7 +153,7 @@ body{display:flex;flex-direction:column;min-height:100vh;}
     <div class="metric"><div class="n" id="m-playing">0</div><div class="l">Playing</div></div>
     <div class="metric"><div class="n" id="m-open">0</div><div class="l">Courts Open</div></div>
     <div class="metric"><div class="n" id="m-waiting">0</div><div class="l">In Queue</div></div>
-    <div id="clock">--:--</div>
+    <div id="clockbox" aria-label="Current time"><div id="clock">--:--:--</div><div id="clockdate">&nbsp;</div></div>
     <a class="back" href="<?= APP_URL ?>/staff/open_play_control.php<?= $tid ? '?tournament_id=' . (int)$tid : '' ?>">← Controls</a>
   </div>
 </div>
@@ -412,17 +419,31 @@ function fetchData(){
     });
 }
 
+// Live wall clock: hours:minutes:seconds + date, re-scheduled on every real
+// second boundary so it never drifts, stalls, or skips a second.
+const clockEl = document.getElementById('clock');
+const dateEl  = document.getElementById('clockdate');
+let lastDateStr = '';
+function pad2(n){ return String(n).padStart(2,'0'); }
 function tickClock(){
   const d = new Date();
-  document.getElementById('clock').textContent =
-    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  const h = d.getHours();
+  const h12 = (h % 12) || 12;
+  clockEl.innerHTML = pad2(h12) + ':' + pad2(d.getMinutes()) +
+    '<span class="sec">:' + pad2(d.getSeconds()) + '</span>' +
+    '<span class="ampm">' + (h < 12 ? 'AM' : 'PM') + '</span>';
+  const ds = d.toDateString();
+  if (ds !== lastDateStr) {              // date text only changes at midnight
+    lastDateStr = ds;
+    dateEl.textContent = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  }
+  setTimeout(tickClock, 1000 - (Date.now() % 1000) + 5);
 }
 
 fetchData();
 tickClock();
 setInterval(fetchData, 4000);   // timers are running — poll faster than the bracket kiosk
 setInterval(tickTimers, 1000);
-setInterval(tickClock, 15000);
 </script>
 </body>
 </html>

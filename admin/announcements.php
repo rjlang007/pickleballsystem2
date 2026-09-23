@@ -115,109 +115,124 @@ $pageTitle = 'Announcements';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <style nonce="<?= getCspNonce() ?>">
-    .an-wrap{max-width:1000px;margin:24px auto;padding:0 16px;}
-    .an-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
-    .an-header h1{margin:0;}
-    .an-message{padding:12px;border-radius:6px;margin-bottom:14px;font-weight:500;}
-    .an-message.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
-    .an-message.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
-    .an-form-card,.an-item{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:18px;margin-bottom:16px;}
-    .an-form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
-    .an-form-row > div{flex:1;min-width:160px;}
-    .an-form-card label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;}
+    /* Theme-matched: every colour comes from the app tokens in assets/css/app.css
+       (dark surfaces, light text) so nothing renders white-on-white. */
+    .an-wrap{max-width:1000px;margin:0 auto;}
+    .an-message{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:16px;font-weight:600;font-size:14px;border:1px solid;border-left-width:4px;}
+    .an-message.success{background:rgba(16,185,129,.14);color:#b7f3da;border-color:var(--success);}
+    .an-message.error{background:rgba(239,68,68,.14);color:#fecaca;border-color:var(--danger);}
+    .an-form-card{margin-bottom:var(--space-lg);}
+    .an-form-card .card-title{margin-bottom:var(--space-md);color:var(--text);}
+    .an-form-row{display:flex;gap:var(--space-md);flex-wrap:wrap;margin-bottom:var(--space-md);}
+    .an-form-row > div{flex:1;min-width:180px;}
+    .an-form-card label.an-label{display:block;font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--text);opacity:.85;margin-bottom:6px;}
     .an-form-card input[type=text],.an-form-card select,.an-form-card textarea,.an-form-card input[type=datetime-local]{
-        width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;}
-    .an-checkline{display:flex;align-items:center;gap:8px;font-weight:500;font-size:13px;}
-    .an-submit{background:#3498db;color:#fff;border:none;padding:10px 20px;border-radius:6px;font-weight:600;cursor:pointer;}
-    .an-item{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;}
-    .an-item.inactive{opacity:.55;}
-    .an-item h3{margin:0 0 4px;}
-    .an-meta{font-size:12px;color:#888;margin-bottom:8px;}
-    .an-pin{color:#e67e22;font-weight:700;}
-    .an-actions{display:flex;flex-direction:column;gap:6px;min-width:110px;}
-    .an-actions button{padding:6px 10px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
-    .an-btn-toggle{background:#95a5a6;color:#fff;}
-    .an-btn-delete{background:#e74c3c;color:#fff;}
-    .an-audience-badge{display:inline-block;background:#eef4fb;color:#2c6fbb;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600;}
+        width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:10px;
+        padding:11px 14px;font-size:15px;font-family:inherit;box-sizing:border-box;color-scheme:dark;}
+    .an-form-card textarea{resize:vertical;min-height:110px;line-height:1.5;}
+    .an-form-card input::placeholder,.an-form-card textarea::placeholder{color:var(--muted);}
+    .an-checks{display:flex;gap:var(--space-lg);flex-wrap:wrap;margin-bottom:var(--space-md);}
+    .an-checkline{display:flex;align-items:center;gap:10px;font-weight:500;font-size:14px;color:var(--text);cursor:pointer;}
+    .an-checkline input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+    .an-item{display:flex;justify-content:space-between;gap:var(--space-md);align-items:flex-start;margin-bottom:var(--space-md);}
+    .an-item.inactive{border-style:dashed;}
+    .an-item.inactive .an-body{opacity:.75;}
+    .an-item h3{margin:0 0 6px;font-size:18px;color:var(--text);}
+    .an-meta{font-size:13px;color:var(--muted);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;}
+    .an-body{color:var(--text);line-height:1.6;font-size:15px;overflow-wrap:anywhere;}
+    .an-pin{color:var(--warn);}
+    .an-actions{display:flex;flex-direction:column;gap:8px;min-width:110px;flex-shrink:0;}
+    .an-actions form{margin:0;}
+    .an-actions .btn-sm{width:100%;justify-content:center;}
+    .an-empty{text-align:center;color:var(--muted);padding:var(--space-xl) var(--space-lg);font-size:15px;}
+    @media (max-width:640px){
+        .an-item{flex-direction:column;}
+        .an-actions{flex-direction:row;width:100%;}
+        .an-actions form{flex:1;}
+    }
 </style>
 
 <div class="an-wrap">
-    <div class="an-header">
+    <div class="page-header">
         <h1>📢 Announcements</h1>
+        <p>Post club-wide notices. They appear as a banner for every matching account.</p>
     </div>
 
     <?php if ($message): ?>
-        <div class="an-message <?= $message_type === 'success' ? 'success' : 'error' ?>"><?= clean($message) ?></div>
+        <div class="an-message <?= $message_type === 'success' ? 'success' : 'error' ?>" role="status">
+            <span aria-hidden="true"><?= $message_type === 'success' ? '✅' : '⚠️' ?></span>
+            <span><?= clean($message) ?></span>
+        </div>
     <?php endif; ?>
 
-    <div class="an-form-card">
-        <h3 style="margin-top:0;">Post a new announcement</h3>
+    <div class="card an-form-card">
+        <div class="card-title">Post a new announcement</div>
         <form method="POST">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="save">
             <div class="an-form-row">
                 <div style="flex:2;">
-                    <label>Title</label>
-                    <input type="text" name="title" maxlength="200" required>
+                    <label class="an-label" for="an-title">Title</label>
+                    <input type="text" id="an-title" name="title" maxlength="200" required>
                 </div>
                 <div>
-                    <label>Audience</label>
-                    <select name="audience">
+                    <label class="an-label" for="an-audience">Audience</label>
+                    <select id="an-audience" name="audience">
                         <?php foreach ($audiences as $val => $label): ?>
                             <option value="<?= $val ?>"><?= $label ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
-                    <label>Expires (optional)</label>
-                    <input type="datetime-local" name="expires_at">
+                    <label class="an-label" for="an-expires">Expires (optional)</label>
+                    <input type="datetime-local" id="an-expires" name="expires_at">
                 </div>
             </div>
             <div class="an-form-row">
                 <div style="flex:1 1 100%;">
-                    <label>Message</label>
-                    <textarea name="body" rows="4" required></textarea>
+                    <label class="an-label" for="an-body">Message</label>
+                    <textarea id="an-body" name="body" rows="4" required></textarea>
                 </div>
             </div>
-            <div class="an-form-row" style="align-items:center;">
-                <label class="an-checkline"><input type="checkbox" name="is_pinned"> 📌 Pin to top</label>
-                <label class="an-checkline"><input type="checkbox" name="notify_all"> 🔔 Also send as a notification to every matching account</label>
+            <div class="an-checks">
+                <label class="an-checkline"><input type="checkbox" name="is_pinned"> <span>📌 Pin to top</span></label>
+                <label class="an-checkline"><input type="checkbox" name="notify_all"> <span>🔔 Also send as a notification to every matching account</span></label>
             </div>
-            <button type="submit" class="an-submit">Post announcement</button>
+            <button type="submit" class="btn-primary">Post announcement</button>
         </form>
     </div>
 
     <?php foreach ($list as $a): ?>
-        <div class="an-item <?= $a['is_active'] ? '' : 'inactive' ?>">
-            <div>
-                <h3><?= $a['is_pinned'] ? '<span class="an-pin">📌</span> ' : '' ?><?= clean($a['title']) ?></h3>
+        <div class="card an-item <?= $a['is_active'] ? '' : 'inactive' ?>">
+            <div style="min-width:0;flex:1;">
+                <h3><?= $a['is_pinned'] ? '<span class="an-pin" aria-label="Pinned">📌</span> ' : '' ?><?= clean($a['title']) ?></h3>
                 <div class="an-meta">
-                    <span class="an-audience-badge"><?= clean($audiences[$a['audience']] ?? $a['audience']) ?></span>
-                    · by <?= clean($a['author'] ?? 'Unknown') ?>
-                    · <?= date('M j, Y g:ia', strtotime($a['created_at'])) ?>
-                    <?php if ($a['expires_at']): ?> · expires <?= date('M j, Y g:ia', strtotime($a['expires_at'])) ?><?php endif; ?>
-                    <?php if (!$a['is_active']): ?> · <strong>hidden</strong><?php endif; ?>
+                    <span class="badge badge-info"><?= clean($audiences[$a['audience']] ?? $a['audience']) ?></span>
+                    <span>by <?= clean($a['author'] ?? 'Unknown') ?></span>
+                    <span>· <?= date('M j, Y g:ia', strtotime($a['created_at'])) ?></span>
+                    <?php if ($a['expires_at']): ?><span>· expires <?= date('M j, Y g:ia', strtotime($a['expires_at'])) ?></span><?php endif; ?>
+                    <?php if (!$a['is_active']): ?><span class="badge badge-warn">Hidden</span><?php endif; ?>
                 </div>
-                <div><?= nl2br(clean($a['body'])) ?></div>
+                <div class="an-body"><?= nl2br(clean($a['body'])) ?></div>
             </div>
             <div class="an-actions">
                 <form method="POST">
                     <?= csrfField() ?>
                     <input type="hidden" name="action" value="toggle_active">
                     <input type="hidden" name="id" value="<?= (int)$a['id'] ?>">
-                    <button type="submit" class="an-btn-toggle"><?= $a['is_active'] ? 'Hide' : 'Show' ?></button>
+                    <button type="submit" class="btn-secondary btn-sm"><?= $a['is_active'] ? 'Hide' : 'Show' ?></button>
                 </form>
                 <form method="POST" onsubmit="return confirm('Delete this announcement?');">
                     <?= csrfField() ?>
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="id" value="<?= (int)$a['id'] ?>">
-                    <button type="submit" class="an-btn-delete">Delete</button>
+                    <button type="submit" class="btn-danger btn-sm">Delete</button>
                 </form>
             </div>
         </div>
     <?php endforeach; ?>
     <?php if (empty($list)): ?>
-        <div class="an-item">No announcements yet — post the first one above.</div>
+        <div class="card an-empty">No announcements yet — post the first one above.</div>
     <?php endif; ?>
 </div>
 

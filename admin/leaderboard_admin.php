@@ -137,66 +137,74 @@ $pageTitle = 'Leaderboard Admin';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 <style nonce="<?= getCspNonce() ?>">
-    .lb-admin-wrap{max-width:1100px;margin:24px auto;padding:0 16px;}
-    .lb-admin-header{background:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
-    .lb-admin-header h1{margin:0 0 4px;flex:1;min-width:200px;}
-    .lb-admin-header .lb-subtitle{margin:0;font-size:12.5px;color:#777;font-weight:400;flex-basis:100%;}
-    .lb-filters{display:flex;gap:8px;flex-wrap:wrap;}
-    .lb-filters select,.lb-filters input{padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;}
-    .lb-filters button{padding:8px 14px;background:#3498db;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;}
-    .lb-message{padding:12px;border-radius:6px;margin-bottom:14px;font-weight:500;}
-    .lb-message.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
-    .lb-message.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
-    .lb-table-card{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;}
-    table.lb-table{width:100%;border-collapse:collapse;font-size:13px;}
-    table.lb-table thead{background:#f9f9f9;border-bottom:2px solid #e5e5e5;}
-    table.lb-table th{padding:12px;text-align:left;font-weight:600;color:#333;}
-    table.lb-table td{padding:10px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
-    .lb-rank{font-weight:700;color:#3498db;width:50px;}
-    .lb-rank.top1{color:#e0a100;}
-    .lb-rank.top2{color:#8a8f98;}
-    .lb-rank.top3{color:#b5651d;}
-    .lb-tie{font-size:10.5px;font-weight:600;color:#999;text-transform:uppercase;}
-    .lb-player{display:flex;align-items:center;gap:8px;font-weight:500;}
-    .lb-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#eee;}
-    .lb-points{color:#27ae60;font-weight:700;}
-    .lb-adjust-btn{background:#3498db;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
-    .lb-adjust-btn:hover{background:#2980b9;}
-    .lb-empty{padding:40px;text-align:center;color:#888;}
-    .lb-modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;}
+    /* Theme-matched: dark surfaces + light text from the app tokens. */
+    .lb-admin-wrap{max-width:1100px;margin:0 auto;}
+    .lb-filter-card{margin-bottom:var(--space-lg);}
+    .lb-filters{display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:flex-end;margin-top:var(--space-md);}
+    .lb-filters > div{flex:1;min-width:180px;max-width:320px;}
+    .lb-filters label{display:block;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);opacity:.85;margin-bottom:6px;}
+    .lb-filters select,.lb-filters input[type=text]{color-scheme:dark;}
+    .lb-message{display:flex;gap:10px;padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:16px;font-weight:600;font-size:14px;border:1px solid;border-left-width:4px;}
+    .lb-message.success{background:rgba(16,185,129,.14);color:#b7f3da;border-color:var(--success);}
+    .lb-message.error{background:rgba(239,68,68,.14);color:#fecaca;border-color:var(--danger);}
+    .lb-table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;}
+    .lb-table-card .table-wrap{border:0;border-radius:0;}
+    table.lb-table{min-width:640px;}
+    table.lb-table th{color:var(--text);opacity:.8;}
+    table.lb-table td{color:var(--text);}
+    .lb-rank{font-weight:700;color:var(--accent2);width:80px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.5px;}
+    .lb-rank.top1{color:#fbbf24;}
+    .lb-rank.top2{color:#cbd5e1;}
+    .lb-rank.top3{color:#f0a05a;}
+    .lb-tie{font-family:'DM Sans',sans-serif;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+    .lb-player{display:flex;align-items:center;gap:10px;font-weight:600;}
+    .lb-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--surface3);border:1px solid var(--border);flex-shrink:0;}
+    .lb-points{color:var(--accent);font-weight:700;font-size:16px;}
+    .lb-empty{padding:40px 16px;text-align:center;color:var(--muted);font-size:15px;}
+    .lb-modal-backdrop{display:none;position:fixed;inset:0;background:rgba(3,7,18,.75);backdrop-filter:blur(3px);z-index:999;align-items:center;justify-content:center;padding:16px;}
     .lb-modal-backdrop.open{display:flex;}
-    .lb-modal{background:#fff;padding:20px;border-radius:10px;max-width:400px;width:90%;box-shadow:0 4px 20px rgba(0,0,0,.3);}
-    .lb-modal h3{margin:0 0 14px;}
-    .lb-form-group{margin-bottom:14px;}
-    .lb-form-group label{display:block;margin-bottom:5px;font-weight:600;font-size:13px;}
-    .lb-form-group input,.lb-form-group textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;}
-    .lb-modal-actions{display:flex;gap:10px;margin-top:16px;}
-    .lb-modal-actions button{flex:1;padding:10px;border:none;border-radius:6px;font-weight:600;cursor:pointer;}
-    .lb-btn-save{background:#27ae60;color:#fff;}
-    .lb-btn-cancel{background:#95a5a6;color:#fff;}
+    .lb-modal{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:var(--space-lg);border-radius:var(--radius-lg);max-width:420px;width:100%;box-shadow:var(--shadow-lg);}
+    .lb-modal h3{margin:0 0 var(--space-md);font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;color:var(--text);}
+    .lb-modal input,.lb-modal textarea{color-scheme:dark;}
+    .lb-modal-player{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-weight:700;margin-bottom:var(--space-md);}
+    .lb-modal-player span.k{display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);font-weight:700;}
+    .lb-modal-actions{display:flex;gap:10px;margin-top:var(--space-md);}
+    .lb-modal-actions button{flex:1;}
 </style>
 
 <div class="lb-admin-wrap">
-    <div class="lb-admin-header">
+    <div class="page-header">
         <h1>🏆 Leaderboard Admin</h1>
-        <p class="lb-subtitle">Accumulated from Open Play sessions only — 1st = 3 pts · 2nd = 2 pts · 3rd = 1 pt. Points keep stacking across every session this season.</p>
+        <p>Accumulated from Open Play sessions only — 1st = 3 pts · 2nd = 2 pts · 3rd = 1 pt. Points keep stacking across every session this season.</p>
+    </div>
+
+    <div class="card lb-filter-card">
         <form method="GET" class="lb-filters">
-            <select name="season" onchange="this.form.submit()">
-                <?php foreach ($seasonOptions as $y): ?>
-                    <option value="<?= $y ?>" <?= $y === $season ? 'selected' : '' ?>>Season <?= $y ?></option>
-                <?php endforeach; ?>
-            </select>
-            <input type="text" name="search" placeholder="Search player…" value="<?= clean($search) ?>">
-            <button type="submit">🔍 Filter</button>
+            <div>
+                <label for="lb-season">Season</label>
+                <select id="lb-season" name="season" onchange="this.form.submit()">
+                    <?php foreach ($seasonOptions as $y): ?>
+                        <option value="<?= $y ?>" <?= $y === $season ? 'selected' : '' ?>>Season <?= $y ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label for="lb-search">Player</label>
+                <input type="text" id="lb-search" name="search" placeholder="Search player…" value="<?= clean($search) ?>">
+            </div>
+            <button type="submit" class="btn-primary">🔍 Filter</button>
         </form>
     </div>
 
     <?php if ($message): ?>
-        <div class="lb-message <?= $message_type === 'success' ? 'success' : 'error' ?>"><?= clean($message) ?></div>
+        <div class="lb-message <?= $message_type === 'success' ? 'success' : 'error' ?>" role="status">
+            <span aria-hidden="true"><?= $message_type === 'success' ? '✅' : '⚠️' ?></span>
+            <span><?= clean($message) ?></span>
+        </div>
     <?php endif; ?>
 
     <div class="lb-table-card">
-        <div class="table-responsive">
+        <div class="table-wrap">
             <table class="lb-table">
                 <thead>
                     <tr>
@@ -222,7 +230,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <?php if (!empty($entry['avatar_url'])): ?>
                                         <img class="lb-avatar" src="<?= clean($entry['avatar_url']) ?>" alt="">
                                     <?php else: ?>
-                                        <div class="lb-avatar"></div>
+                                        <div class="lb-avatar" aria-hidden="true"></div>
                                     <?php endif; ?>
                                     <span><?= clean($entry['name']) ?></span>
                                 </div>
@@ -231,8 +239,9 @@ require_once __DIR__ . '/../includes/header.php';
                             <td><?= (int)$entry['total_wins'] ?></td>
                             <td><?= (int)$entry['total_events'] ?></td>
                             <td>
-                                <button type="button" class="lb-adjust-btn"
-                                    onclick="lbOpenAdjust(<?= (int)$entry['player_id'] ?>, '<?= clean($entry['name']) ?>')">
+                                <button type="button" class="btn-secondary btn-sm lb-adjust-btn"
+                                    data-player-id="<?= (int)$entry['player_id'] ?>"
+                                    data-player-name="<?= clean($entry['name']) ?>">
                                     ⚙️ Adjust
                                 </button>
                             </td>
@@ -245,29 +254,27 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <div class="lb-modal-backdrop" id="lbAdjustModal">
-    <div class="lb-modal">
-        <h3>Adjust Player Points</h3>
+    <div class="lb-modal" role="dialog" aria-modal="true" aria-labelledby="lbModalTitle">
+        <h3 id="lbModalTitle">Adjust Player Points</h3>
         <form method="POST">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="adjust_points">
             <input type="hidden" name="player_id" id="lbPlayerId">
             <input type="hidden" name="season" value="<?= $season ?>">
 
-            <div class="lb-form-group">
-                <label>Player: <span id="lbPlayerName"></span></label>
+            <div class="lb-modal-player"><span class="k">Player</span><span id="lbPlayerName"></span></div>
+            <div class="form-group">
+                <label for="lbPointsChange">Points change (+ or −)</label>
+                <input type="number" name="points_change" id="lbPointsChange" required>
             </div>
-            <div class="lb-form-group">
-                <label>Points change (+ or −)</label>
-                <input type="number" name="points_change" id="lbPointsChange" required autofocus>
-            </div>
-            <div class="lb-form-group">
-                <label>Reason</label>
-                <textarea name="reason" rows="3" placeholder="e.g. Manual correction, dispute resolution" required></textarea>
+            <div class="form-group">
+                <label for="lbReason">Reason</label>
+                <textarea name="reason" id="lbReason" rows="3" placeholder="e.g. Manual correction, dispute resolution" required></textarea>
             </div>
 
             <div class="lb-modal-actions">
-                <button type="submit" class="lb-btn-save">💾 Save</button>
-                <button type="button" class="lb-btn-cancel" onclick="lbCloseAdjust()">Cancel</button>
+                <button type="submit" class="btn-primary">💾 Save</button>
+                <button type="button" class="btn-secondary" id="lbCancelBtn">Cancel</button>
             </div>
         </form>
     </div>
@@ -286,6 +293,16 @@ require_once __DIR__ . '/../includes/header.php';
     }
     document.getElementById('lbAdjustModal').addEventListener('click', function (e) {
         if (e.target.id === 'lbAdjustModal') lbCloseAdjust();
+    });
+    document.getElementById('lbCancelBtn').addEventListener('click', lbCloseAdjust);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') lbCloseAdjust();
+    });
+    // data-attributes (not inline JS strings) so names containing ' or " can't break the handler
+    document.querySelectorAll('.lb-adjust-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            lbOpenAdjust(btn.dataset.playerId, btn.dataset.playerName);
+        });
     });
 </script>
 

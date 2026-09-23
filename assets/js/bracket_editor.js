@@ -67,13 +67,20 @@ class BracketEditor {
         this.container.innerHTML = html;
     }
 
+    // Player names/URLs come from the DB; escape before putting them in innerHTML.
+    esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
     renderSeeds() {
         return this.seeds.map((seed, index) => `
             <div class="seed-card" draggable="true" data-seed="${seed.id}" data-index="${index}">
                 <div class="seed-number">#${seed.seed}</div>
                 <div class="seed-info">
-                    ${seed.avatar_url ? `<img src="${seed.avatar_url}" class="seed-avatar" alt="${seed.name}">` : ''}
-                    <div class="seed-name">${seed.name}</div>
+                    ${seed.avatar_url ? `<img src="${this.esc(seed.avatar_url)}" class="seed-avatar" alt="${this.esc(seed.name)}">` : ''}
+                    <div class="seed-name">${this.esc(seed.name)}</div>
                 </div>
                 <div class="seed-handle">⋮⋮</div>
             </div>

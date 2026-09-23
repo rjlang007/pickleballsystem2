@@ -16,9 +16,25 @@ requireAdmin();
 $tournament_id = $_GET['id'] ?? null;
 $error = '';
 $success = '';
+$pickerList = null;   // non-null => no ?id= was given, so show a tournament picker instead of an error
 
 if (!$tournament_id) {
-    $error = 'Tournament ID required';
+    // Reached from the nav menu (no ?id=). Instead of a dead-end error, list the
+    // tournaments whose seeds can actually be edited (the API only allows drafts).
+    try {
+        $stmt = $pdo->query("
+            SELECT t.id, t.name, t.status,
+                   (SELECT COUNT(*) FROM tournament_players tp WHERE tp.tournament_id = t.id) AS player_count
+              FROM tournaments t
+             WHERE t.status = 'draft'
+             ORDER BY t.id DESC
+             LIMIT 50
+        ");
+        $pickerList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('tournament_bracket_editor picker error: ' . $e->getMessage());
+        $pickerList = [];
+    }
 } else {
     // Get tournament
     $stmt = $pdo->prepare("SELECT * FROM tournaments WHERE id = ?");
@@ -34,7 +50,7 @@ if (!$tournament_id) {
 
 // Get enrolled players with seeds
 $players = [];
-if (!$error) {
+if (!$error && $tournament_id) {
     $stmt = $pdo->prepare("
          SELECT tp.id, tp.player_id, tp.seed,
              COALESCE(u.full_name, u.username) AS name,
@@ -49,6 +65,7 @@ if (!$error) {
 }
 
 $pageTitle = 'Bracket Editor - ' . ($tournament['name'] ?? 'Tournament');
+$hasEditor = ($pickerList === null && !$error);
 require_once(__DIR__ . '/../includes/header.php');
 ?>
 <style nonce="<?= getCspNonce() ?>">
@@ -83,6 +100,20 @@ require_once(__DIR__ . '/../includes/header.php');
         color: var(--muted);
         font-size: 14px;
     }
+
+    /* ── Tournament picker (shown when no ?id= is given) ── */
+    .bp-wrap { max-width: 900px; margin: 0 auto; }
+    .bp-list { display: flex; flex-direction: column; gap: 10px; }
+    .bp-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+        background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+        padding: 14px 16px;
+    }
+    .bp-row:hover { border-color: var(--accent2); }
+    .bp-name { font-weight: 700; color: var(--text); font-size: 16px; }
+    .bp-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .bp-empty { text-align: center; color: var(--muted); padding: var(--space-xl) var(--space-md); font-size: 15px; line-height: 1.6; }
+    .bp-back { margin-top: var(--space-md); }
 
     .editor-seeds-container {
         display: grid;
@@ -128,7 +159,7 @@ require_once(__DIR__ . '/../includes/header.php');
 
     .seed-number {
         background: var(--accent2);
-        color: #fff;
+        color: #04121c;
         width: 40px;
         height: 40px;
         display: flex;
@@ -195,7 +226,7 @@ require_once(__DIR__ . '/../includes/header.php');
 
     .editor-btn-primary {
         background: var(--accent2);
-        color: #fff;
+        color: #04121c;
     }
 
     .editor-btn-primary:hover {
@@ -214,21 +245,29 @@ require_once(__DIR__ . '/../includes/header.php');
     }
 
     .editor-btn-success {
-        background: var(--success);
-        color: #fff;
+        background: var(--accent);
+        color: #04120c;
     }
 
     .editor-btn-success:hover {
-        background: #059669;
+        filter: brightness(1.08);
     }
 
     .editor-btn-danger {
-        background: var(--danger);
-        color: #fff;
+        background: transparent;
+        color: #fca5a5;
+        border-color: rgba(239, 68, 68, 0.6);
     }
 
     .editor-btn-danger:hover {
-        background: #dc2626;
+        background: rgba(239, 68, 68, 0.14);
+        border-color: var(--danger);
+    }
+
+    .editor-btn:focus-visible,
+    .seed-card:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 
     .editor-feedback {
@@ -274,14 +313,45 @@ require_once(__DIR__ . '/../includes/header.php');
 </style>
 
 <?php if ($error): ?>
-    <div class="alert alert-error"><span class="alert-icon">⚠️</span><div class="alert-content"><?= clean($error) ?></div></div>
+    <div class="alert alert-error" role="alert"><span class="alert-icon">⚠️</span><div class="alert-content"><?= clean($error) ?></div></div>
+    <a href="<?= APP_URL ?>/admin/tournament_admin.php" class="btn-secondary bp-back">← Back to Tournament Admin</a>
+<?php endif; ?>
+
+<?php if ($pickerList !== null): ?>
+    <div class="bp-wrap">
+        <div class="page-header">
+            <h1>🗂️ Bracket Editor</h1>
+            <p>Pick a tournament to adjust its seeds. Only draft tournaments can be re-seeded.</p>
+        </div>
+        <div class="card">
+            <?php if (empty($pickerList)): ?>
+                <div class="bp-empty">
+                    No draft tournaments to edit right now.<br>
+                    Create one in Tournament Admin, then come back to set its seeds.
+                    <div class="bp-back"><a href="<?= APP_URL ?>/admin/tournament_admin.php" class="btn-primary">Go to Tournament Admin</a></div>
+                </div>
+            <?php else: ?>
+                <div class="bp-list">
+                    <?php foreach ($pickerList as $pt): ?>
+                        <div class="bp-row">
+                            <div>
+                                <div class="bp-name"><?= clean($pt['name']) ?></div>
+                                <div class="bp-sub"><?= (int)$pt['player_count'] ?> player<?= (int)$pt['player_count'] === 1 ? '' : 's' ?> · <span class="badge badge-muted">Draft</span></div>
+                            </div>
+                            <a href="?id=<?= (int)$pt['id'] ?>" class="btn-primary btn-sm">Edit seeds →</a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
 <?php endif; ?>
 
 <?php if ($success): ?>
     <div class="alert alert-success"><span class="alert-icon">✅</span><div class="alert-content"><?= clean($success) ?></div></div>
 <?php endif; ?>
 
-<?php if (!$error): ?>
+<?php if ($hasEditor): ?>
     <div class="bracket-editor-container">
         <div class="editor-header">
             <h2>Edit Bracket Seeds</h2>
@@ -292,9 +362,11 @@ require_once(__DIR__ . '/../includes/header.php');
     </div>
 <?php endif; ?>
 
+<?php if ($hasEditor): ?>
 <script src="<?= APP_URL ?>/assets/js/bracket_editor.js"></script>
 <script nonce="<?= getCspNonce() ?>">
     document.body.dataset.tournamentId = <?php echo json_encode($tournament_id); ?>;
 </script>
+<?php endif; ?>
 
 <?php require_once(__DIR__ . '/../includes/footer.php'); ?>
