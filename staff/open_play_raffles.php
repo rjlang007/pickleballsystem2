@@ -36,7 +36,18 @@ require __DIR__ . '/open_play_module_header.php';
         <input type="text" id="rafflePrize" class="opc-field" maxlength="160" placeholder="Prize description, e.g. Dinner for two" required/>
         <button type="submit" class="opc-btn-action" id="raffleSpinBtn">Spin the wheel</button>
     </form>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:-6px 0 16px;cursor:pointer;">
+        <input type="checkbox" id="raffleExcludeWinners" style="width:auto;"/> Exclude players who already won a prize tonight
+    </label>
     <div id="raffleResult" class="opc-help" <?= $latest ? '' : 'hidden' ?>><?php if ($latest): ?>Last winner: <strong><?= clean($latest['winner_name']) ?></strong> · <?= clean($latest['prize_description']) ?><?php endif; ?></div>
+
+    <div class="opc-section-head" style="margin-top:24px;">
+        <h3 class="opc-h3" style="font-size:16px;">Past Winners</h3>
+        <span class="op-module-meta" id="raffleHistoryCount"></span>
+    </div>
+    <div class="opc-table-wrap"><table class="opc-table"><thead><tr><th>Winner</th><th>Prize</th><th>Time</th></tr></thead><tbody id="raffleHistoryBody">
+        <tr><td colspan="3">No prizes drawn yet this event.</td></tr>
+    </tbody></table></div>
 </div>
 <?php endif; ?>
 <style nonce="<?= getCspNonce() ?>">
@@ -59,6 +70,9 @@ const form = document.getElementById('raffleForm');
 const spinBtn = document.getElementById('raffleSpinBtn');
 const prizeInput = document.getElementById('rafflePrize');
 const resultEl = document.getElementById('raffleResult');
+const excludeToggle = document.getElementById('raffleExcludeWinners');
+const historyBody = document.getElementById('raffleHistoryBody');
+const historyCount = document.getElementById('raffleHistoryCount');
 if (!canvas) return;
 const ctx = canvas.getContext('2d');
 const PALETTE = ['#00e5a0','#00aaff','#f97316','#a78bfa','#f43f5e','#facc15','#34d399','#60a5fa','#fb7185','#c084fc'];
@@ -130,6 +144,27 @@ async function loadParticipants() {
     }
 }
 
+function renderHistory(rows) {
+    if (!historyBody) return;
+    historyCount.textContent = rows.length ? `${rows.length} drawn` : '';
+    if (!rows.length) {
+        historyBody.innerHTML = '<tr><td colspan="3">No prizes drawn yet this event.</td></tr>';
+        return;
+    }
+    historyBody.innerHTML = rows.map(r => {
+        const when = r.created_at ? new Date(r.created_at.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<tr><td>${escHtml(r.winner_name)}</td><td>${escHtml(r.prize_description)}</td><td>${escHtml(when)}</td></tr>`;
+    }).join('');
+}
+
+async function loadHistory() {
+    try {
+        const res = await fetch('<?= APP_URL ?>/api/open_play.php?action=raffle_history&tournament_id=' + TID, { credentials: 'same-origin', cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) renderHistory(data.data || []);
+    } catch (_) { /* history is a nice-to-have, fail quietly */ }
+}
+
 function spinToWinner(list, winnerId, winnerName) {
     const n = list.length;
     let idx = list.findIndex(p => String(p.id) === String(winnerId));
@@ -160,7 +195,7 @@ form?.addEventListener('submit', async event => {
         const response = await fetch('<?= APP_URL ?>/api/open_play.php?action=raffle_spin', {
             method: 'POST', credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tournament_id: TID, prize_description: prize })
+            body: JSON.stringify({ tournament_id: TID, prize_description: prize, exclude_previous_winners: !!(excludeToggle && excludeToggle.checked) })
         });
         const data = await response.json();
         if (!data.success) throw new Error(data.message || 'Raffle failed.');
@@ -177,6 +212,7 @@ form?.addEventListener('submit', async event => {
             spinBtn.disabled = false;
             prizeInput.disabled = false;
             form.reset();
+            loadHistory();
         };
         canvas.addEventListener('transitionend', onDone, { once: true });
         setTimeout(() => { if (stage.classList.contains('is-spinning')) onDone(); }, 5200);
@@ -188,6 +224,7 @@ form?.addEventListener('submit', async event => {
 });
 
 loadParticipants();
+loadHistory();
 })();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

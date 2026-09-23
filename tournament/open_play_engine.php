@@ -1849,12 +1849,30 @@ class OpenPlayEngine
         return $row ?: null;
     }
 
+    /** Every prize draw run for this event so far, most recent first — for the "past winners" list. */
+    public function getRaffleHistory(int $tournamentId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id, prize_description, winner_player_id, winner_name, created_at
+               FROM falcon.open_play_raffle_draws
+              WHERE tournament_id = :tid ORDER BY created_at DESC"
+        );
+        $stmt->execute([':tid' => $tournamentId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /**
      * Spin the wheel among all registered/approved players for the event and
      * record a winner. Deliberately doesn't touch queue_status or any match
      * — a raffle is a side prize draw, not a game result.
+     *
+     * @param bool $excludePreviousWinners When true, players who already won
+     *        a prize earlier in this same event are left off the wheel, so
+     *        the same person can't sweep every prize. Off by default so
+     *        existing behaviour (anyone can win any number of times) is
+     *        unchanged unless staff opts in.
      */
-    public function drawRaffle(int $tournamentId, string $prizeDescription, int $actorId): array
+    public function drawRaffle(int $tournamentId, string $prizeDescription, int $actorId, bool $excludePreviousWinners = false): array
     {
         $event = $this->getEvent($tournamentId);
         if (!$event) throw new RuntimeException('Open play event not found.');
@@ -1870,6 +1888,15 @@ class OpenPlayEngine
         $participants = $this->getRaffleParticipants($tournamentId);
         if (empty($participants)) {
             throw new RuntimeException('There are no registered or approved players to enter in the raffle.');
+        }
+
+        if ($excludePreviousWinners) {
+            $priorWinnerIds = array_column($this->getRaffleHistory($tournamentId), 'winner_player_id');
+            $remaining = array_values(array_filter($participants, fn($p) => !in_array($p['id'], $priorWinnerIds, true)));
+            if (empty($remaining)) {
+                throw new RuntimeException('Everyone registered has already won a prize this event.');
+            }
+            $participants = $remaining;
         }
 
         $winner = $participants[random_int(0, count($participants) - 1)];

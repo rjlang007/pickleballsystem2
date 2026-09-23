@@ -20,7 +20,7 @@
 //    POST ?action=correct_score   { match_id, score_a, score_b, confirmed? }
 //    POST ?action=cancel_match    { match_id }
 //    POST ?action=tiebreak        { tournament_id, player_ids: [] }
-//    POST ?action=raffle_spin     { tournament_id, prize_description }
+//    POST ?action=raffle_spin     { tournament_id, prize_description, exclude_previous_winners? }
 //    POST ?action=finalize        { tournament_id }
 //
 //  finish_match / correct_score may come back with HTTP 409 and
@@ -34,6 +34,7 @@
 //    GET  ?action=leaderboard&tournament_id=X
 //    GET  ?action=ties&tournament_id=X
 //    GET  ?action=raffle_data&tournament_id=X
+//    GET  ?action=raffle_history&tournament_id=X
 //
 //  All state changes go through OpenPlayEngine so the same rules
 //  apply everywhere (staff console, future mobile client, etc).
@@ -49,10 +50,10 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $staffActions = [
     'queue_status', 'draw', 'start_match', 'pause_match', 'resume_match',
     'adjust_timer', 'finish_match', 'correct_score', 'cancel_match', 'tiebreak',
-    'approve_join', 'reject_join',
+    'approve_join', 'reject_join', 'add_player', 'remove_player',
     'confirm_match', 'sweep_no_shows',
     'finalize', 'create', 'update_event', 'cancel_event',
-    'raffle_spin', 'raffle_data',
+    'raffle_spin', 'raffle_data', 'raffle_history',
 ];
 
 try {
@@ -118,23 +119,48 @@ try {
 
         case 'queue_status':
             routeMethod('POST');
+            $tid = (int)($body['tournament_id'] ?? 0);
             $engine->setQueueStatus(
-                (int)($body['tournament_id'] ?? 0),
+                $tid,
                 (int)($body['player_id'] ?? 0),
                 (string)($body['status'] ?? ''),
                 $actorId
             );
-            apiSuccess(null, 'Updated.');
+            apiSuccess($tid ? $engine->getRoster($tid) : null, 'Updated.');
 
         case 'approve_join':
             routeMethod('POST');
-            $engine->approveJoin((int)($body['tournament_id'] ?? 0), (int)($body['player_id'] ?? 0), $actorId);
-            apiSuccess(null, 'Join request approved.');
+            $tid = (int)($body['tournament_id'] ?? 0);
+            $engine->approveJoin($tid, (int)($body['player_id'] ?? 0), $actorId);
+            apiSuccess($tid ? $engine->getRoster($tid) : null, 'Join request approved.');
 
         case 'reject_join':
             routeMethod('POST');
-            $engine->rejectJoin((int)($body['tournament_id'] ?? 0), (int)($body['player_id'] ?? 0), $actorId);
-            apiSuccess(null, 'Join request rejected.');
+            $tid = (int)($body['tournament_id'] ?? 0);
+            $engine->rejectJoin($tid, (int)($body['player_id'] ?? 0), $actorId);
+            apiSuccess($tid ? $engine->getRoster($tid) : null, 'Join request rejected.');
+
+        case 'add_player':
+            routeMethod('POST');
+            $tid = (int)($body['tournament_id'] ?? 0);
+            if (!$tid) apiError('tournament_id required.');
+            $skillLevel = (string)($body['skill_level'] ?? 'average');
+            $playerId = (int)($body['player_id'] ?? 0);
+            if ($playerId > 0) {
+                $engine->addPlayerByStaff($tid, $playerId, $skillLevel, $actorId);
+            } else {
+                $name = trim((string)($body['player_name_lookup'] ?? ''));
+                if ($name === '') apiError('Enter a player name.');
+                $engine->addGuestByStaff($tid, $name, $skillLevel, $actorId);
+            }
+            apiSuccess($engine->getRoster($tid), 'Player registered successfully.');
+
+        case 'remove_player':
+            routeMethod('POST');
+            $tid = (int)($body['tournament_id'] ?? 0);
+            if (!$tid) apiError('tournament_id required.');
+            $engine->leaveEvent($tid, (int)($body['player_id'] ?? 0));
+            apiSuccess($engine->getRoster($tid), 'Player removed from registration.');
 
         // ── Staff: matchmaking / draw ────────────────────────────
         case 'draw':
@@ -213,8 +239,14 @@ try {
             apiSuccess($engine->drawRaffle(
                 (int)($body['tournament_id'] ?? 0),
                 (string)($body['prize_description'] ?? ''),
-                $actorId
+                $actorId,
+                (bool)($body['exclude_previous_winners'] ?? false)
             ), 'Raffle drawn.');
+
+        case 'raffle_history':
+            routeMethod('GET');
+            $tid = (int)($_GET['tournament_id'] ?? 0);
+            apiSuccess($engine->getRaffleHistory($tid));
 
         case 'finalize':
             routeMethod('POST');

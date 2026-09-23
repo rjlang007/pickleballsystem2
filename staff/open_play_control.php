@@ -414,6 +414,9 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if ($event): ?>
                 <span class="opc-count" id="waitingCount"><?= $waitingInitial ?> player<?= $waitingInitial === 1 ? '' : 's' ?> waiting</span>
                 <?php if (!$isClosed): ?>
+                    <label class="opc-autodraw" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-right:8px;cursor:pointer;">
+                        <input type="checkbox" id="autoDrawToggle" style="width:auto;"/> Auto-fill free courts
+                    </label>
                     <button type="button" class="opc-btn-action" id="drawBtn">Spin / Bunot-Bunot Draw</button>
                 <?php endif; ?>
             <?php endif; ?>
@@ -1163,6 +1166,41 @@ async function doDraw() {
 }
 if (drawBtn) drawBtn.addEventListener('click', doDraw);
 $('#drawClose').addEventListener('click', () => { drawPanel.hidden = true; });
+
+// ── Auto-fill: silently draws into any free court as soon as enough
+// compatible waiting players are available — this is what makes a
+// player added mid-session (or one who just finished and is now
+// waiting again) actually get into a game without staff having to
+// keep mashing the Draw button. Same engine call, same composition
+// rules; it just skips the spin-the-wheel reveal and runs quietly
+// in the background. Preference is remembered per event/browser. ──
+const autoDrawToggle = $('#autoDrawToggle');
+const autoDrawKey = `opc_auto_draw_${TID}`;
+let autoDrawOn = autoDrawToggle ? localStorage.getItem(autoDrawKey) === '1' : false;
+if (autoDrawToggle) {
+    autoDrawToggle.checked = autoDrawOn;
+    autoDrawToggle.addEventListener('change', () => {
+        autoDrawOn = autoDrawToggle.checked;
+        try { localStorage.setItem(autoDrawKey, autoDrawOn ? '1' : '0'); } catch (_) {}
+        if (autoDrawOn) toast('Auto-fill is on — free courts will fill themselves as players are ready.');
+    });
+}
+async function autoDrawTick() {
+    if (!autoDrawOn || drawing) return;
+    drawing = true;
+    try {
+        const games = await callApi('draw', { tournament_id: TID });
+        if (games.length) {
+            toast(`Auto-filled ${games.length} court${games.length === 1 ? '' : 's'}.`);
+            loadLive(true);
+        }
+    } catch (_) {
+        // Silent in the background (event may be paused/closed, or nothing
+        // compatible yet) — the manual button still surfaces real errors.
+    }
+    drawing = false;
+}
+setInterval(autoDrawTick, 8000);
 
 // ── Raffle ─────────────────────────────────────────────────
 const raffleBtn = $('#raffleSpinBtn');
