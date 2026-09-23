@@ -1,5 +1,7 @@
 <?php
 // ============================================================
+
+require_once __DIR__ . '/open_play_court_availability.php';
 //  FILE: includes/availability.php
 //  CENTRALIZED Court Availability Engine — Padol Pickleball
 //  Single source of truth for all availability queries.
@@ -42,8 +44,8 @@ function getAvailabilityForDate(PDO $db, string $date, int $courtId = 0): array
     $rawSlots = $db->query($slotsSql)->fetchAll();
 
     // 2. Load courts
-    $courtsSql = "SELECT * FROM falcon.courts" .
-                 ($courtId ? " WHERE id = $courtId" : "") .
+    $courtsSql = "SELECT * FROM falcon.courts WHERE is_active = TRUE" .
+                 ($courtId ? " AND id = $courtId" : "") .
                  " ORDER BY id";
     $courts = $db->query($courtsSql)->fetchAll();
 
@@ -124,6 +126,15 @@ function getAvailabilityForDate(PDO $db, string $date, int $courtId = 0): array
                 'dot_color'       => '#00e5a0',
             ];
 
+            if (!empty($court['is_maintenance'])) {
+                $enriched['status']       = SLOT_STATUS_CLOSED;
+                $enriched['status_label'] = 'Maintenance';
+                $enriched['can_book']     = false;
+                $enriched['block_reason'] = 'Court under maintenance';
+                $enriched['css_class']    = 'unavailable';
+                $enriched['dot_color']    = '#6b7fa3';
+            }
+
             // ── Check admin reservations ──────────────────────
             foreach ($reservations as $res) {
                 if ((int)$res['court_id'] !== (int)$court['id']) continue;
@@ -185,6 +196,17 @@ function getAvailabilityForDate(PDO $db, string $date, int $courtId = 0): array
                 $enriched['dot_color']    = '#6b7fa3';
             }
 
+            // Open Play allocation takes precedence over booking.
+            if ($enriched['status'] !== SLOT_STATUS_ACTIVE
+                && isCourtInOpenPlay($db, (int)$court['id'], $date, sprintf('%02d:%02d:00', $slotHour, $slotMinute))) {
+                $enriched['status']       = SLOT_STATUS_CLOSED;
+                $enriched['status_label'] = 'Open Play';
+                $enriched['can_book']     = false;
+                $enriched['block_reason'] = 'Allocated to Open Play';
+                $enriched['css_class']    = 'unavailable';
+                $enriched['dot_color']    = '#6b7fa3';
+            }
+
             $result[] = $enriched;
         }
     }
@@ -202,7 +224,7 @@ function getPublicSlotSummary(PDO $db, string $date = ''): array
     if (!$date) $date = date('Y-m-d');
 
     $slots   = $db->query("SELECT * FROM falcon.schedule_slots ORDER BY sort_order, id")->fetchAll();
-    $courts  = $db->query("SELECT COUNT(*) FROM falcon.courts")->fetchColumn();
+    $courts  = $db->query("SELECT COUNT(*) FROM falcon.courts WHERE is_active = TRUE AND COALESCE(is_maintenance, FALSE) = FALSE")->fetchColumn();
     $courts  = max(1, (int)$courts);
 
     $reserveSql = "
@@ -237,6 +259,7 @@ function getPublicSlotSummary(PDO $db, string $date = ''): array
 
         $blocked   = 0;
         $active    = 0;
+        $openPlay  = 0;
         $maxPlayers = (int)$slot['max_players'];
 
         foreach ($reservations as $r) {
@@ -245,8 +268,15 @@ function getPublicSlotSummary(PDO $db, string $date = ''): array
         foreach ($activeGames as $g) {
             if (gameOverlapsSlot($g, $h, $m, $date)) $active++;
         }
+        $slotStart = sprintf('%02d:%02d:00', $h, $m);
+        $activeCourtIds = $db->query(
+            "SELECT id FROM falcon.courts WHERE is_active = TRUE AND COALESCE(is_maintenance, FALSE) = FALSE"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($activeCourtIds as $activeCourtId) {
+            if (isCourtInOpenPlay($db, (int)$activeCourtId, $date, $slotStart)) $openPlay++;
+        }
 
-        $availableCourts = $courts - $blocked - $active;
+        $availableCourts = $courts - $blocked - $active - $openPlay;
 
         // Determine status
         if ($slot['status'] === 'unavailable') {
@@ -291,6 +321,19 @@ function upsertReservation(PDO $db, array $data, int $existingId = 0): array
     $required = ['court_id','reservation_date','slot_start','slot_end','label'];
     foreach ($required as $k) {
         if (empty($data[$k])) return ['ok' => false, 'msg' => "Missing field: $k"];
+    }
+
+    $courtStmt = $db->prepare(
+        "SELECT is_active, COALESCE(is_maintenance, FALSE) AS is_maintenance
+           FROM falcon.courts WHERE id = ? LIMIT 1"
+    );
+    $courtStmt->execute([(int)$data['court_id']]);
+    $court = $courtStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$court || !$court['is_active'] || $court['is_maintenance']) {
+        return ['ok' => false, 'msg' => 'This court is inactive or under maintenance.'];
+    }
+    if (isCourtInOpenPlay($db, (int)$data['court_id'], (string)$data['reservation_date'], (string)$data['slot_start'], (string)$data['slot_end'])) {
+        return ['ok' => false, 'msg' => 'This court is allocated to Open Play for the selected time.'];
     }
 
     // Check for collision with active games
@@ -360,7 +403,7 @@ function syncScheduleSlotStatus(PDO $db, string $date): void
         $resCount = (int)$countRes->fetchColumn();
 
         // Count courts total
-        $totalCourts = (int)$db->query("SELECT COUNT(*) FROM falcon.courts")->fetchColumn();
+        $totalCourts = (int)$db->query("SELECT COUNT(*) FROM falcon.courts WHERE is_active = TRUE AND COALESCE(is_maintenance, FALSE) = FALSE")->fetchColumn();
 
         // Count active games
         $countActive = (int)$db->query("

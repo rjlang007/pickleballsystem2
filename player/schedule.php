@@ -7,6 +7,7 @@
 //   • Wallet is deducted only when admin confirms (admin/schedule.php)
 // ============================================================
 require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../includes/open_play_court_availability.php';
 requireLogin();
 
 date_default_timezone_set('Asia/Manila');
@@ -396,6 +397,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($spotsLeft < $partySize) {
                 $skipped[] = date('g:i A', strtotime($slotTimeRaw)) . ' on ' . $slotDateRaw . ' (no spots)';
+                continue;
+            }
+
+            if (isCourtInOpenPlay($db, $selectedCourt, $slotDateRaw, $slotTimeRaw, $slotEndRaw)) {
+                $skipped[] = date('g:i A', strtotime($slotTimeRaw)) . ' on ' . $slotDateRaw . ' (Open Play)';
                 continue;
             }
 
@@ -1046,6 +1052,7 @@ const COURT_PRICING = {
                                 if ($ds['start'] === $hourSlot['start']) { $hasSlot = true; $slotEnd = $ds['end']; break; }
                             }
                             $slotKey = $d . '|' . $hourSlot['start'] . '|' . $slotEnd;
+                            $openPlayAllocated = $hasSlot && isCourtInOpenPlay($db, $selectedCourt, $d, $hourSlot['start'], $slotEnd);
                         ?>
                             <td class="slot-td">
                             <?php if (!$hasSlot): ?>
@@ -1060,6 +1067,11 @@ const COURT_PRICING = {
                                 </button>
                             <?php elseif ($isPast): ?>
                                 <button class="slot-btn past-slot" disabled aria-label="Past slot"></button>
+                            <?php elseif ($openPlayAllocated): ?>
+                                <button class="slot-btn full" disabled aria-label="Allocated to Open Play">
+                                    <span class="slot-icon">🎮</span>
+                                    <span class="spots-label">Open Play</span>
+                                </button>
                             <?php elseif ($isFull): ?>
                                 <?php $slotModeFull = getSlotMode($slotModes, $hourSlot['start']); ?>
                                 <button class="slot-btn full" disabled aria-label="Full">
@@ -1126,6 +1138,7 @@ const COURT_PRICING = {
                                 if ($ds['start'] === $halfSlot['start']) { $hasSlot2 = true; $slotEnd2 = $ds['end']; break; }
                             }
                             $slotKey2 = $d . '|' . $halfSlot['start'] . '|' . $slotEnd2;
+                            $openPlayAllocated2 = $hasSlot2 && isCourtInOpenPlay($db, $selectedCourt, $d, $halfSlot['start'], $slotEnd2);
                         ?>
                             <td class="slot-td">
                             <?php if (!$hasSlot2): ?>
@@ -1139,6 +1152,11 @@ const COURT_PRICING = {
                                 </button>
                             <?php elseif ($isPast2): ?>
                                 <button class="slot-btn past-slot" disabled></button>
+                            <?php elseif ($openPlayAllocated2): ?>
+                                <button class="slot-btn full" disabled aria-label="Allocated to Open Play">
+                                    <span class="slot-icon">🎮</span>
+                                    <span class="spots-label">Open Play</span>
+                                </button>
                             <?php elseif ($isFull2): ?>
                                 <button class="slot-btn full" disabled>
                                     <span class="spots-label"><?= $mode2 === 'open_play' ? 'Open Play' : 'Reserved' ?></span>

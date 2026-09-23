@@ -125,6 +125,8 @@ class OpenPlayEngine
             'games_per_hour'   => max(1, (int)($data['games_per_hour'] ?? 4)),
             'price'            => max(0, round((float)($data['price'] ?? 0), 2)),
             'registration_closed' => false,
+            'court_scope'      => $this->normalizeCourtScope($data),
+            'court_ids'        => $this->normalizeCourtIds($data),
             // NOTE: Open Play always scores 1st=3 / 2nd=2 / 3rd=1 / else=0
             // (see config/tournament_config.php -> open_play_point_distribution).
             // finalizeEvent() ignores any point_distribution stored here so
@@ -191,6 +193,10 @@ class OpenPlayEngine
         }
         if (isset($data['format']) && in_array($data['format'], ['singles', 'doubles'], true)) {
             $settings['format'] = $data['format'];
+        }
+        if (array_key_exists('court_scope', $data) || array_key_exists('court_ids', $data)) {
+            $settings['court_scope'] = $this->normalizeCourtScope($data);
+            $settings['court_ids'] = $this->normalizeCourtIds($data);
         }
 
         $this->db->prepare(
@@ -361,6 +367,49 @@ class OpenPlayEngine
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    /** Return the selected court scope, defaulting old events to all courts. */
+    private function normalizeCourtScope(array $data): string
+    {
+        return ($data['court_scope'] ?? 'all') === 'selected' ? 'selected' : 'all';
+    }
+
+    /** Keep only active, real courts; an empty list means all active courts. */
+    private function normalizeCourtIds(array $data): array
+    {
+        if (($data['court_scope'] ?? 'all') !== 'selected') return [];
+
+        $raw = $data['court_ids'] ?? [];
+        if (!is_array($raw)) $raw = [$raw];
+        $ids = array_values(array_unique(array_filter(array_map('intval', $raw), fn($id) => $id > 0)));
+        if (!$ids) throw new RuntimeException('Select at least one court, or choose all active courts.');
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare("SELECT id FROM falcon.courts WHERE id IN ($placeholders) AND is_active = TRUE");
+        $stmt->execute($ids);
+        $activeIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        sort($activeIds);
+        if (!$activeIds) throw new RuntimeException('The selected courts are not active.');
+        return $activeIds;
+    }
+
+    /** Active courts available to an event, respecting its Open Play scope. */
+    private function getEventCourtIds(array $event): array
+    {
+        $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+        if (($settings['court_scope'] ?? 'all') !== 'selected') {
+            return array_map('intval', $this->db->query(
+                'SELECT id FROM falcon.courts WHERE is_active = TRUE ORDER BY sort_order NULLS LAST, id'
+            )->fetchAll(PDO::FETCH_COLUMN));
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $settings['court_ids'] ?? []), fn($id) => $id > 0)));
+        if (!$ids) return [];
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare("SELECT id FROM falcon.courts WHERE id IN ($placeholders) AND is_active = TRUE ORDER BY sort_order NULLS LAST, id");
+        $stmt->execute($ids);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
     /**
@@ -1212,9 +1261,22 @@ class OpenPlayEngine
      */
     private function getFreeCourtIds(int $tournamentId): array
     {
+                $event = $this->getEvent($tournamentId);
+                if (!$event) return [];
+                $eventCourtIds = $this->getEventCourtIds($event);
+                if (!$eventCourtIds) return [];
+                $courtParams = [];
+                $courtPlaceholders = [];
+                foreach ($eventCourtIds as $index => $courtId) {
+                    $key = ':court' . $index;
+                    $courtPlaceholders[] = $key;
+                    $courtParams[$key] = $courtId;
+                }
+                $courtPlaceholders = implode(',', $courtPlaceholders);
         $stmt = $this->db->prepare(
-            "SELECT c.id FROM falcon.courts c
-              WHERE c.is_active = TRUE
+                        "SELECT c.id FROM falcon.courts c
+                            WHERE c.id IN ($courtPlaceholders)
+                                AND c.is_active = TRUE
                 AND COALESCE(c.is_maintenance, FALSE) = FALSE
                 AND c.id NOT IN (
                     SELECT court_id FROM falcon.open_play_matches
@@ -1240,7 +1302,8 @@ class OpenPlayEngine
                 )
               ORDER BY c.id"
         );
-        $stmt->execute([':tid' => $tournamentId]);
+        $courtParams[':tid'] = $tournamentId;
+        $stmt->execute($courtParams);
         $courtIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
         return array_values(array_filter($courtIds, fn($id) => $this->resolvedCourtMode($id) !== 'reservation'));
@@ -2191,10 +2254,17 @@ class OpenPlayEngine
      */
     private function getCourtBoard(int $tournamentId, array $matchByCourt): array
     {
-        $rows = $this->db->query(
+        $event = $this->getEvent($tournamentId);
+        $eventCourtIds = $event ? $this->getEventCourtIds($event) : [];
+        if (!$eventCourtIds) return [];
+        $placeholders = implode(',', array_fill(0, count($eventCourtIds), '?'));
+        $rowsStmt = $this->db->prepare(
             "SELECT id, name, short_code, COALESCE(is_maintenance, FALSE) AS is_maintenance
-               FROM falcon.courts WHERE is_active = TRUE ORDER BY sort_order NULLS LAST, id"
-        )->fetchAll(PDO::FETCH_ASSOC);
+               FROM falcon.courts WHERE is_active = TRUE AND id IN ($placeholders)
+               ORDER BY sort_order NULLS LAST, id"
+        );
+        $rowsStmt->execute($eventCourtIds);
+        $rows = $rowsStmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Courts blocked right now by a confirmed reservation.
         $resStmt = $this->db->query(

@@ -12,6 +12,10 @@ $user   = currentUser();
 $events = $engine->listEvents();
 $selected = (int)($_GET['tournament_id'] ?? $_POST['tournament_id'] ?? 0);
 $event = $selected ? $engine->getEvent($selected) : null;
+$openPlayCourts = getDB()->query(
+    "SELECT id, name, short_code, COALESCE(is_maintenance, FALSE) AS is_maintenance
+       FROM falcon.courts WHERE is_active = TRUE ORDER BY sort_order NULLS LAST, id"
+)->fetchAll(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
@@ -98,6 +102,16 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
         <label>Format</label>
         <select name="format"><option value="doubles">Doubles</option><option value="singles">Singles</option></select>
+        <label>Courts for Open Play</label>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+            <label><input type="radio" name="court_scope" value="all" checked onchange="this.closest('form').querySelector('.open-play-court-list').hidden=true"/> All active courts</label>
+            <label><input type="radio" name="court_scope" value="selected" onchange="this.closest('form').querySelector('.open-play-court-list').hidden=false"/> Selected courts only</label>
+        </div>
+        <div class="open-play-court-list" hidden style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <?php foreach ($openPlayCourts as $court): ?>
+                <label style="border:1px solid var(--border);padding:10px;border-radius:8px;"><input type="checkbox" name="court_ids[]" value="<?= (int)$court['id'] ?>"/> <?= clean($court['name']) ?><?= !empty($court['short_code']) ? ' (' . clean($court['short_code']) . ')' : '' ?></label>
+            <?php endforeach; ?>
+        </div>
         <p class="text-muted" style="font-size:12px;margin:0;">Game duration and other live-session settings are set from Open Play Control once the event is created.</p>
         <button type="submit" class="btn btn-primary" style="justify-self:start;">Create Posting</button>
     </form>
@@ -122,6 +136,17 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
         <label>Format</label>
         <select name="format"><option value="doubles" <?= ($settings['format'] ?? 'doubles') === 'doubles' ? 'selected' : '' ?>>Doubles</option><option value="singles" <?= ($settings['format'] ?? '') === 'singles' ? 'selected' : '' ?>>Singles</option></select>
+        <?php $eventCourtScope = $settings['court_scope'] ?? 'all'; $eventCourtIds = array_map('intval', $settings['court_ids'] ?? []); ?>
+        <label>Courts for Open Play</label>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+            <label><input type="radio" name="court_scope" value="all" <?= $eventCourtScope === 'all' ? 'checked' : '' ?> onchange="this.closest('form').querySelector('.open-play-court-list').hidden=true"/> All active courts</label>
+            <label><input type="radio" name="court_scope" value="selected" <?= $eventCourtScope === 'selected' ? 'checked' : '' ?> onchange="this.closest('form').querySelector('.open-play-court-list').hidden=false"/> Selected courts only</label>
+        </div>
+        <div class="open-play-court-list" <?= $eventCourtScope === 'selected' ? '' : 'hidden' ?> style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <?php foreach ($openPlayCourts as $court): ?>
+                <label style="border:1px solid var(--border);padding:10px;border-radius:8px;"><input type="checkbox" name="court_ids[]" value="<?= (int)$court['id'] ?>" <?= in_array((int)$court['id'], $eventCourtIds, true) ? 'checked' : '' ?>/> <?= clean($court['name']) ?><?= !empty($court['short_code']) ? ' (' . clean($court['short_code']) . ')' : '' ?></label>
+            <?php endforeach; ?>
+        </div>
         <button type="submit" class="btn btn-primary" style="justify-self:start;">Save Posting Details</button>
     </form>
 </div>

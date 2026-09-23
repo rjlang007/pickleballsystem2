@@ -50,6 +50,8 @@ function openPlayScheduleDefaults(): array
         'end_time'     => '00:00',   // 12:00 AM (midnight — spans past the start time)
         'max_players'  => '24',
         'format'       => 'doubles',
+        'court_scope'  => 'all',
+        'court_ids'    => [],
         'name'         => 'Nightly Open Play',
         'description'  => 'Walk-in open play — join the queue any time and get paired as courts free up.',
         'closed_for_date' => '',
@@ -135,6 +137,20 @@ function saveOpenPlaySchedule(PDO $db, array $data, int $actorId): array
     $format = in_array($data['format'] ?? 'doubles', ['singles', 'doubles'], true)
         ? $data['format'] : 'doubles';
 
+    $courtScope = ($data['court_scope'] ?? 'all') === 'selected' ? 'selected' : 'all';
+    $courtIds = array_values(array_unique(array_filter(array_map('intval', (array)($data['court_ids'] ?? [])), fn($id) => $id > 0)));
+    if ($courtScope === 'selected') {
+        if (!$courtIds) throw new RuntimeException('Select at least one court, or choose all active courts.');
+        $placeholders = implode(',', array_fill(0, count($courtIds), '?'));
+        $courtCheck = $db->prepare("SELECT id FROM falcon.courts WHERE id IN ($placeholders) AND is_active = TRUE");
+        $courtCheck->execute($courtIds);
+        $courtIds = array_map('intval', $courtCheck->fetchAll(PDO::FETCH_COLUMN));
+        if (!$courtIds) throw new RuntimeException('The selected courts are not active.');
+        sort($courtIds);
+    } else {
+        $courtIds = [];
+    }
+
     $name = trim((string)($data['name'] ?? '')) ?: openPlayScheduleDefaults()['name'];
     $name = substr($name, 0, 150);
 
@@ -147,6 +163,8 @@ function saveOpenPlaySchedule(PDO $db, array $data, int $actorId): array
         'end_time'    => $endTime ?: '00:00',
         'max_players' => (string)$maxPlayers,
         'format'      => $format,
+        'court_scope' => $courtScope,
+        'court_ids'   => json_encode($courtIds),
         'name'        => $name,
         'description' => $description,
     ];
@@ -304,6 +322,8 @@ function ensureNightlyOpenPlayEvent(): void
             'name'         => $schedule['name'],
             'description'  => $schedule['description'],
             'format'       => $schedule['format'],
+            'court_scope'  => $schedule['court_scope'],
+            'court_ids'    => json_decode($schedule['court_ids'] ?? '[]', true) ?: [],
             'max_players'  => (int)$schedule['max_players'],
             'start_date'   => $startDate,
         ], $systemActorId);

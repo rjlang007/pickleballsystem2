@@ -126,6 +126,11 @@ $courtRows = $db->query(
     "SELECT id, name, COALESCE(is_maintenance, FALSE) AS is_maintenance
        FROM falcon.courts WHERE is_active = TRUE ORDER BY id"
 )->fetchAll();
+$eventSettingsForCourts = $event ? (json_decode($event['settings'] ?? '{}', true) ?: []) : [];
+if (($eventSettingsForCourts['court_scope'] ?? 'all') === 'selected') {
+    $selectedCourtIds = array_map('intval', $eventSettingsForCourts['court_ids'] ?? []);
+    $courtRows = array_values(array_filter($courtRows, fn($court) => in_array((int)$court['id'], $selectedCourtIds, true)));
+}
 $courtsForJs = array_map(fn($c) => [
     'id'    => (int)$c['id'],
     'name'  => (string)$c['name'],

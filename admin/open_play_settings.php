@@ -33,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $schedule = getOpenPlaySchedule($db);
 $closedForDate = getOpenPlayClosedDate($db);
+$openPlayCourts = $db->query(
+  "SELECT id, name, short_code, COALESCE(is_maintenance, FALSE) AS is_maintenance
+     FROM falcon.courts WHERE is_active = TRUE ORDER BY sort_order NULLS LAST, id"
+)->fetchAll(PDO::FETCH_ASSOC);
+$scheduleCourtIds = array_map('intval', json_decode($schedule['court_ids'] ?? '[]', true) ?: []);
 
 // Today's auto-created (or manually created) Open Play event, if any —
 // shown so the admin can see the schedule is actually firing. Uses the
@@ -161,6 +166,27 @@ require_once __DIR__ . '/../includes/header.php';
             <option value="singles" <?= $schedule['format'] === 'singles' ? 'selected' : '' ?>>Singles</option>
           </select>
         </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:6px;">Courts for Open Play</div>
+        <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">
+          Choose all active courts, or reserve the remaining courts for reservations and other events.
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+          <label><input type="radio" name="court_scope" value="all" <?= ($schedule['court_scope'] ?? 'all') === 'all' ? 'checked' : '' ?> onchange="document.getElementById('open-play-court-list').hidden=true" /> All active courts</label>
+          <label><input type="radio" name="court_scope" value="selected" <?= ($schedule['court_scope'] ?? 'all') === 'selected' ? 'checked' : '' ?> onchange="document.getElementById('open-play-court-list').hidden=false" /> Selected courts only</label>
+        </div>
+        <div id="open-play-court-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;" <?= ($schedule['court_scope'] ?? 'all') === 'selected' ? '' : 'hidden' ?>>
+          <?php foreach ($openPlayCourts as $court): ?>
+            <label style="border:1px solid var(--border);padding:10px;border-radius:8px;">
+              <input type="checkbox" name="court_ids[]" value="<?= (int)$court['id'] ?>" <?= in_array((int)$court['id'], $scheduleCourtIds, true) ? 'checked' : '' ?> />
+              <?= clean($court['name']) ?><?= !empty($court['short_code']) ? ' (' . clean($court['short_code']) . ')' : '' ?>
+              <?php if (in_array($court['is_maintenance'], [true, 't', '1', 1], true)): ?><small style="display:block;color:var(--muted);">Maintenance</small><?php endif; ?>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <?php if (!$openPlayCourts): ?><div style="color:var(--muted);">No active courts are configured.</div><?php endif; ?>
       </div>
 
       <div style="display:flex;gap:12px;flex-wrap:wrap;">

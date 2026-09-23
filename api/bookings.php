@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/api_response.php';
 require_once __DIR__ . '/../includes/validators.php';
 require_once __DIR__ . '/../includes/booking_state_machine.php';
 require_once __DIR__ . '/../includes/helpers.php';   // getAdminUserIds, notifyAdmins, notifyUser
+require_once __DIR__ . '/../includes/open_play_court_availability.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
@@ -148,6 +149,10 @@ if ($method === 'POST') {
     $slotTime  = $body['slot_time'];
     $partySize = (int)$body['party_size'];
     $note      = trim((string)($body['note'] ?? ''));
+
+    if (isCourtInOpenPlay($db, $courtId, $slotDate, $slotTime, $slotEnd->format('H:i:s'))) {
+        apiError('BOOKING_CONFLICT', 'This court is allocated to Open Play for the selected time.', [], 409);
+    }
 
     // Court must be open on that day
     $dayOfWeek = (int)(new DateTime($slotDate))->format('w');
