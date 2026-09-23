@@ -43,7 +43,7 @@ if (!function_exists('isCourtInOpenPlay')) {
             $eventStart = strtotime((string)$event['start_date']);
             $eventEnd = !empty($event['end_date'])
                 ? strtotime((string)$event['end_date'])
-                : strtotime($slotDate . ' 23:59:59');
+                : strtotime(date('Y-m-d', $eventStart) . ' 23:59:59');
             if ($eventStart < $slotEndTs && $eventEnd >= $slotStartTs) return true;
         }
 

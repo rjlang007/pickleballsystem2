@@ -18,6 +18,11 @@ require_once __DIR__ . '/../config/security.php';
 require_once __DIR__ . '/../tournament/open_play_engine.php';
 requireStaff();
 
+// The live board contains inline rendering code and must never be served from
+// a stale document cache after a court layout update.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 $engine = new OpenPlayEngine();
 $user   = currentUser();
 

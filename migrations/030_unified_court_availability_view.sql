@@ -63,6 +63,38 @@ SELECT
         ELSE 'available'
     END AS live_status,
 
+    (
+        c.is_active = TRUE
+        AND c.is_maintenance = FALSE
+        AND (c.manual_status IS NULL OR c.manual_status = 'open_play')
+        AND gs.id IS NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM falcon.reservations r
+             WHERE r.court_id = c.id
+               AND r.status IN ('pending', 'confirmed')
+               AND r.slot_date = CURRENT_DATE
+               AND CURRENT_TIME BETWEEN r.slot_time AND r.slot_end
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM falcon.court_reservations cr
+             WHERE cr.court_id = c.id
+               AND cr.status != 'cancelled'
+               AND cr.reservation_date = CURRENT_DATE
+               AND CURRENT_TIME BETWEEN cr.slot_start AND cr.slot_end
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM falcon.tournaments t
+             WHERE t.bracket_type = 'open_play'
+               AND t.status IN ('registration_open', 'registration_closed', 'in_progress', 'paused')
+               AND t.start_date <= NOW()
+               AND (t.end_date IS NULL OR t.end_date >= NOW())
+               AND (
+                   COALESCE(t.settings->>'court_scope', 'all') <> 'selected'
+                   OR (t.settings->'court_ids') ? c.id::text
+               )
+        )
+    ) AS is_queueable,
+
     COALESCE(gp.player_count, 0) AS players_on_court,
     COALESCE(gq.queued, 0) AS queue_count,
     gs.started_at AS game_started_at,

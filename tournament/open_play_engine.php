@@ -259,6 +259,7 @@ class OpenPlayEngine
             "UPDATE falcon.tournaments SET status = :status WHERE id = :id"
         )->execute([':status' => $nextStatus, ':id' => $tournamentId]);
         $this->logAudit($tournamentId, $actorId, 'resume_event', []);
+        $this->autoFillQueue($tournamentId, $actorId);
         return $this->getEvent($tournamentId);
     }
 
@@ -611,6 +612,7 @@ class OpenPlayEngine
     {
         $this->joinEventInternal($tournamentId, $playerId, $skillLevel, true);
         $this->logAudit($tournamentId, $actorId, 'add_player', ['player_id' => $playerId]);
+        $this->autoFillQueue($tournamentId, $actorId);
     }
 
     /** Add a walk-in without requiring a registered account. */
@@ -647,6 +649,7 @@ class OpenPlayEngine
                 'display_name' => $displayName,
             ]);
             $this->db->commit();
+            $this->autoFillQueue($tournamentId, $actorId);
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             throw $e;
@@ -739,6 +742,7 @@ class OpenPlayEngine
                 )->execute([':actor' => $actorId, ':tid' => $tournamentId, ':pid' => $playerId]);
         notifyUser($this->db, $playerId, "You're approved for Open Play", 'You are now in the active queue. Watch the live board for your turn.', null, APP_URL . '/public/open_play_live.php?tournament_id=' . $tournamentId);
         $this->logAudit($tournamentId, $actorId, 'approve_join', ['player_id' => $playerId]);
+        $this->autoFillQueue($tournamentId, $actorId);
     }
 
     public function rejectJoin(int $tournamentId, int $playerId, int $actorId): void
@@ -811,6 +815,9 @@ class OpenPlayEngine
             ':pid' => $playerId,
         ]);
         $this->logAudit($tournamentId, $actorId, 'queue_status', ['player_id' => $playerId, 'status' => $status]);
+        if ($status === 'waiting') {
+            $this->autoFillQueue($tournamentId, $actorId);
+        }
     }
 
     public function markResting(int $tournamentId, int $playerId, int $actorId): void
@@ -889,17 +896,47 @@ class OpenPlayEngine
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** Recent partners/opponents (last 2 games) — used to discourage repeat matchups. */
-    private function getRecentLinks(int $tournamentId): array
+    /**
+     * How many of the most recently finished matches still count as
+     * "recent" for repeat-avoidance purposes, scoped to roughly the last
+     * few times the whole active group has cycled through a game. Without
+     * a window, a small crowd that's been playing for an hour eventually
+     * has *everyone* flagged as having faced everyone else, and — back
+     * when repeat-opponent/lineup checks were hard blocks instead of soft
+     * scoring below — that silently stopped new games from being drawable
+     * at all. The window keeps history proportional to group size (bigger
+     * open plays remember further back) while guaranteeing it ages out.
+     */
+    private function recentHistoryLookback(int $tournamentId, int $perGame): int
     {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM falcon.tournament_players
+              WHERE tournament_id = :tid AND status = 'active'"
+        );
+        $stmt->execute([':tid' => $tournamentId]);
+        $activeCount = max($perGame, (int)$stmt->fetchColumn());
+        // ~3 full rounds' worth of games for the current group size.
+        return max(6, (int)ceil($activeCount / $perGame) * 3);
+    }
+
+    /** Recent partners/opponents (within recentHistoryLookback()) — used to discourage repeat matchups. */
+    private function getRecentLinks(int $tournamentId, int $perGame = 4): array
+    {
+        $limit = $this->recentHistoryLookback($tournamentId, $perGame);
         $stmt = $this->db->prepare(
             "SELECT team1_player1_id AS a, team1_player2_id AS b,
                     team2_player1_id AS c, team2_player2_id AS d
-               FROM falcon.open_play_matches
-              WHERE tournament_id = :tid AND status = 'finished'
+               FROM (
+                    SELECT * FROM falcon.open_play_matches
+                     WHERE tournament_id = :tid AND status = 'finished'
+                     ORDER BY finished_at DESC
+                     LIMIT :lim
+               ) recent
               ORDER BY finished_at ASC"
         );
-        $stmt->execute([':tid' => $tournamentId]);
+        $stmt->bindValue(':tid', $tournamentId, PDO::PARAM_INT);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->execute();
         $partners  = [];
         $opponents = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $m) {
@@ -917,16 +954,22 @@ class OpenPlayEngine
         return [$partners, $opponents];
     }
 
-    private function getRecentLineups(int $tournamentId): array
+    private function getRecentLineups(int $tournamentId, int $perGame = 4): array
     {
+        $limit = $this->recentHistoryLookback($tournamentId, $perGame);
         $stmt = $this->db->prepare(
             "SELECT team1_player1_id AS a, team1_player2_id AS b,
                     team2_player1_id AS c, team2_player2_id AS d
-               FROM falcon.open_play_matches
-              WHERE tournament_id = :tid AND status = 'finished'
-              ORDER BY finished_at ASC"
+               FROM (
+                    SELECT * FROM falcon.open_play_matches
+                     WHERE tournament_id = :tid AND status = 'finished'
+                     ORDER BY finished_at DESC
+                     LIMIT :lim
+               ) recent"
         );
-        $stmt->execute([':tid' => $tournamentId]);
+        $stmt->bindValue(':tid', $tournamentId, PDO::PARAM_INT);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->execute();
         $lineups = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $m) {
             $ids = array_values(array_unique(array_filter([$m['a'], $m['b'], $m['c'], $m['d']])));
@@ -989,11 +1032,11 @@ class OpenPlayEngine
         }
 
         $pool = $this->getWaitingPool($tournamentId);
-        [$partners, $opponents] = $this->getRecentLinks($tournamentId);
-        $recentLineups = $this->getRecentLineups($tournamentId);
+        $need = $format === 'singles' ? 2 : 4;
+        [$partners, $opponents] = $this->getRecentLinks($tournamentId, $need);
+        $recentLineups = $this->getRecentLineups($tournamentId, $need);
         $now = time();
         $freeCourts = $this->getFreeCourtIds($tournamentId);
-        $need = $format === 'singles' ? 2 : 4;
         $extraBuffer = min(2, intdiv(max(0, count($pool) - ($need * 2)), $need));
         $stmt = $this->db->prepare(
             "SELECT COUNT(*) FROM falcon.open_play_matches
@@ -1082,13 +1125,15 @@ class OpenPlayEngine
                         // on pace/fairness alone.
                         if (!$this->compositionsCompatible($teamA, $teamB)) continue;
 
-                        // A complete four-player lineup must never be drawn
-                        // again, and players must not face the same opponent
-                        // twice. Repeating a teammate is allowed when the
-                        // opposing players are different.
-                        if (($this->lineupRepeatPenalty($teamA, $teamB, $recentLineups) ?? 0) > 0) continue;
-                        if ($this->hasRepeatedOpponent($teamA, $teamB, $opponents)) continue;
-
+                        // Repeating a recent lineup or opponent is heavily
+                        // discouraged (see repeatPenalty()/lineupRepeatPenalty()
+                        // below, weighted into betterCandidate()) but never a
+                        // hard block here — only the composition rule above is.
+                        // With a small crowd, everyone eventually faces
+                        // everyone else; a hard "never again" rule would run
+                        // out of legal lineups and silently stop drawing new
+                        // games, stalling rotation instead of just picking the
+                        // freshest option still available.
                         $all   = array_merge($teamA, $teamB);
 
                         $maxPace     = max(array_map($pace, $all));
@@ -1136,7 +1181,9 @@ class OpenPlayEngine
                 $diff       = abs(self::SKILL_SCORE[$pair[0]['skill_level']] - self::SKILL_SCORE[$pair[1]['skill_level']]);
                 $repeat     = isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']]) ? 1 : 0;
                 $lineupRepeat = $this->lineupRepeatPenalty($pair, [], $recentLineups);
-                if (isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']])) continue;
+                // Same reasoning as buildDoublesGame(): a recent repeat is
+                // penalized via $repeat/$lineupRepeat below, not hard-blocked,
+                // so singles never stalls once everyone's played everyone.
                 $waitTime   = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
                 $arrivalAge = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
                 $cand = compact('pair', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge');
@@ -1200,17 +1247,6 @@ class OpenPlayEngine
             if (isset($opponents[$a['player_id']][$b['player_id']])) $penalty += 1;
         }
         return $penalty;
-    }
-
-    /** Return true when any player in one team has already faced a player in the other team. */
-    private function hasRepeatedOpponent(array $teamA, array $teamB, array $opponents): bool
-    {
-        foreach ($teamA as $playerA) {
-            foreach ($teamB as $playerB) {
-                if (isset($opponents[$playerA['player_id']][$playerB['player_id']])) return true;
-            }
-        }
-        return false;
     }
 
     private function lineupRepeatPenalty(array $teamA, array $teamB, array $recentLineups): int
@@ -1339,6 +1375,23 @@ class OpenPlayEngine
             }
         }
         return 'unconfigured'; // no rule for this slot — Open Play is free to use it
+    }
+
+    /**
+     * Keep the live queue moving whenever a player becomes eligible. The
+     * allocator decides whether to use a free court or leave the lineup in
+     * the bounded up-next buffer, and its advisory lock makes this safe when
+     * several staff actions arrive together.
+     */
+    private function autoFillQueue(int $tournamentId, int $actorId): void
+    {
+        try {
+            $this->drawRound($tournamentId, $actorId);
+        } catch (Throwable $e) {
+            // Queue admission must still succeed if courts are unavailable or
+            // matchmaking is paused; the next poll or lifecycle event retries.
+            error_log('[OpenPlayEngine] autoFillQueue failed: ' . $e->getMessage());
+        }
     }
 
     /** Called after a match finishes, in case a drawn-but-courtless game can now take the freed court. */
