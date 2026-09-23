@@ -903,11 +903,12 @@ function timeLeft(m) {
     return m.status === 'in_progress' ? Math.max(0, base - Math.floor((Date.now() - fetchedAt) / 1000)) : base;
 }
 
-function courtCard(name, m, maint) {
+function courtCard(name, m, unavailable, reason) {
     if (!m) {
-        return `<div class="opc-court${maint ? ' is-off' : ''}">
-            <div class="opc-court-head"><span class="opc-court-name">${esc(name)}</span><span class="opc-pill">${maint ? 'Maintenance' : 'Free'}</span></div>
-            <p class="opc-empty">No game assigned</p></div>`;
+        const label = unavailable ? (reason || 'Unavailable') : 'Free';
+        return `<div class="opc-court${unavailable ? ' is-off' : ''}">
+            <div class="opc-court-head"><span class="opc-court-name">${esc(name)}</span><span class="opc-pill">${esc(label)}</span></div>
+            <p class="opc-empty">${unavailable ? esc(reason || 'This court cannot be used right now.') : 'No game assigned'}</p></div>`;
     }
     const st = m.status;
     const pill = st === 'in_progress' ? '<span class="opc-pill opc-pill-live"><span class="opc-dot"></span>Live</span>'
@@ -951,11 +952,17 @@ function render() {
     const wc = $('#waitingCount'); if (wc) wc.textContent = `${n} player${n === 1 ? '' : 's'} waiting`;
 
     // courts
-    const byCourt = {};
-    live.now_playing.forEach(m => { byCourt[m.court_id] = m; });
-    const seen = new Set(), cards = [];
-    COURTS.forEach(c => { seen.add(String(c.id)); cards.push(courtCard(c.name, byCourt[c.id], c.maint)); });
-    live.now_playing.forEach(m => { if (!seen.has(String(m.court_id))) cards.push(courtCard(m.court_name || 'Court', m)); });
+    const uniqueCourts = new Map();
+    (live.courts || COURTS).forEach(c => {
+        const id = Number(c.id);
+        if (!uniqueCourts.has(id)) uniqueCourts.set(id, c);
+    });
+    const cards = Array.from(uniqueCourts.values()).map(c => courtCard(
+        c.name,
+        c.match || null,
+        c.state === 'unavailable' || c.maint === true,
+        c.reason || (c.maint ? 'Under maintenance' : '')
+    ));
     $('#courtGrid').innerHTML = cards.length ? cards.join('')
         : '<p class="opc-row-empty" style="grid-column:1/-1">No active courts are set up yet — add courts under Admin → Courts.</p>';
 
@@ -1020,7 +1027,7 @@ async function loadLive(force) {
         // Re-render only when something other than the ticking clock changed.
         const sig = JSON.stringify([
             live.now_playing.map(m => Object.assign({}, m, { time_left: 0 })),
-            live.up_next, live.waiting_pool, live.waiting_count,
+            live.courts, live.up_next, live.waiting_pool, live.waiting_count,
         ]);
         if (force || sig !== lastSig) { lastSig = sig; render(); }
         tick();

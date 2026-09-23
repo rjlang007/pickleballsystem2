@@ -1290,6 +1290,13 @@ class OpenPlayEngine
                        AND r.slot_date = CURRENT_DATE
                        AND CURRENT_TIME BETWEEN r.slot_time AND r.slot_end
                 )
+                                AND NOT EXISTS (
+                                        SELECT 1 FROM falcon.court_reservations cr
+                                         WHERE cr.court_id = c.id
+                                             AND cr.status != 'cancelled'
+                                             AND cr.reservation_date = CURRENT_DATE
+                                             AND CURRENT_TIME BETWEEN cr.slot_start AND cr.slot_end
+                                )
                 AND NOT EXISTS (
                     -- Courts already occupied by the separate walk-in/credits
                     -- queue system (falcon.game_sessions, driven by the QR
@@ -2267,12 +2274,21 @@ class OpenPlayEngine
         $rows = $rowsStmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Courts blocked right now by a confirmed reservation.
-        $resStmt = $this->db->query(
-            "SELECT DISTINCT court_id FROM falcon.reservations
-              WHERE status IN ('pending','confirmed')
-                AND slot_date = CURRENT_DATE
-                AND CURRENT_TIME BETWEEN slot_time AND slot_end"
-        );
+                $resStmt = $this->db->query(
+                        "SELECT DISTINCT court_id FROM (
+                                SELECT court_id
+                                    FROM falcon.reservations
+                                 WHERE status IN ('pending','confirmed')
+                                     AND slot_date = CURRENT_DATE
+                                     AND CURRENT_TIME BETWEEN slot_time AND slot_end
+                                UNION
+                                SELECT court_id
+                                    FROM falcon.court_reservations
+                                 WHERE status != 'cancelled'
+                                     AND reservation_date = CURRENT_DATE
+                                     AND CURRENT_TIME BETWEEN slot_start AND slot_end
+                        ) AS reserved_courts"
+                );
         $reserved = array_map('intval', $resStmt->fetchAll(PDO::FETCH_COLUMN));
 
         $board = [];
