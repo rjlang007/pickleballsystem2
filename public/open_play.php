@@ -155,7 +155,7 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 
     <?php foreach ($events as $e): $mine = $myRows[$e['id']] ?? null; ?>
-      <div class="card" style="margin-bottom:14px;padding:18px;">
+      <div class="card open-play-event-card" data-event-id="<?= (int)$e['id'] ?>" style="margin-bottom:14px;padding:18px;">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;">
           <div>
             <div style="font-weight:800;font-size:18px;"><?= clean($e['name']) ?></div>
@@ -178,19 +178,19 @@ require_once __DIR__ . '/../includes/header.php';
               </div>
 
             <?php elseif ($mine): ?>
-              <span class="badge <?= $mine['queue_status'] === 'pending_approval' ? 'badge-warning' : 'badge-info' ?>">
+              <span class="badge <?= $mine['queue_status'] === 'pending_approval' ? 'badge-warning' : 'badge-info' ?>" data-open-play-status>
                 <?= $mine['queue_status'] === 'pending_approval' ? 'Join request pending approval' : "You're " . clean($queueLabels[$mine['queue_status']] ?? ucfirst($mine['queue_status'])) ?> · <?= ucfirst($mine['skill_level']) ?>
               </span>
               <?php if ($mine['queue_status'] === 'pending_approval'): ?><span class="text-muted">Admin approval required</span><?php endif; ?>
               <?php if ($mine['queue_status'] === 'waiting'): ?>
-                <form method="POST">
+                <form method="POST" data-open-play-action="rest">
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="rest"/>
                   <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
                   <button type="submit" class="btn btn-sm">Take Break</button>
                 </form>
               <?php elseif ($mine['queue_status'] === 'resting'): ?>
-                <form method="POST">
+                <form method="POST" data-open-play-action="return">
                   <?= csrfField() ?>
                   <input type="hidden" name="action" value="return"/>
                   <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
@@ -199,7 +199,7 @@ require_once __DIR__ . '/../includes/header.php';
               <?php elseif ($mine['queue_status'] !== 'pending_approval'): ?>
                 <a class="btn" href="<?= APP_URL ?>/public/open_play_live.php?tournament_id=<?= (int)$e['id'] ?>">📺 Live Board</a>
               <?php endif; ?>
-              <form method="POST" onsubmit="return confirm('Cancel this join request?');">
+              <form method="POST" data-open-play-action="leave" onsubmit="return confirm('Cancel this join request?');">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="leave"/>
                 <input type="hidden" name="tournament_id" value="<?= (int)$e['id'] ?>"/>
@@ -351,6 +351,7 @@ require_once __DIR__ . '/../includes/header.php';
   .open-play-join-dialog input, .open-play-join-dialog select { width:100%; }
   </style>
   <script nonce="<?= csrfNonce() ?>">
+  const APP_URL = <?= json_encode(APP_URL, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
   document.querySelectorAll('.open-play-join-trigger').forEach(function (button) {
     button.addEventListener('click', function () {
       const dialog = document.getElementById(button.dataset.dialogId);
@@ -363,6 +364,59 @@ require_once __DIR__ . '/../includes/header.php';
       if (dialog) dialog.close();
     });
   });
+
+  async function refreshOpenPlayCards() {
+    const cards = Array.from(document.querySelectorAll('.open-play-event-card'));
+    if (!cards.length) return;
+    const response = await fetch(window.location.href, { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error('Could not refresh Open Play status.');
+    const html = await response.text();
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    cards.forEach(function (card) {
+      const replacement = parsed.querySelector('[data-event-id="' + card.dataset.eventId + '"]');
+      if (replacement) card.replaceWith(replacement);
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    const trigger = event.target.closest('.open-play-join-trigger');
+    if (trigger) {
+      const dialog = document.getElementById(trigger.dataset.dialogId);
+      if (dialog && !dialog.open) dialog.showModal();
+      return;
+    }
+    const close = event.target.closest('.open-play-dialog-close');
+    if (close) {
+      const dialog = close.closest('dialog');
+      if (dialog && dialog.open) dialog.close();
+    }
+  });
+
+  document.addEventListener('submit', async function (event) {
+    const form = event.target.closest('form[data-open-play-action]');
+    if (!form || event.defaultPrevented) return;
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    const values = new FormData(form);
+    try {
+      const response = await fetch(APP_URL + '/api/open_play.php?action=' + encodeURIComponent(form.dataset.openPlayAction), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tournament_id: Number(values.get('tournament_id')) }),
+      });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.message || 'Request failed.');
+      await refreshOpenPlayCards();
+    } catch (error) {
+      if (button) button.disabled = false;
+      alert(error.message || 'Unable to update your Open Play status.');
+    }
+  });
+
+  setInterval(function () {
+    refreshOpenPlayCards().catch(function () {});
+  }, 8000);
   </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

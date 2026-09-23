@@ -556,7 +556,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <!-- ── Finished games · editable ── -->
-    <section class="opc-section">
+    <section class="opc-section" id="finishedGames">
         <div class="opc-section-head">
             <h3 class="opc-h3">Finished Games · Editable Results</h3>
             <span class="opc-meta"><?= count($recentFinished) ?> recent</span>
@@ -1082,6 +1082,28 @@ root.addEventListener('click', async ev => {
     }
 });
 
+// Queue actions are rendered dynamically, so handle them at the board root
+// and keep the live console in place after a status change.
+root.addEventListener('submit', async ev => {
+    const form = ev.target.closest('#queueList form');
+    if (!form || ev.defaultPrevented) return;
+    ev.preventDefault();
+    const button = form.querySelector('button');
+    if (button) button.disabled = true;
+    const values = new FormData(form);
+    try {
+        await callApi(values.get('action'), {
+            tournament_id: Number(values.get('tournament_id')),
+            player_id: Number(values.get('player_id')),
+            status: values.get('status') || undefined,
+        });
+        loadLive(true);
+    } catch (e) {
+        if (button) button.disabled = false;
+        toast(e.message, 'error');
+    }
+});
+
 // ── Score modal ("Who won?" / "Correct game result") ───────
 const modal = $('#scoreModal'), inA = $('#scoreA'), inB = $('#scoreB'), winA = $('#winA'), winB = $('#winB'), msgBox = $('#scoreMsg');
 let score = null, prevFocus = null, prevOverflow = '';
@@ -1127,7 +1149,8 @@ async function confirmWinner(side) {
     try {
         await callApi(score.action, { match_id: score.matchId, score_a: a, score_b: b, confirmed: score.confirmed });
         closeScore();
-        location.reload();   // refresh finished games + standings below
+        await refreshFinishedGames();
+        loadLive(true);
     } catch (e) {
         syncWinnerButtons();
         if (e.needsConfirmation) {
@@ -1137,6 +1160,17 @@ async function confirmWinner(side) {
             scoreMsg(e.message, true);
         }
     }
+}
+
+async function refreshFinishedGames() {
+    const current = $('#finishedGames');
+    if (!current) return;
+    const res = await fetch(window.location.href, { credentials: 'same-origin', cache: 'no-store' });
+    if (!res.ok) throw new Error('Could not refresh finished games.');
+    const html = await res.text();
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const replacement = parsed.querySelector('#finishedGames');
+    if (replacement) current.replaceWith(replacement);
 }
 winA.addEventListener('click', () => confirmWinner('A'));
 winB.addEventListener('click', () => confirmWinner('B'));

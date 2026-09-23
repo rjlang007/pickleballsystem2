@@ -873,6 +873,18 @@ class OpenPlayEngine
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getPlayerEventStatus(int $tournamentId, int $playerId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT tournament_id, player_id, status, queue_status, skill_level, games_played, wins, losses
+               FROM falcon.tournament_players
+              WHERE tournament_id = :tid AND player_id = :pid AND status != 'withdrawn'"
+        );
+        $stmt->execute([':tid' => $tournamentId, ':pid' => $playerId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     private function getWaitingPool(int $tournamentId): array
     {
         $stmt = $this->db->prepare(
@@ -1649,7 +1661,10 @@ class OpenPlayEngine
             $newStatus = $sendToRest ? 'resting' : 'waiting';
             $allIds    = array_merge($teamA, $teamB);
             $this->db->prepare(
-                "UPDATE falcon.tournament_players SET queue_status = :s, arrived_at = arrived_at
+                "UPDATE falcon.tournament_players
+                    SET queue_status = :s,
+                        queued_at = CASE WHEN :s = 'waiting' THEN NOW() ELSE queued_at END,
+                        arrived_at = arrived_at
                   WHERE tournament_id = :tid AND player_id = ANY(:ids)"
             )->execute([':s' => $newStatus, ':tid' => $m['tournament_id'], ':ids' => '{' . implode(',', $allIds) . '}']);
 
@@ -1829,7 +1844,9 @@ class OpenPlayEngine
             $match['team2_player1_id'], $match['team2_player2_id'],
         ]);
         $this->db->prepare(
-            "UPDATE falcon.tournament_players SET queue_status = :s
+            "UPDATE falcon.tournament_players
+                SET queue_status = :s,
+                    queued_at = CASE WHEN :s = 'waiting' THEN NOW() ELSE queued_at END
               WHERE tournament_id = :tid AND player_id = ANY(:ids)"
         )->execute([':s' => $status, ':tid' => $match['tournament_id'], ':ids' => '{' . implode(',', $ids) . '}']);
     }

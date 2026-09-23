@@ -94,6 +94,20 @@ try {
             $engine->leaveEvent($tid, $actorId);
             apiSuccess(null, 'Left the event.');
 
+        case 'rest':
+            routeMethod('POST');
+            $tid = (int)($body['tournament_id'] ?? 0);
+            if (!$tid) apiError('tournament_id required.');
+            $engine->markResting($tid, $actorId, $actorId);
+            apiSuccess($engine->getPlayerEventStatus($tid, $actorId), 'You took a break.');
+
+        case 'return':
+            routeMethod('POST');
+            $tid = (int)($body['tournament_id'] ?? 0);
+            if (!$tid) apiError('tournament_id required.');
+            $engine->returnToQueue($tid, $actorId, $actorId);
+            apiSuccess($engine->getPlayerEventStatus($tid, $actorId), 'You rejoined the queue.');
+
         case 'confirm_match':
             routeMethod('POST');
             $engine->confirmMatch((int)($body['match_id'] ?? 0), $actorId);
@@ -267,6 +281,12 @@ try {
             routeMethod('GET');
             $tid = (int)($_GET['tournament_id'] ?? 0);
             apiSuccess($engine->detectPodiumTies($engine->computeLeaderboard($tid)));
+
+        case 'player_status':
+            routeMethod('GET');
+            $tid = (int)($_GET['tournament_id'] ?? 0);
+            if (!$tid) apiError('tournament_id required.');
+            apiSuccess($engine->getPlayerEventStatus($tid, $actorId));
 
         default:
             apiError('Unknown action.', 404);
