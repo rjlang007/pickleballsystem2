@@ -6,13 +6,14 @@
 // ============================================================
 
 // Production database settings
-$prodDbHost = getenv('PGHOST') ?: getenv('DB_HOST');
-$prodDbPort = getenv('PGPORT') ?: getenv('DB_PORT');
-$prodDbName = getenv('PGDATABASE') ?: getenv('DB_NAME');
-$prodDbUser = getenv('PGUSER') ?: getenv('DB_USER');
-$prodDbPass = getenv('PGPASSWORD') ?: getenv('DB_PASS');
-if (!$prodDbHost && getenv('DATABASE_URL')) {
-    $url = parse_url(getenv('DATABASE_URL'));
+$prodDbHost = getenv('PGHOST') ?: getenv('POSTGRES_HOST') ?: getenv('DB_HOST');
+$prodDbPort = getenv('PGPORT') ?: getenv('POSTGRES_PORT') ?: getenv('DB_PORT');
+$prodDbName = getenv('PGDATABASE') ?: getenv('POSTGRES_DB') ?: getenv('DB_NAME');
+$prodDbUser = getenv('PGUSER') ?: getenv('POSTGRES_USER') ?: getenv('DB_USER');
+$prodDbPass = getenv('PGPASSWORD') ?: getenv('POSTGRES_PASSWORD') ?: getenv('DB_PASS');
+$productionDatabaseUrl = getenv('DATABASE_URL') ?: getenv('DATABASE_PRIVATE_URL') ?: getenv('POSTGRES_URL');
+if (!$prodDbHost && $productionDatabaseUrl) {
+    $url = parse_url($productionDatabaseUrl);
     $prodDbHost = $url['host'] ?? '';
     $prodDbPort = $url['port'] ?? $prodDbPort ?: 5432;
     $prodDbName = ltrim($url['path'] ?? '', '/');

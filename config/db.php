@@ -26,13 +26,13 @@ if (file_exists(__DIR__ . '/../.env')) {
 // Parse DATABASE_URL when Railway provides the canonical connection string.
 // Prefer it over legacy individual variables so a full URL accidentally
 // supplied as PGHOST cannot be treated as a literal hostname.
-$rawDbHost = getenv('PGHOST')     ?: getenv('DB_HOST');
-$rawDbPort = getenv('PGPORT')     ?: getenv('DB_PORT');
-$rawDbName = getenv('PGDATABASE') ?: getenv('DB_NAME');
-$rawDbUser = getenv('PGUSER')     ?: getenv('DB_USER');
-$rawDbPass = getenv('PGPASSWORD') ?: getenv('DB_PASS');
+$rawDbHost = getenv('PGHOST')     ?: getenv('POSTGRES_HOST')     ?: getenv('DB_HOST');
+$rawDbPort = getenv('PGPORT')     ?: getenv('POSTGRES_PORT')     ?: getenv('DB_PORT');
+$rawDbName = getenv('PGDATABASE') ?: getenv('POSTGRES_DB')       ?: getenv('DB_NAME');
+$rawDbUser = getenv('PGUSER')     ?: getenv('POSTGRES_USER')     ?: getenv('DB_USER');
+$rawDbPass = getenv('PGPASSWORD') ?: getenv('POSTGRES_PASSWORD') ?: getenv('DB_PASS');
 
-$databaseUrl = getenv('DATABASE_URL');
+$databaseUrl = getenv('DATABASE_URL') ?: getenv('DATABASE_PRIVATE_URL') ?: getenv('POSTGRES_URL');
 if ($databaseUrl) {
     $url = parse_url($databaseUrl);
     if (!empty($url['host'])) {

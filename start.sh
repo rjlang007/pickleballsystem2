@@ -6,8 +6,9 @@ mkdir -p /app/uploads/activity_photos /app/uploads/courts /app/uploads/food /app
 # Railway must inject a real Postgres connection. Without these variables the
 # PHP fallback is localhost, which is never the database inside this image.
 if [ "${RAILWAY_ENVIRONMENT:-}" = "production" ] || [ "${APP_ENV:-}" = "production" ]; then
-    database_host="${PGHOST:-${DB_HOST:-}}"
-    if [ -z "${DATABASE_URL:-}" ] && { [ -z "$database_host" ] || [ "$database_host" = "localhost" ] || [ "$database_host" = "127.0.0.1" ]; }; then
+    database_url="${DATABASE_URL:-${DATABASE_PRIVATE_URL:-${POSTGRES_URL:-}}}"
+    database_host="${PGHOST:-${POSTGRES_HOST:-${DB_HOST:-}}}"
+    if [ -z "$database_url" ] && { [ -z "$database_host" ] || [ "$database_host" = "localhost" ] || [ "$database_host" = "127.0.0.1" ]; }; then
         echo "ERROR: PostgreSQL is not configured for production." >&2
         echo "Set Railway's DATABASE_URL or reference the Postgres service's PGHOST, PGPORT, PGDATABASE, PGUSER, and PGPASSWORD variables." >&2
         exit 1
