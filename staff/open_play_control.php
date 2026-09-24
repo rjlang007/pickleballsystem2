@@ -1223,7 +1223,14 @@ async function doDraw() {
     if (err) {
         stopSpin(); drawMessage('⚠️ ' + err);
     } else if (!games.length) {
-        stopSpin(); drawMessage('No complete group is available yet. The draw needs enough approved waiting players and an available court or Up Next slot.');
+        const rawSettings = live?.event?.settings;
+        let required = 4;
+        try {
+            const eventSettings = typeof rawSettings === 'string' ? JSON.parse(rawSettings || '{}') : (rawSettings || {});
+            required = eventSettings.format === 'singles' ? 2 : 4;
+        } catch (_) {}
+        const waiting = Number(live?.waiting_count || 0);
+        stopSpin(); drawMessage(`Waiting for a complete group: ${waiting}/${required} players ready. Players are assigned automatically when the group is complete and a court or Up Next slot is available.`);
     } else {
         await ensureSkills(games, []);
         for (const g of games) { await sleep(reduceMotion ? 0 : 1500); drawRows.insertAdjacentHTML('beforeend', drawRow(g)); }
