@@ -1463,7 +1463,6 @@ class OpenPlayEngine
                 )
               ORDER BY c.id"
         );
-        $courtParams[':tid'] = $tournamentId;
         $stmt->execute($courtParams);
         $courtIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
