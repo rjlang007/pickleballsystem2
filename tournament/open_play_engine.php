@@ -1557,13 +1557,13 @@ class OpenPlayEngine
                 (tournament_id, round_number, court_id,
                  team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
                  status, duration_seconds, remaining_seconds, created_by)
-             VALUES (:tid, :round, :court, :t1, :t2, :o1, :o2, 'ready', :dur, :dur, :actor)
+             VALUES (:tid, :round, :court, :t1, :t2, :o1, :o2, 'ready', :duration_seconds, :remaining_seconds, :actor)
              RETURNING id"
         );
         $stmt->execute([
             ':tid' => $tid, ':round' => $round, ':court' => $courtId,
             ':t1' => $t[0], ':t2' => $t[1] ?? null, ':o1' => $o[0], ':o2' => $o[1] ?? null,
-            ':dur' => $duration, ':actor' => $actorId,
+            ':duration_seconds' => $duration, ':remaining_seconds' => $duration, ':actor' => $actorId,
         ]);
         return (int)$stmt->fetchColumn();
     }
@@ -2096,13 +2096,13 @@ class OpenPlayEngine
                 (tournament_id, court_id, round_number, is_tiebreaker,
                  team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
                  status, duration_seconds, remaining_seconds, created_by)
-             VALUES (:tid, :court, 0, TRUE, :t1, :t2, :o1, :o2, 'ready', :duration, :duration, :actor)
+             VALUES (:tid, :court, 0, TRUE, :t1, :t2, :o1, :o2, 'ready', :duration_seconds, :remaining_seconds, :actor)
              RETURNING id"
         );
         $stmt->execute([
             ':tid' => $tournamentId, ':court' => $courtId,
             ':t1' => $teamA[0], ':t2' => $teamA[1] ?? null, ':o1' => $teamB[0], ':o2' => $teamB[1] ?? null,
-            ':duration' => $duration,
+            ':duration_seconds' => $duration, ':remaining_seconds' => $duration,
             ':actor' => $actorId,
         ]);
         $matchId = (int)$stmt->fetchColumn();
