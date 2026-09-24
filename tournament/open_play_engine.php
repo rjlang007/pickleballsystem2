@@ -1536,7 +1536,6 @@ class OpenPlayEngine
     public function assignFreeCourts(int $tournamentId, int $actorId): void
     {
         $free = $this->getFreeCourtIds($tournamentId);
-        if (!$free) return;
 
         $stmt = $this->db->prepare(
             "SELECT id FROM falcon.open_play_matches
@@ -1554,10 +1553,9 @@ class OpenPlayEngine
             )->execute([':cid' => $courtId, ':id' => $matchId]);
         }
 
-        // Auto-draw more games to fill any courts still free after reassignment.
-        if (count($free) > 0) {
-            $this->drawRound($tournamentId, $actorId, count($free));
-        }
+        // Always run matchmaking after a finish. With no free court, this
+        // still creates the courtless Up Next buffer for the next turnover.
+        $this->drawRound($tournamentId, $actorId, $free ? count($free) : null);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -2451,8 +2449,10 @@ class OpenPlayEngine
         $duration   = max(60, (int)($settings['game_duration'] ?? 900));
 
         $matchByCourt = [];
-        foreach ($nowPlaying as $m) {
-            $matchByCourt[(int)$m['court_id']] = $m;
+        foreach ($live as $m) {
+            if ($m['court_id'] !== null) {
+                $matchByCourt[(int)$m['court_id']] = $m;
+            }
         }
 
         $courts     = $this->getCourtBoard($tournamentId, $matchByCourt);
@@ -2539,6 +2539,10 @@ class OpenPlayEngine
                                  WHERE status != 'cancelled'
                                      AND reservation_date = CURRENT_DATE
                                      AND CURRENT_TIME BETWEEN slot_start AND slot_end
+                                UNION
+                                SELECT court_id
+                                    FROM falcon.game_sessions
+                                 WHERE status = 'active'
                         ) AS reserved_courts"
                 );
         $reserved = array_map('intval', $resStmt->fetchAll(PDO::FETCH_COLUMN));
@@ -2550,8 +2554,8 @@ class OpenPlayEngine
             $match = $matchByCourt[$id] ?? null;
 
             if ($match) {
-                $state  = $match['status'] === 'paused' ? 'paused' : 'playing';
-                $reason = $match['status'] === 'paused' ? 'Game paused' : null;
+                $state  = $match['status'] === 'paused' ? 'paused' : ($match['status'] === 'ready' ? 'ready' : 'playing');
+                $reason = $match['status'] === 'paused' ? 'Game paused' : ($match['status'] === 'ready' ? 'Game ready to start' : null);
             } elseif ($maint) {
                 $state  = 'unavailable';
                 $reason = 'Under maintenance';

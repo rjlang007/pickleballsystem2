@@ -254,10 +254,10 @@ function liveSecs(court){
 function courtTile(c){
   const cls = 'tile ' + c.state;
 
-  if (c.state === 'playing' || c.state === 'paused') {
+  if (c.state === 'playing' || c.state === 'paused' || c.state === 'ready') {
     const secs = liveSecs(c);
     const tcls = secs <= 0 ? 'out' : (secs <= 60 ? 'low' : '');
-    const badge = c.state === 'paused' ? '⏸ Paused' : '● Live';
+    const badge = c.state === 'paused' ? '⏸ Paused' : (c.state === 'ready' ? 'Ready' : '● Live');
     return `
       <div class="${cls}" data-court="${c.id}">
         <div class="court">
@@ -270,7 +270,7 @@ function courtTile(c){
           <div class="team b"><div class="nm">${teamName(c.match,'t2')}</div></div>
         </div>
         <div class="court" style="margin-top:10px;">
-          <span class="cn">${c.state === 'paused' ? 'Timer held' : 'Time left'}</span>
+          <span class="cn">${c.state === 'paused' ? 'Timer held' : (c.state === 'ready' ? 'Waiting to start' : 'Time left')}</span>
           <span class="timer ${tcls}" data-timer="${c.id}">${fmtTime(secs)}</span>
         </div>
       </div>`;

@@ -54,7 +54,7 @@ $staffActions = [
     'queue_status', 'draw', 'start_match', 'pause_match', 'resume_match',
     'adjust_timer', 'finish_match', 'correct_score', 'cancel_match', 'tiebreak',
     'approve_join', 'reject_join', 'add_player', 'remove_player',
-    'confirm_match', 'sweep_no_shows',
+    'sweep_no_shows',
     'finalize', 'create', 'update_event', 'cancel_event',
     'raffle_spin', 'raffle_data', 'raffle_history',
 ];
