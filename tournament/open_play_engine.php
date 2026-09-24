@@ -1152,7 +1152,10 @@ class OpenPlayEngine
         $recentLineups = $this->getRecentLineups($tournamentId, $need);
         $now = time();
         $freeCourts = $this->getFreeCourtIds($tournamentId);
-        $extraBuffer = min(2, intdiv(max(0, count($pool) - ($need * 2)), $need));
+        // Keep at least one complete group ready behind the current games so
+        // the live board can show who is up next as soon as enough players
+        // are waiting. A free court still takes priority over the buffer.
+        $extraBuffer = min(2, intdiv(count($pool), $need));
         $stmt = $this->db->prepare(
             "SELECT COUNT(*) FROM falcon.open_play_matches
               WHERE tournament_id = :tid AND status = 'ready' AND court_id IS NULL"
@@ -1431,7 +1434,7 @@ class OpenPlayEngine
                 AND COALESCE(c.is_maintenance, FALSE) = FALSE
                 AND c.id NOT IN (
                     SELECT court_id FROM falcon.open_play_matches
-                     WHERE tournament_id = :tid AND status IN ('ready','in_progress','paused')
+                                         WHERE status IN ('ready','in_progress','paused')
                        AND court_id IS NOT NULL
                 )
                 AND NOT EXISTS (
@@ -1663,6 +1666,9 @@ class OpenPlayEngine
     public function startMatch(int $matchId, int $actorId): array
     {
         $m = $this->requireMatchStatus($matchId, 'ready');
+        if (empty($m['court_id'])) {
+            throw new RuntimeException('This match is still waiting for an available court.');
+        }
         $this->db->prepare(
             "UPDATE falcon.open_play_matches
                 SET status = 'in_progress', started_at = NOW() WHERE id = :id"
@@ -1727,8 +1733,8 @@ class OpenPlayEngine
     {
         $m = $this->getMatch($matchId);
         if (!$m) throw new RuntimeException('Match not found.');
-        if ($m['status'] !== 'in_progress') {
-            throw new RuntimeException("Only an in-progress match can be finished (currently '{$m['status']}').");
+        if (!in_array($m['status'], ['in_progress', 'paused'], true)) {
+            throw new RuntimeException("Only an in-progress or paused match can be finished (currently '{$m['status']}').");
         }
         if ($scoreA === $scoreB) {
             throw new RuntimeException('A pickleball game cannot end in a tie — enter a final score.');
@@ -1744,7 +1750,7 @@ class OpenPlayEngine
                 "SELECT status FROM falcon.open_play_matches WHERE id = :id FOR UPDATE"
             );
             $stmt->execute([':id' => $matchId]);
-            if ($stmt->fetchColumn() !== 'in_progress') {
+            if (!in_array($stmt->fetchColumn(), ['in_progress', 'paused'], true)) {
                 throw new RuntimeException('Match was already finished or cancelled.');
             }
 
@@ -2083,18 +2089,21 @@ class OpenPlayEngine
 
         $free    = $this->getFreeCourtIds($tournamentId);
         $courtId = $free[0] ?? null;
+        $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+        $duration = max(60, (int)($settings['game_duration'] ?? 900));
 
         $stmt = $this->db->prepare(
             "INSERT INTO falcon.open_play_matches
                 (tournament_id, court_id, round_number, is_tiebreaker,
                  team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
                  status, duration_seconds, remaining_seconds, created_by)
-             VALUES (:tid, :court, 0, TRUE, :t1, :t2, :o1, :o2, 'ready', 900, 900, :actor)
+             VALUES (:tid, :court, 0, TRUE, :t1, :t2, :o1, :o2, 'ready', :duration, :duration, :actor)
              RETURNING id"
         );
         $stmt->execute([
             ':tid' => $tournamentId, ':court' => $courtId,
             ':t1' => $teamA[0], ':t2' => $teamA[1] ?? null, ':o1' => $teamB[0], ':o2' => $teamB[1] ?? null,
+            ':duration' => $duration,
             ':actor' => $actorId,
         ]);
         $matchId = (int)$stmt->fetchColumn();
@@ -2395,8 +2404,10 @@ class OpenPlayEngine
         $stmt->execute([':tid' => $tournamentId]);
         $live = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $nowPlaying = array_values(array_filter($live, fn($m) => $m['court_id'] !== null));
-        $upNext     = array_values(array_filter($live, fn($m) => $m['court_id'] === null));
+        $nowPlaying = array_values(array_filter($live, fn($m) =>
+            $m['court_id'] !== null && in_array($m['status'], ['in_progress', 'paused'], true)
+        ));
+        $upNext = array_values(array_filter($live, fn($m) => $m['status'] === 'ready'));
 
         foreach ($nowPlaying as &$m) {
             if ($m['status'] === 'in_progress') {

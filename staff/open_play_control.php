@@ -116,6 +116,22 @@ if (!$selected) {
 }
 $event    = $selected ? $engine->getEvent($selected) : null;
 $roster   = $event ? $engine->getRoster($selected) : [];
+if ($event && !in_array($event['status'], ['completed', 'cancelled', 'paused'], true)) {
+    $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+    $playersPerGame = ($settings['format'] ?? 'doubles') === 'singles' ? 2 : 4;
+    $waitingPlayers = count(array_filter($roster, static fn($player) =>
+        $player['status'] === 'active' && $player['queue_status'] === 'waiting'
+    ));
+    if ($waitingPlayers >= $playersPerGame) {
+        try {
+            $engine->drawRound($selected, (int)$user['id']);
+            $event  = $engine->getEvent($selected);
+            $roster = $engine->getRoster($selected);
+        } catch (Throwable $e) {
+            error_log('[OpenPlayControl] initial queue refresh failed: ' . $e->getMessage());
+        }
+    }
+}
 $standings= $event ? $engine->computeLeaderboard($selected) : [];
 $ties     = $event ? $engine->detectPodiumTies($standings) : [];
 $db       = getDB();

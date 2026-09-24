@@ -4,7 +4,8 @@
 //  Single dispatch endpoint for the Open Play module.
 //
 //  Player actions  (any logged-in player):
-//    POST ?action=join            { tournament_id, skill_level }
+//    POST ?action=join            multipart: tournament_id, skill_level,
+//                                 payment_method, reference_no, payment_proof
 //    POST ?action=leave           { tournament_id }
 //
 //  Staff/admin actions (requireStaff — staff, admin, super_admin):
@@ -33,6 +34,8 @@
 //    GET  ?action=roster&tournament_id=X
 //    GET  ?action=leaderboard&tournament_id=X
 //    GET  ?action=ties&tournament_id=X
+//
+//  Staff-only reads:
 //    GET  ?action=raffle_data&tournament_id=X
 //    GET  ?action=raffle_history&tournament_id=X
 //
@@ -84,8 +87,33 @@ try {
             $tid   = (int)($body['tournament_id'] ?? 0);
             $skill = (string)($body['skill_level'] ?? 'average');
             if (!$tid) apiError('tournament_id required.');
-            $engine->joinEvent($tid, $actorId, $skill);
-            apiSuccess(null, 'Joined the open play queue.');
+            $event = $engine->getEvent($tid);
+            if (!$event) apiError('Open Play event not found.', 404);
+            $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+            $amount = round((float)($settings['price'] ?? 0), 2);
+            if ($amount <= 0) {
+                $engine->joinEvent($tid, $actorId, $skill);
+                apiSuccess(null, 'Free join request submitted for approval.');
+            }
+            if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
+                apiError('Upload payment_proof for a paid Open Play event.');
+            }
+            $file = $_FILES['payment_proof'];
+            if ((int)$file['size'] > 5 * 1024 * 1024) apiError('Payment proof must be 5 MB or smaller.');
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($file['tmp_name']);
+            $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            if (!isset($extensions[$mime])) apiError('Payment proof must be a JPG, PNG, or WebP image.');
+            $uploadDir = __DIR__ . '/../uploads/open_play_payments';
+            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0750, true)) apiError('Could not prepare payment upload storage.', 500);
+            $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+            if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) apiError('Could not save payment proof.', 500);
+            $engine->joinEvent($tid, $actorId, $skill, [
+                'payment_method' => $body['payment_method'] ?? '',
+                'reference_no' => $body['reference_no'] ?? '',
+                'proof_path' => 'uploads/open_play_payments/' . $filename,
+            ]);
+            apiSuccess(null, 'Payment proof submitted for review.');
 
         case 'leave':
             routeMethod('POST');
