@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $joinPrice = round((float)($joinSettings['price'] ?? 0), 2);
           if ($joinPrice <= 0) {
             $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average');
-            setFlash('success', 'Your free join request was sent. Staff will approve it before you enter the queue.');
+            setFlash('success', 'You joined the free session and entered the queue. Watch the live board for your turn.');
           } else {
             if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
               throw new RuntimeException('Upload your payment proof before requesting to join.');
@@ -227,7 +227,7 @@ require_once __DIR__ . '/../includes/header.php';
                   <h2>Secure your slot</h2>
                   <p>Please fill up this form to secure your slot. The Open Play fee is <strong>₱<?= number_format($eventPrice, 2) ?></strong>.</p>
                   <?php if ($eventPrice <= 0): ?>
-                    <div class="alert alert-info">This session is free. No payment is required. Staff will approve your join request before you enter the queue.</div>
+                    <div class="alert alert-info">This session is free. No payment is required. You will enter the queue immediately.</div>
                   <?php else: ?>
                     <label>Payment method</label>
                     <select name="payment_method" required>

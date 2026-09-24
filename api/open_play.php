@@ -93,7 +93,7 @@ try {
             $amount = round((float)($settings['price'] ?? 0), 2);
             if ($amount <= 0) {
                 $engine->joinEvent($tid, $actorId, $skill);
-                apiSuccess(null, 'Free join request submitted for approval.');
+                apiSuccess(null, 'Joined the free Open Play queue.');
             }
             if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
                 apiError('Upload payment_proof for a paid Open Play event.');

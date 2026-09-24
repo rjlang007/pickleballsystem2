@@ -674,8 +674,8 @@ class OpenPlayEngine
         $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
         $amount = round((float)($settings['price'] ?? 0), 2);
         if ($amount <= 0) {
-            $this->joinEventInternal($tournamentId, $playerId, $skillLevel, false);
-            notifyOperations($this->db, '🎲 Free Open Play Join Request', "A player requested to join '{$event['name']}'.");
+            $this->joinEventInternal($tournamentId, $playerId, $skillLevel, true);
+            notifyOperations($this->db, '🎲 Free Open Play Join', "A player joined '{$event['name']}' and entered the queue.");
             return;
         }
         if (!in_array($payment['payment_method'] ?? '', ['gcash', 'bank_transfer', 'cash'], true)) {
