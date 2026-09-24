@@ -673,7 +673,11 @@ class OpenPlayEngine
         if (!$event) throw new RuntimeException('Open play event not found.');
         $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
         $amount = round((float)($settings['price'] ?? 0), 2);
-        if ($amount <= 0) throw new RuntimeException('This Open Play event has no configured price yet.');
+        if ($amount <= 0) {
+            $this->joinEventInternal($tournamentId, $playerId, $skillLevel, false);
+            notifyOperations($this->db, '🎲 Free Open Play Join Request', "A player requested to join '{$event['name']}'.");
+            return;
+        }
         if (!in_array($payment['payment_method'] ?? '', ['gcash', 'bank_transfer', 'cash'], true)) {
             throw new RuntimeException('Select a valid payment method.');
         }
@@ -1761,11 +1765,16 @@ class OpenPlayEngine
             $allIds    = array_merge($teamA, $teamB);
             $this->db->prepare(
                 "UPDATE falcon.tournament_players
-                    SET queue_status = :s,
-                        queued_at = CASE WHEN :s = 'waiting' THEN NOW() ELSE queued_at END,
+                    SET queue_status = CAST(:queue_status AS varchar),
+                        queued_at = CASE WHEN CAST(:waiting_status AS varchar) = 'waiting' THEN NOW() ELSE queued_at END,
                         arrived_at = arrived_at
                   WHERE tournament_id = :tid AND player_id = ANY(:ids)"
-            )->execute([':s' => $newStatus, ':tid' => $m['tournament_id'], ':ids' => '{' . implode(',', $allIds) . '}']);
+            )->execute([
+                ':queue_status' => $newStatus,
+                ':waiting_status' => $newStatus,
+                ':tid' => $m['tournament_id'],
+                ':ids' => '{' . implode(',', $allIds) . '}',
+            ]);
 
             $this->logAudit((int)$m['tournament_id'], $actorId, 'finish_match',
                 ['match_id' => $matchId, 'score' => "$scoreA-$scoreB"]);
@@ -1982,10 +1991,15 @@ class OpenPlayEngine
         ]);
         $this->db->prepare(
             "UPDATE falcon.tournament_players
-                SET queue_status = CAST(:s AS varchar),
-                    queued_at = CASE WHEN CAST(:s AS varchar) = 'waiting' THEN NOW() ELSE queued_at END
+                SET queue_status = CAST(:queue_status AS varchar),
+                    queued_at = CASE WHEN CAST(:waiting_status AS varchar) = 'waiting' THEN NOW() ELSE queued_at END
               WHERE tournament_id = :tid AND player_id = ANY(:ids)"
-        )->execute([':s' => $status, ':tid' => $match['tournament_id'], ':ids' => '{' . implode(',', $ids) . '}']);
+        )->execute([
+            ':queue_status' => $status,
+            ':waiting_status' => $status,
+            ':tid' => $match['tournament_id'],
+            ':ids' => '{' . implode(',', $ids) . '}',
+        ]);
     }
 
     private function requireMatchStatus(int $matchId, string $expected): array

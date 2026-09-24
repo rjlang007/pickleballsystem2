@@ -22,26 +22,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
         if ($action === 'join') {
-          if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
-            throw new RuntimeException('Upload your payment proof before requesting to join.');
-          }
-          $file = $_FILES['payment_proof'];
-          if ((int)$file['size'] > 5 * 1024 * 1024) throw new RuntimeException('Payment proof must be 5 MB or smaller.');
-          $finfo = new finfo(FILEINFO_MIME_TYPE);
-          $mime = $finfo->file($file['tmp_name']);
-          $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-          if (!isset($extensions[$mime])) throw new RuntimeException('Payment proof must be a JPG, PNG, or WebP image.');
-          $uploadDir = __DIR__ . '/../uploads/open_play_payments';
-          if (!is_dir($uploadDir) && !mkdir($uploadDir, 0750, true)) throw new RuntimeException('Could not prepare payment upload storage.');
-          $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
-          if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) throw new RuntimeException('Could not save payment proof.');
+          $joinEvent = $engine->getEvent($tid);
+          $joinSettings = $joinEvent ? (json_decode($joinEvent['settings'] ?? '{}', true) ?: []) : [];
+          $joinPrice = round((float)($joinSettings['price'] ?? 0), 2);
+          if ($joinPrice <= 0) {
+            $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average');
+            setFlash('success', 'Your free join request was sent. Staff will approve it before you enter the queue.');
+          } else {
+            if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
+              throw new RuntimeException('Upload your payment proof before requesting to join.');
+            }
+            $file = $_FILES['payment_proof'];
+            if ((int)$file['size'] > 5 * 1024 * 1024) throw new RuntimeException('Payment proof must be 5 MB or smaller.');
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($file['tmp_name']);
+            $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+            if (!isset($extensions[$mime])) throw new RuntimeException('Payment proof must be a JPG, PNG, or WebP image.');
+            $uploadDir = __DIR__ . '/../uploads/open_play_payments';
+            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0750, true)) throw new RuntimeException('Could not prepare payment upload storage.');
+            $filename = bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+            if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $filename)) throw new RuntimeException('Could not save payment proof.');
 
-          $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average', [
-            'payment_method' => $_POST['payment_method'] ?? '',
-            'reference_no' => $_POST['reference_no'] ?? '',
-            'proof_path' => 'uploads/open_play_payments/' . $filename,
-          ]);
-          setFlash('success', '💳 Payment proof submitted. Staff will review your request before you enter the queue.');
+            $engine->joinEvent($tid, $myId, $_POST['skill_level'] ?? 'average', [
+              'payment_method' => $_POST['payment_method'] ?? '',
+              'reference_no' => $_POST['reference_no'] ?? '',
+              'proof_path' => 'uploads/open_play_payments/' . $filename,
+            ]);
+            setFlash('success', '💳 Payment proof submitted. Staff will review your request before you enter the queue.');
+          }
         } elseif ($action === 'leave') {
             $engine->leaveEvent($tid, $myId);
             setFlash('success', 'You left the event.');
@@ -167,7 +175,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
           </div>
 
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div class="open-play-event-actions" style="display:flex;gap:8px;align-items:center;">
             <?php if ($tab === 'done'): ?>
               <a class="btn" href="<?= APP_URL ?>/public/open_play_results.php?tournament_id=<?= (int)$e['id'] ?>">🏆 View Results</a>
 
@@ -219,7 +227,19 @@ require_once __DIR__ . '/../includes/header.php';
                   <h2>Secure your slot</h2>
                   <p>Please fill up this form to secure your slot. The Open Play fee is <strong>₱<?= number_format($eventPrice, 2) ?></strong>.</p>
                   <?php if ($eventPrice <= 0): ?>
-                    <div class="alert alert-warning">The admin has not configured the Open Play fee yet. Please try again later.</div>
+                    <div class="alert alert-info">This session is free. No payment is required. Staff will approve your join request before you enter the queue.</div>
+                  <?php else: ?>
+                    <label>Payment method</label>
+                    <select name="payment_method" required>
+                      <option value="">Select payment method</option>
+                      <option value="gcash">GCash</option>
+                      <option value="bank_transfer">Bank transfer</option>
+                      <option value="cash">Cash at venue</option>
+                    </select>
+                    <label>Payment reference</label>
+                    <input type="text" name="reference_no" maxlength="120" required/>
+                    <label>Upload proof of payment</label>
+                    <input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
                   <?php endif; ?>
                   <label>Skill level</label>
                   <select name="skill_level" required>
@@ -227,20 +247,9 @@ require_once __DIR__ . '/../includes/header.php';
                     <option value="average" selected>Average</option>
                     <option value="advance">Advanced</option>
                   </select>
-                  <label>Payment method</label>
-                  <select name="payment_method" required>
-                    <option value="">Select payment method</option>
-                    <option value="gcash">GCash</option>
-                    <option value="bank_transfer">Bank transfer</option>
-                    <option value="cash">Cash at venue</option>
-                  </select>
-                  <label>Payment reference</label>
-                  <input type="text" name="reference_no" maxlength="120" required/>
-                  <label>Upload proof of payment</label>
-                  <input type="file" name="payment_proof" accept="image/jpeg,image/png,image/webp" required/>
                   <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
                     <button type="button" class="btn open-play-dialog-close">Cancel</button>
-                    <button type="submit" class="btn btn-primary" <?= $eventPrice <= 0 ? 'disabled' : '' ?>>Submit Join Request</button>
+                    <button type="submit" class="btn btn-primary">Submit Join Request</button>
                   </div>
                 </form>
               </dialog>
@@ -253,7 +262,7 @@ require_once __DIR__ . '/../includes/header.php';
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
             <span class="badge badge-info"><?= count($r['approved']) ?> / <?= (int)$e['max_players'] ?> approved</span>
             <?php if (count($r['waitlist']) > 0): ?>
-              <span class="badge badge-warning"><?= count($r['waitlist']) ?> waitlisted</span>
+              <span class="badge badge-warning"><?= count($r['waitlist']) ?> awaiting approval</span>
             <?php endif; ?>
             <span class="badge"><?= (int)$r['remaining'] ?> slot<?= $r['remaining'] === 1 ? '' : 's' ?> left</span>
           </div>
@@ -276,7 +285,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endif; ?>
               </div>
               <div style="flex:1;min-width:200px;">
-                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">⏳ Waitlisted (<?= count($r['waitlist']) ?>)</div>
+                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">⏳ Awaiting approval (<?= count($r['waitlist']) ?>)</div>
                 <?php if (empty($r['waitlist'])): ?>
                   <div class="text-muted" style="font-size:13px;">No one is waiting on approval.</div>
                 <?php else: ?>

@@ -554,6 +554,98 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 6px;
 }
 
+/* Open Play settings: keep the long configuration form scannable. */
+.open-play-settings {
+    padding-bottom: 40px;
+}
+.open-play-settings .card {
+    border-color: var(--border-soft);
+}
+.open-play-settings .settings-intro {
+    display: grid;
+    gap: 8px;
+    margin: 18px 0 22px;
+    padding: 16px 18px;
+    border-left: 3px solid var(--accent);
+    background: rgba(0,229,160,0.06);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.open-play-settings .settings-intro strong {
+    color: var(--text);
+}
+.open-play-settings .settings-intro p,
+.field-help {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0;
+}
+.open-play-settings .settings-section {
+    display: grid;
+    gap: 14px;
+}
+.open-play-settings .settings-section-title {
+    margin: 0;
+    font-size: 17px;
+    color: var(--text);
+}
+.open-play-settings .settings-section-title small {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 400;
+    margin-top: 2px;
+}
+.open-play-settings .settings-field {
+    display: grid;
+    gap: 5px;
+}
+.open-play-settings .settings-field > label,
+.open-play-settings .settings-field > .form-label {
+    font-weight: 700;
+}
+.open-play-settings .settings-choice-list {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.open-play-settings .settings-choice-list label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+.open-play-settings .settings-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.open-play-settings .settings-actions .btn-primary {
+    min-width: 150px;
+}
+.open-play-settings .settings-tip {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0;
+}
+.open-play-event-actions {
+    flex-wrap: wrap;
+    min-width: 0;
+    justify-content: flex-end;
+}
+@media (max-width: 600px) {
+    .open-play-settings .settings-intro { padding: 14px; }
+    .open-play-settings .settings-choice-list { display: grid; gap: 10px; }
+}
+@media (max-width: 600px) {
+    .open-play-event-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    .open-play-event-actions .badge {
+        white-space: normal;
+    }
+}
+
 .form-footer {
     text-align: center;
     margin-top: 20px;

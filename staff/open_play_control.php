@@ -497,11 +497,11 @@ require_once __DIR__ . '/../includes/header.php';
                         <button type="submit" class="opc-btn opc-sm">Pause matchmaking</button>
                     </form>
                 <?php endif; ?>
-                <form method="POST" data-confirm="Close tonight and disable the nightly schedule from this date onward?">
+                <form method="POST" data-confirm="Cancel this session and skip only this date? Future dates will continue posting automatically.">
                     <?= csrfField() ?>
                     <input type="hidden" name="action" value="close_tonight"/>
                     <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-                    <button type="submit" class="opc-btn opc-sm">Close tonight</button>
+                    <button type="submit" class="opc-btn opc-sm">Cancel this session</button>
                 </form>
                 <form method="POST" data-confirm="Finalize this event? This locks in placements and updates the season leaderboard.">
                     <?= csrfField() ?>

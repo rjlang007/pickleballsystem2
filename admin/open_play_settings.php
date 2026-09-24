@@ -87,69 +87,73 @@ $pageTitle = 'Open Play Settings';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="container-md" style="padding:32px 0;">
+<div class="container-md open-play-settings" style="padding-top:32px;">
   <div class="card">
     <div class="card-header">
       <h1 style="margin:0 0 6px;">⚙️ Open Play Settings</h1>
       <p style="color:var(--muted);margin:0;">
-        Control the recurring daily Open Play post — what time it runs,
-        how many players it holds, and whether it's posted at all. A new post
-        goes up automatically every day, right after the previous session ends.
+        Set up the daily Open Play session once. New sign-up posts are created
+        automatically using these settings.
       </p>
+    </div>
+
+    <div class="settings-intro">
+      <strong>How this works</strong>
+      <p>Save your normal weekly schedule below. Players will see a fresh sign-up post each day. Turning the schedule off stops new posts only; it does not cancel a session already in progress.</p>
     </div>
 
     <?php foreach ($errors as $err): ?>
       <div class="alert alert-error" style="margin-top:12px;">⚠️ <?= clean($err) ?></div>
     <?php endforeach; ?>
 
-    <form method="POST" style="margin-top:20px;display:grid;gap:20px;max-width:520px;">
+    <form method="POST" class="settings-section" style="margin-top:20px;max-width:520px;">
       <?= csrfField() ?>
 
-      <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <div class="card settings-section">
         <div>
-          <div style="font-weight:700;">Nightly Open Play schedule</div>
-          <div style="color:var(--muted);font-size:13px;margin-top:2px;">
-            When on, a new Open Play post is created automatically every day as soon
-            as the previous session has ended. Turn this off to pause posting
-            (e.g. the venue is closed for a while) — it never touches a session that
-            is already posted or in progress. To skip just one night, cancel that
-            night's post: tomorrow's still goes up on its own.
-          </div>
+          <h2 class="settings-section-title">1. Turn daily posting on or off<small>Use this switch when the venue is closed or you want to pause new sign-ups.</small></h2>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;white-space:nowrap;">
+        <label style="display:flex;align-items:center;gap:8px;">
           <input type="checkbox" name="enabled" value="1" <?= $schedule['enabled'] === '1' ? 'checked' : '' ?> />
-          Enabled
+          Automatically post Open Play every day
         </label>
       </div>
 
-      <div class="card">
-        <label class="form-label">Event name</label>
+      <div class="card settings-section">
+        <h2 class="settings-section-title">2. Choose what players see<small>This information appears on the public sign-up page.</small></h2>
+        <div class="settings-field">
+        <label class="form-label" for="open-play-name">Event name</label>
         <input type="text" name="name" class="form-input" maxlength="150"
-               value="<?= clean($schedule['name']) ?>" required />
-      </div>
-
-      <div class="card">
-        <label class="form-label">Description shown to players</label>
-        <textarea name="description" class="form-input" rows="3" maxlength="1000"><?= clean($schedule['description']) ?></textarea>
-      </div>
-
-      <div class="card" style="display:flex;gap:16px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:140px;">
-          <label class="form-label">Starts at</label>
-          <input type="time" name="start_time" class="form-input" value="<?= clean($schedule['start_time']) ?>" required />
+               id="open-play-name" value="<?= clean($schedule['name']) ?>" required />
+        <p class="field-help">Example: “Nightly Open Play” or “Friday Doubles”.</p>
         </div>
-        <div style="flex:1;min-width:140px;">
-          <label class="form-label">Ends at</label>
-          <input type="time" name="end_time" class="form-input" value="<?= clean($schedule['end_time']) ?>" required />
-          <div style="color:var(--muted);font-size:12px;margin-top:4px;">
-            An end time earlier than the start time (e.g. 6:00 PM → 12:00 AM) is
-            treated as running past midnight into the next day.
-          </div>
+        <div class="settings-field">
+        <label class="form-label" for="open-play-description">Short description</label>
+        <textarea name="description" class="form-input" id="open-play-description" rows="3" maxlength="1000"><?= clean($schedule['description']) ?></textarea>
+        <p class="field-help">Mention anything players should know, such as skill level, format, or arrival instructions.</p>
         </div>
       </div>
 
-      <div class="card">
-        <div style="font-weight:700;margin-bottom:10px;">Per-day schedule (overrides the default start/end)</div>
+      <div class="card settings-section">
+        <h2 class="settings-section-title">3. Set the weekly hours<small>Each day below can have different hours. The daily hours are what the scheduler uses.</small></h2>
+        <div class="settings-field" style="display:flex;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;">
+          <label class="form-label" for="open-play-start">Template start time</label>
+          <input type="time" name="start_time" id="open-play-start" class="form-input" value="<?= clean($schedule['start_time']) ?>" required />
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <label class="form-label" for="open-play-end">Template end time</label>
+          <input type="time" name="end_time" id="open-play-end" class="form-input" value="<?= clean($schedule['end_time']) ?>" required />
+        </div>
+        </div>
+        <p class="field-help">Use these as a starting point, then set the actual hours for each weekday below. An end time earlier than the start time, such as 6:00 PM to 12:00 AM, correctly means the session continues past midnight.</p>
+      </div>
+
+      <div class="card settings-section">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+          <h2 class="settings-section-title">Hours for each day<small>These are the actual hours the scheduler uses for each weekday.</small></h2>
+          <button type="button" class="btn btn-sm btn-secondary" id="copy-open-play-hours">Copy default hours to every day</button>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
           <?php foreach (['Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3, 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6, 'Sunday' => 7] as $label => $day): ?>
             <div style="border:1px solid var(--border);padding:10px;border-radius:10px;">
@@ -157,11 +161,11 @@ require_once __DIR__ . '/../includes/header.php';
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <label>
                   <span style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Start</span>
-                  <input type="time" name="day_<?= (int)$day ?>_start_time" class="form-input" value="<?= clean($schedule["day_{$day}_start_time"] ?? $schedule['start_time']) ?>" />
+                  <input type="time" data-open-play-day-start name="day_<?= (int)$day ?>_start_time" class="form-input" value="<?= clean($schedule["day_{$day}_start_time"] ?? $schedule['start_time']) ?>" />
                 </label>
                 <label>
                   <span style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">End</span>
-                  <input type="time" name="day_<?= (int)$day ?>_end_time" class="form-input" value="<?= clean($schedule["day_{$day}_end_time"] ?? $schedule['end_time']) ?>" />
+                  <input type="time" data-open-play-day-end name="day_<?= (int)$day ?>_end_time" class="form-input" value="<?= clean($schedule["day_{$day}_end_time"] ?? $schedule['end_time']) ?>" />
                 </label>
               </div>
             </div>
@@ -169,69 +173,71 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
       </div>
 
-      <div class="card" style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div class="card settings-section">
+        <h2 class="settings-section-title">4. Set player limits and price<small>These values apply to every automatically posted session.</small></h2>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
         <div style="flex:1;min-width:140px;">
-          <label class="form-label">Capacity (max players)</label>
+          <label class="form-label" for="open-play-capacity">Maximum players</label>
           <input type="number" name="max_players" class="form-input" min="4" max="200"
-                 value="<?= (int)$schedule['max_players'] ?>" required />
+                 id="open-play-capacity" value="<?= (int)$schedule['max_players'] ?>" required />
+          <p class="field-help">The sign-up list closes when this number is reached.</p>
         </div>
         <div style="flex:1;min-width:140px;">
-          <label class="form-label">Format</label>
+          <label class="form-label" for="open-play-format">Game format</label>
           <select name="format" class="form-input">
             <option value="doubles" <?= $schedule['format'] === 'doubles' ? 'selected' : '' ?>>Doubles</option>
             <option value="singles" <?= $schedule['format'] === 'singles' ? 'selected' : '' ?>>Singles</option>
           </select>
         </div>
-      </div>
-
-      <div class="card">
-        <label class="form-label">Registration fee (PHP)</label>
-        <input type="number" name="price" class="form-input" min="0" max="100000" step="0.01"
-               value="<?= number_format((float)$schedule['price'], 2, '.', '') ?>" required />
-        <div style="color:var(--muted);font-size:12px;margin-top:4px;">
-          Charged on every auto-posted event. Because each night's event is a brand-new
-          posting — not a reuse of last night's — this fee (and payment collection) is
-          fresh for every new post, and the roster starts back at zero players.
         </div>
       </div>
 
-      <div class="card" style="display:grid;gap:14px;">
-        <div style="font-weight:700;">Automation</div>
+      <div class="card settings-section">
+        <div class="settings-field">
+        <h2 class="settings-section-title">Registration fee<small>Enter 0 for a free session.</small></h2>
+        <input type="number" name="price" class="form-input" min="0" max="100000" step="0.01"
+               value="<?= number_format((float)$schedule['price'], 2, '.', '') ?>" required />
+        <p class="field-help">This amount is charged for each new daily post. Every session starts with a fresh player list.</p>
+        </div>
+      </div>
+
+      <div class="card settings-section">
+        <h2 class="settings-section-title">5. Choose what happens automatically<small>These options help the next daily post appear without staff having to create it manually.</small></h2>
         <label style="display:flex;align-items:flex-start;gap:8px;">
           <input type="checkbox" name="auto_finalize" value="1" <?= ($schedule['auto_finalize'] ?? '1') === '1' ? 'checked' : '' ?> style="margin-top:3px;" />
           <span>
             Close each session automatically after its end time
             <span style="display:block;color:var(--muted);font-size:12px;">
               Finalizes standings and posts the podium to the leaderboard once the end time has passed and
-              every game on the courts is finished — so the next post can go up. Games in progress are never cut off.
+              every game on the courts is finished. Games in progress are never cut off. A separate 4 AM safety close still handles sessions left over from a previous day.
             </span>
           </span>
         </label>
         <div style="max-width:220px;">
-          <label class="form-label">Grace period after end time (minutes)</label>
+          <label class="form-label">Extra time before auto-close (minutes)</label>
           <input type="number" name="finalize_grace_minutes" class="form-input" min="0" max="240"
                  value="<?= (int)($schedule['finalize_grace_minutes'] ?? 30) ?>" />
           <div style="color:var(--muted);font-size:12px;margin-top:4px;">
-            Extra time before a session counts as ended, for late games and score entry.
+              Allows late games and score entry to finish before automatic closing.
           </div>
         </div>
         <label style="display:flex;align-items:flex-start;gap:8px;">
           <input type="checkbox" name="notify_regulars" value="1" <?= ($schedule['notify_regulars'] ?? '1') === '1' ? 'checked' : '' ?> style="margin-top:3px;" />
           <span>
-            Notify last session's players when the next post goes up
+            Notify previous players when the next post is posted
             <span style="display:block;color:var(--muted);font-size:12px;">In-app notification with a link to sign up.</span>
           </span>
         </label>
       </div>
 
-      <div class="card">
-        <div style="font-weight:700;margin-bottom:6px;">Courts for Open Play</div>
+      <div class="card settings-section">
+        <h2 class="settings-section-title">6. Choose available courts<small>Decide which courts can be used by the Open Play queue.</small></h2>
         <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">
-          Choose all active courts, or reserve the remaining courts for reservations and other events.
+          Choose all active courts, or keep some courts available for reservations and other events.
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
-          <label><input type="radio" name="court_scope" value="all" <?= ($schedule['court_scope'] ?? 'all') === 'all' ? 'checked' : '' ?> onchange="document.getElementById('open-play-court-list').hidden=true" /> All active courts</label>
-          <label><input type="radio" name="court_scope" value="selected" <?= ($schedule['court_scope'] ?? 'all') === 'selected' ? 'checked' : '' ?> onchange="document.getElementById('open-play-court-list').hidden=false" /> Selected courts only</label>
+          <label><input type="radio" name="court_scope" value="all" <?= ($schedule['court_scope'] ?? 'all') === 'all' ? 'checked' : '' ?> onchange="document.getElementById('open-play-court-list').hidden=true" /> Use all active courts</label>
+          <label><input type="radio" name="court_scope" value="selected" <?= ($schedule['court_scope'] ?? 'all') === 'selected' ? 'checked' : '' ?> onchange="document.getElementById('open-play-court-list').hidden=false" /> Choose specific courts</label>
         </div>
         <div id="open-play-court-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;" <?= ($schedule['court_scope'] ?? 'all') === 'selected' ? '' : 'hidden' ?>>
           <?php foreach ($openPlayCourts as $court): ?>
@@ -245,9 +251,9 @@ require_once __DIR__ . '/../includes/header.php';
         <?php if (!$openPlayCourts): ?><div style="color:var(--muted);">No active courts are configured.</div><?php endif; ?>
       </div>
 
-      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <div class="settings-actions">
         <button type="submit" class="btn btn-primary">Save Settings</button>
-        <button type="submit" name="clear_closed_for_date" value="1" class="btn btn-secondary" title="Un-close a date that was cancelled, so its post is created again">Re-open cancelled date</button>
+        <button type="submit" name="clear_closed_for_date" value="1" class="btn btn-secondary" title="Un-close a date that was cancelled, so its post is created again">Re-open a cancelled date</button>
         <a class="btn" href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Control</a>
         <a class="btn" href="<?= APP_URL ?>/public/open_play.php">👀 View Public Page</a>
       </div>
@@ -303,7 +309,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
         <div style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap;">
           <div><strong><?= (int)($rosterCounts['approved'] ?? 0) ?></strong> <span style="color:var(--muted);">approved</span></div>
-          <div><strong><?= (int)($rosterCounts['waitlisted'] ?? 0) ?></strong> <span style="color:var(--muted);">waitlisted</span></div>
+          <div><strong><?= (int)($rosterCounts['waitlisted'] ?? 0) ?></strong> <span style="color:var(--muted);">awaiting approval</span></div>
           <div><strong><?= max(0, (int)$todayEvent['max_players'] - (int)($rosterCounts['approved'] ?? 0) - (int)($rosterCounts['waitlisted'] ?? 0)) ?></strong> <span style="color:var(--muted);">slots left</span></div>
         </div>
         <div style="margin-top:12px;">
@@ -331,5 +337,20 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
   </div>
 </div>
+
+<script>
+(() => {
+  const copyButton = document.getElementById('copy-open-play-hours');
+  if (!copyButton) return;
+  copyButton.addEventListener('click', () => {
+    const start = document.querySelector('[name="start_time"]')?.value || '';
+    const end = document.querySelector('[name="end_time"]')?.value || '';
+    document.querySelectorAll('[data-open-play-day-start]').forEach((input) => { input.value = start; });
+    document.querySelectorAll('[data-open-play-day-end]').forEach((input) => { input.value = end; });
+    copyButton.textContent = 'Hours copied';
+    window.setTimeout(() => { copyButton.textContent = 'Copy default hours to every day'; }, 1800);
+  });
+})();
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -63,12 +63,13 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="page-header">
     <h1>Open Play Settings</h1>
-    <p>Create or edit the public event posting. Queueing and games are managed separately.</p>
+    <p>Create or edit one Open Play session. Queueing and live games are managed separately.</p>
     <a class="btn btn-sm" href="<?= APP_URL ?>/staff/open_play_control.php<?= $selected ? '?tournament_id=' . $selected : '' ?>">← Back to Court Control</a>
 </div>
 
 <div class="card" style="margin-bottom:20px;">
-    <div class="card-title mb-1">Event Posting</div>
+    <div class="card-title mb-1">1. Choose a session</div>
+    <p class="field-help" style="margin:0 0 12px;">Select an existing session to edit, or create a new one below.</p>
     <form method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
         <div style="flex:1;min-width:240px;">
             <label>Select event to edit</label>
@@ -86,61 +87,62 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <div class="card" style="margin-bottom:20px;">
-    <div class="card-title mb-1">Create New Open Play</div>
+    <div class="card-title mb-1">2. Create a new session</div>
     <form method="POST" style="display:grid;gap:10px;max-width:620px;">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="create"/>
-        <label>Name</label>
+        <label>Session name</label>
         <input type="text" name="name" placeholder="Friday Night Open Play" required/>
-        <label>Description</label>
+        <label>Description for players</label>
         <textarea name="description" rows="2" placeholder="Optional public description"></textarea>
-        <label>Date and time</label>
+        <label>Start date and time</label>
         <input type="datetime-local" name="start_date" required/>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
-            <div><label>Capacity</label><input type="number" name="max_players" min="4" value="32" required/></div>
-            <div><label>Price (PHP)</label><input type="number" name="price" min="0" step="0.01" value="0" required/></div>
+            <div><label>Maximum players</label><input type="number" name="max_players" min="4" value="32" required/><p class="field-help">Sign-ups close at this number.</p></div>
+            <div><label>Registration fee (PHP)</label><input type="number" name="price" min="0" step="0.01" value="0" required/><p class="field-help">Enter 0 for free entry.</p></div>
         </div>
-        <label>Format</label>
+        <label>Game format</label>
         <select name="format"><option value="doubles">Doubles</option><option value="singles">Singles</option></select>
-        <label>Courts for Open Play</label>
+        <label>Courts available for this session</label>
         <div style="display:flex;gap:14px;flex-wrap:wrap;">
-            <label><input type="radio" name="court_scope" value="all" checked onchange="this.closest('form').querySelector('.open-play-court-list').hidden=true"/> All active courts</label>
-            <label><input type="radio" name="court_scope" value="selected" onchange="this.closest('form').querySelector('.open-play-court-list').hidden=false"/> Selected courts only</label>
+            <label><input type="radio" name="court_scope" value="all" checked onchange="this.closest('form').querySelector('.open-play-court-list').hidden=true"/> Use all active courts</label>
+            <label><input type="radio" name="court_scope" value="selected" onchange="this.closest('form').querySelector('.open-play-court-list').hidden=false"/> Choose specific courts</label>
         </div>
         <div class="open-play-court-list" hidden style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <?php foreach ($openPlayCourts as $court): ?>
                 <label style="border:1px solid var(--border);padding:10px;border-radius:8px;"><input type="checkbox" name="court_ids[]" value="<?= (int)$court['id'] ?>"/> <?= clean($court['name']) ?><?= !empty($court['short_code']) ? ' (' . clean($court['short_code']) . ')' : '' ?></label>
             <?php endforeach; ?>
         </div>
-        <p class="text-muted" style="font-size:12px;margin:0;">Game duration and other live-session settings are set from Open Play Control once the event is created.</p>
+        <p class="field-help">Game duration, queueing, and live-session controls are set from Open Play Control after the session is created.</p>
         <button type="submit" class="btn btn-primary" style="justify-self:start;">Create Posting</button>
     </form>
 </div>
 
 <?php if ($event): ?>
 <div class="card">
-    <div class="card-title mb-1">Edit Selected Posting</div>
+    <div class="card-title mb-1">2. Edit selected session</div>
+    <p class="field-help" style="margin:0 0 12px;">These changes affect this session only. The recurring daily schedule is managed in Admin Open Play Settings.</p>
     <form method="POST" style="display:grid;gap:10px;max-width:620px;">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="update"/>
         <input type="hidden" name="tournament_id" value="<?= $selected ?>"/>
-        <label>Name</label>
+        <label>Session name</label>
         <input type="text" name="name" value="<?= clean($event['name']) ?>" required/>
-        <label>Description</label>
+        <label>Description for players</label>
         <textarea name="description" rows="2"><?= clean($event['description'] ?? '') ?></textarea>
-        <label>Date and time</label>
+        <label>Start date and time</label>
         <input type="datetime-local" name="start_date" value="<?= !empty($event['start_date']) ? date('Y-m-d\TH:i', strtotime($event['start_date'])) : '' ?>" required/>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
-            <div><label>Capacity</label><input type="number" name="max_players" min="4" value="<?= (int)$event['max_players'] ?>" required/></div>
-            <div><label>Price (PHP)</label><input type="number" name="price" min="0" step="0.01" value="<?= number_format((float)($settings['price'] ?? 0), 2, '.', '') ?>" required/></div>
+            <div><label>Maximum players</label><input type="number" name="max_players" min="4" value="<?= (int)$event['max_players'] ?>" required/></div>
+            <div><label>Registration fee (PHP)</label><input type="number" name="price" min="0" step="0.01" value="<?= number_format((float)($settings['price'] ?? 0), 2, '.', '') ?>" required/></div>
         </div>
-        <label>Format</label>
+        <label>Game format</label>
         <select name="format"><option value="doubles" <?= ($settings['format'] ?? 'doubles') === 'doubles' ? 'selected' : '' ?>>Doubles</option><option value="singles" <?= ($settings['format'] ?? '') === 'singles' ? 'selected' : '' ?>>Singles</option></select>
         <?php $eventCourtScope = $settings['court_scope'] ?? 'all'; $eventCourtIds = array_map('intval', $settings['court_ids'] ?? []); ?>
-        <label>Courts for Open Play</label>
+        <label>Courts available for this session</label>
         <div style="display:flex;gap:14px;flex-wrap:wrap;">
-            <label><input type="radio" name="court_scope" value="all" <?= $eventCourtScope === 'all' ? 'checked' : '' ?> onchange="this.closest('form').querySelector('.open-play-court-list').hidden=true"/> All active courts</label>
-            <label><input type="radio" name="court_scope" value="selected" <?= $eventCourtScope === 'selected' ? 'checked' : '' ?> onchange="this.closest('form').querySelector('.open-play-court-list').hidden=false"/> Selected courts only</label>
+            <label><input type="radio" name="court_scope" value="all" <?= $eventCourtScope === 'all' ? 'checked' : '' ?> onchange="this.closest('form').querySelector('.open-play-court-list').hidden=true"/> Use all active courts</label>
+            <label><input type="radio" name="court_scope" value="selected" <?= $eventCourtScope === 'selected' ? 'checked' : '' ?> onchange="this.closest('form').querySelector('.open-play-court-list').hidden=false"/> Choose specific courts</label>
         </div>
         <div class="open-play-court-list" <?= $eventCourtScope === 'selected' ? '' : 'hidden' ?> style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
             <?php foreach ($openPlayCourts as $court): ?>
@@ -153,8 +155,8 @@ require_once __DIR__ . '/../includes/header.php';
 
 <?php if (!in_array($event['status'], ['completed', 'cancelled'], true)): ?>
 <div class="card" style="margin-top:20px;">
-    <div class="card-title mb-1">Posting Status</div>
-    <p class="text-muted" style="font-size:13px;margin-top:0;">Current status: <strong><?= clean(ucwords(str_replace('_', ' ', $event['status']))) ?></strong>. Queueing, draws, and live games are managed on the Open Play Control page.</p>
+    <div class="card-title mb-1">3. Session status</div>
+    <p class="text-muted" style="font-size:13px;margin-top:0;">Current status: <strong><?= clean(ucwords(str_replace('_', ' ', $event['status']))) ?></strong>. Use Open Play Control for queueing, court assignments, and live games.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <?php if (in_array($event['status'], ['registration_open', 'in_progress'], true)): ?>
             <form method="POST">
