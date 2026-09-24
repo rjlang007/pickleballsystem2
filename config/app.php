@@ -431,13 +431,15 @@ function clean(?string $val): string {
 
 require_once __DIR__ . '/../court/auto_end_games.php';
 
-// ── Recurring nightly Open Play — self-healing, same pattern as
-//    auto_end_games.php above. Internally rate-limited and fully
+// ── Recurring daily Open Play — page-load fallback for the background
+//    worker started by start.sh. Internally rate-limited and fully
 //    guarded so a scheduler problem can never take down the app.
 if (file_exists(__DIR__ . '/../tournament/open_play_scheduler.php')) {
     try {
         require_once __DIR__ . '/../tournament/open_play_scheduler.php';
-        if (function_exists('ensureNightlyOpenPlayEvent')) {
+        // The background worker (scripts/open_play_cron.php) runs the scheduler
+        // itself — only the web-request path needs this throttled fallback.
+        if (function_exists('ensureNightlyOpenPlayEvent') && !defined('OPEN_PLAY_CRON')) {
             ensureNightlyOpenPlayEvent();
         }
     } catch (Throwable $e) {

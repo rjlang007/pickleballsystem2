@@ -285,4 +285,20 @@ http {
 }
 EOF
 
+# ── Background worker: daily Open Play post ──────────────────
+# Runs the Open Play scheduler once a minute for the life of the container,
+# so the next post goes up right after the previous session ends — and
+# finished sessions get closed — whether or not anyone is on the site.
+# A failed pass never stops the loop; it just tries again next minute.
+if [ -f /app/scripts/open_play_cron.php ]; then
+    (
+        sleep 20   # let php-fpm/nginx finish starting first
+        while true; do
+            php /app/scripts/open_play_cron.php || echo "[open_play_cron] run failed (will retry in 60s)" >&2
+            sleep 60
+        done
+    ) &
+    echo "Open Play scheduler worker started (every 60s)"
+fi
+
 exec nginx -c /tmp/nginx.conf -g 'daemon off;'

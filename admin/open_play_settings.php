@@ -1,11 +1,11 @@
 <?php
 // ============================================================
 //  FILE: admin/open_play_settings.php
-//  Admin controls for the recurring nightly Open Play schedule.
-//  The actual auto-posting/creation logic lives in
-//  tournament/open_play_scheduler.php (ensureNightlyOpenPlayEvent(),
-//  self-healing on page load — same pattern as auto_end_games.php).
-//  This page only reads/writes the settings it acts on.
+//  Admin controls for the recurring daily Open Play post.
+//  The actual auto-posting logic lives in tournament/open_play_scheduler.php
+//  (runOpenPlayScheduler(), driven every minute by the background worker
+//  scripts/open_play_cron.php, with a page-load fallback).
+//  This page reads/writes the settings it acts on, and can trigger a run.
 // ============================================================
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/db.php';
@@ -16,6 +16,24 @@ requireStaff();
 $db      = getDB();
 $adminId = (int)$_SESSION['user_id'];
 $errors  = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['run_now'])) {
+    verifyCsrf();
+    try {
+        $run = runOpenPlayScheduler(true);
+        if (!empty($run['created'])) {
+            setFlash('success', '✅ Open Play post created — it is now live for players.');
+        } elseif (!empty($run['finalized'])) {
+            setFlash('success', '✅ A finished session was closed out and the leaderboard updated.');
+        } else {
+            setFlash('info', 'ℹ️ Checked just now — nothing to post (' . ($run['reason'] ?: 'up to date') . ').');
+        }
+    } catch (Throwable $e) {
+        error_log('[open_play_settings] run now failed: ' . $e->getMessage());
+        setFlash('error', 'Could not run the scheduler right now. Please try again.');
+    }
+    redirect('admin/open_play_settings.php');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
@@ -37,24 +55,20 @@ $openPlayCourts = $db->query(
   "SELECT id, name, short_code, COALESCE(is_maintenance, FALSE) AS is_maintenance
      FROM falcon.courts WHERE is_active = TRUE ORDER BY sort_order NULLS LAST, id"
 )->fetchAll(PDO::FETCH_ASSOC);
-$scheduleCourtIds = array_map('intval', json_decode($schedule['court_ids'] ?? '[]', true) ?: []);
+$scheduleCourtIds = openPlayDecodeCourtIds($schedule['court_ids'] ?? '[]');
 
-// Today's auto-created (or manually created) Open Play event, if any —
-// shown so the admin can see the schedule is actually firing. Uses the
-// same 4 AM business-day cutover as ensureNightlyOpenPlayEvent(), so this
-// still shows last night's event (not a not-yet-created "tomorrow") when
-// checked between midnight and 4 AM.
+// Tonight's session and the next one, using the same 4 AM business-day
+// cutover (and the same date matching) as the scheduler itself.
 $businessDate = openPlayBusinessDate();
-$todayEvent = $db->prepare("
-    SELECT id, name, status, start_date, end_date, max_players
-      FROM falcon.tournaments
-     WHERE bracket_type = 'open_play'
-       AND DATE(start_date) = :bdate
-       AND status != 'cancelled'
-     ORDER BY id DESC LIMIT 1
-");
-$todayEvent->execute([':bdate' => $businessDate]);
-$todayEvent = $todayEvent->fetch(PDO::FETCH_ASSOC);
+$nextDate     = (new DateTimeImmutable($businessDate, new DateTimeZone(OPEN_PLAY_TZ)))->modify('+1 day')->format('Y-m-d');
+$todayEvents  = findOpenPlayEventsForDate($db, $businessDate);
+$todayEvent   = $todayEvents[0] ?? null;
+$nextEvents   = findOpenPlayEventsForDate($db, $nextDate);
+$nextEvent    = $nextEvents[0] ?? null;
+
+$lastRunTs   = (int)(openPlaySchedulerGet($db, 'last_run') ?? 0);
+$lastRunAgo  = $lastRunTs > 0 ? max(0, time() - $lastRunTs) : null;
+$workerAlive = $lastRunAgo !== null && $lastRunAgo <= 300;
 
 $rosterCounts = null;
 if ($todayEvent) {
@@ -78,8 +92,9 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="card-header">
       <h1 style="margin:0 0 6px;">⚙️ Open Play Settings</h1>
       <p style="color:var(--muted);margin:0;">
-        Control the recurring nightly Open Play post — what time it runs,
-        how many players it holds, and whether it's posted at all.
+        Control the recurring daily Open Play post — what time it runs,
+        how many players it holds, and whether it's posted at all. A new post
+        goes up automatically every day, right after the previous session ends.
       </p>
     </div>
 
@@ -94,10 +109,11 @@ require_once __DIR__ . '/../includes/header.php';
         <div>
           <div style="font-weight:700;">Nightly Open Play schedule</div>
           <div style="color:var(--muted);font-size:13px;margin-top:2px;">
-            When on, an Open Play event is automatically posted every day.
-            Turn this off for a night the whole venue is rented out privately —
-            it just stops new nights from being posted; it won't touch tonight's
-            event if one already exists.
+            When on, a new Open Play post is created automatically every day as soon
+            as the previous session has ended. Turn this off to pause posting
+            (e.g. the venue is closed for a while) — it never touches a session that
+            is already posted or in progress. To skip just one night, cancel that
+            night's post: tomorrow's still goes up on its own.
           </div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;white-space:nowrap;">
@@ -179,6 +195,35 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
       </div>
 
+      <div class="card" style="display:grid;gap:14px;">
+        <div style="font-weight:700;">Automation</div>
+        <label style="display:flex;align-items:flex-start;gap:8px;">
+          <input type="checkbox" name="auto_finalize" value="1" <?= ($schedule['auto_finalize'] ?? '1') === '1' ? 'checked' : '' ?> style="margin-top:3px;" />
+          <span>
+            Close each session automatically after its end time
+            <span style="display:block;color:var(--muted);font-size:12px;">
+              Finalizes standings and posts the podium to the leaderboard once the end time has passed and
+              every game on the courts is finished — so the next post can go up. Games in progress are never cut off.
+            </span>
+          </span>
+        </label>
+        <div style="max-width:220px;">
+          <label class="form-label">Grace period after end time (minutes)</label>
+          <input type="number" name="finalize_grace_minutes" class="form-input" min="0" max="240"
+                 value="<?= (int)($schedule['finalize_grace_minutes'] ?? 30) ?>" />
+          <div style="color:var(--muted);font-size:12px;margin-top:4px;">
+            Extra time before a session counts as ended, for late games and score entry.
+          </div>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:8px;">
+          <input type="checkbox" name="notify_regulars" value="1" <?= ($schedule['notify_regulars'] ?? '1') === '1' ? 'checked' : '' ?> style="margin-top:3px;" />
+          <span>
+            Notify last session's players when the next post goes up
+            <span style="display:block;color:var(--muted);font-size:12px;">In-app notification with a link to sign up.</span>
+          </span>
+        </label>
+      </div>
+
       <div class="card">
         <div style="font-weight:700;margin-bottom:6px;">Courts for Open Play</div>
         <div style="color:var(--muted);font-size:13px;margin-bottom:12px;">
@@ -202,7 +247,7 @@ require_once __DIR__ . '/../includes/header.php';
 
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <button type="submit" class="btn btn-primary">Save Settings</button>
-        <button type="submit" name="clear_closed_for_date" value="1" class="btn btn-secondary">Re-open schedule</button>
+        <button type="submit" name="clear_closed_for_date" value="1" class="btn btn-secondary" title="Un-close a date that was cancelled, so its post is created again">Re-open cancelled date</button>
         <a class="btn" href="<?= APP_URL ?>/staff/open_play_control.php">🎲 Open Play Control</a>
         <a class="btn" href="<?= APP_URL ?>/public/open_play.php">👀 View Public Page</a>
       </div>
@@ -210,18 +255,41 @@ require_once __DIR__ . '/../includes/header.php';
 
     <?php if ($closedForDate): ?>
       <div class="alert alert-warning" style="margin-top:18px;">
-        ⚠️ The nightly schedule is currently closed from <?= clean($closedForDate) ?> onward. Re-open the schedule to resume automatic posting.
+        ⚠️ The post for <?= clean($closedForDate) ?> was cancelled, so that one date is skipped.
+        Every other day keeps posting automatically. Use “Re-open cancelled date” to post it again.
       </div>
     <?php endif; ?>
 
     <hr class="divider" style="margin:28px 0;"/>
 
-    <h3 style="margin-top:0;">Tonight's status</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <h3 style="margin:0;">Posting status</h3>
+      <form method="POST" style="margin:0;">
+        <?= csrfField() ?>
+        <button type="submit" name="run_now" value="1" class="btn btn-sm btn-secondary">🔄 Check &amp; post now</button>
+      </form>
+    </div>
+
+    <p style="font-size:13px;margin:10px 0 16px;color:<?= $workerAlive ? 'var(--muted)' : 'var(--danger, #c0392b)' ?>;">
+      <?php if ($workerAlive): ?>
+        ✅ Auto-poster is running (last check <?= $lastRunAgo < 90 ? (int)$lastRunAgo . 's' : (int)round($lastRunAgo / 60) . ' min' ?> ago).
+      <?php elseif ($lastRunAgo === null): ?>
+        ⚠️ The auto-poster hasn't run yet. Press “Check &amp; post now”, or wait a minute after the app restarts.
+      <?php else: ?>
+        ⚠️ The auto-poster last ran <?= (int)round($lastRunAgo / 60) ?> min ago — the background worker may be stopped. Posts still get created whenever someone opens the site.
+      <?php endif; ?>
+    </p>
+
+    <?php if ($schedule['enabled'] !== '1'): ?>
+      <p style="color:var(--muted);">The schedule is currently off, so nothing new will be auto-posted.</p>
+    <?php endif; ?>
+
+    <h4 style="margin:0 0 8px;">Tonight</h4>
     <?php if (!$todayEvent): ?>
-      <p style="color:var(--muted);">
+      <p style="color:var(--muted);margin-top:0;">
         <?= $schedule['enabled'] === '1'
-            ? 'No event has been posted for today yet — it will be created automatically the next time anyone loads the site (checked at most every 5 minutes).'
-            : 'The nightly schedule is currently off, so nothing will be auto-posted today.' ?>
+            ? 'No session is posted for tonight yet — it is created automatically within a minute.'
+            : 'Nothing is posted for tonight.' ?>
       </p>
     <?php else: ?>
       <div class="card">
@@ -242,6 +310,24 @@ require_once __DIR__ . '/../includes/header.php';
           <a class="btn btn-sm" href="<?= APP_URL ?>/staff/open_play_control.php?tournament_id=<?= (int)$todayEvent['id'] ?>">Manage tonight's event</a>
         </div>
       </div>
+    <?php endif; ?>
+
+    <h4 style="margin:18px 0 8px;">Next post</h4>
+    <?php if ($nextEvent): ?>
+      <div class="card">
+        <div style="font-weight:700;"><?= clean($nextEvent['name']) ?>
+          <span class="badge badge-info" style="margin-left:6px;"><?= clean(ucwords(str_replace('_',' ', $nextEvent['status']))) ?></span>
+        </div>
+        <div style="color:var(--muted);font-size:13px;margin-top:4px;">
+          <?= $nextEvent['start_date'] ? date('D, M j · g:i A', strtotime($nextEvent['start_date'])) : '' ?> — already posted and open for sign-ups.
+        </div>
+      </div>
+    <?php else: ?>
+      <p style="color:var(--muted);margin-top:0;">
+        <?= $schedule['enabled'] === '1'
+            ? 'Tomorrow’s post is created automatically the moment tonight’s session ends.'
+            : 'Not scheduled (schedule is off).' ?>
+      </p>
     <?php endif; ?>
   </div>
 </div>

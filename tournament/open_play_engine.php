@@ -119,8 +119,8 @@ class OpenPlayEngine
         }
 
         $settings = [
-            'format'           => in_array($data['format'] ?? 'doubles', ['singles', 'doubles'], true)
-                                    ? $data['format'] : 'doubles',
+            'format'           => in_array(($data['format'] ?? 'doubles'), ['singles', 'doubles'], true)
+                                    ? ($data['format'] ?? 'doubles') : 'doubles',
             'game_duration'    => max(60, (int)($data['game_duration'] ?? 900)),
             'games_per_hour'   => max(1, (int)($data['games_per_hour'] ?? 4)),
             'price'            => max(0, round((float)($data['price'] ?? 0), 2)),
@@ -133,10 +133,17 @@ class OpenPlayEngine
             // every session — old or new — scores the same fixed way.
         ];
 
+        // Extra settings supplied by the caller (the nightly scheduler stamps
+        // `scheduled_for` / `auto_posted` here so it can tell which business
+        // date a post belongs to). Never allowed to override the core keys above.
+        if (!empty($data['settings_extra']) && is_array($data['settings_extra'])) {
+            $settings = array_merge($data['settings_extra'], $settings);
+        }
+
         $stmt = $this->db->prepare(
             "INSERT INTO falcon.tournaments
-                (name, description, bracket_type, status, max_players, start_date, settings, created_by)
-             VALUES (:name, :desc, 'open_play', 'registration_open', :max, :start, :settings::jsonb, :admin)
+                (name, description, bracket_type, status, max_players, start_date, end_date, settings, created_by)
+             VALUES (:name, :desc, 'open_play', 'registration_open', :max, :start, :end, :settings::jsonb, :admin)
              RETURNING *"
         );
         $stmt->execute([
@@ -144,6 +151,7 @@ class OpenPlayEngine
             ':desc'     => trim((string)($data['description'] ?? '')) ?: null,
             ':max'      => max(4, (int)($data['max_players'] ?? 32)),
             ':start'    => $data['start_date'] ?? date('Y-m-d H:i:s'),
+            ':end'      => !empty($data['end_date']) ? $data['end_date'] : null,
             ':settings' => json_encode($settings),
             ':admin'    => $adminId,
         ]);
@@ -318,7 +326,7 @@ class OpenPlayEngine
                 "UPDATE falcon.tournaments SET status = 'cancelled' WHERE id = :id"
             )->execute([':id' => $tournamentId]);
 
-            $eventDate = date('Y-m-d', strtotime((string)($event['start_date'] ?? 'now')));
+            $eventDate = $this->eventScheduleDate($event);
             $this->db->prepare(
                 "INSERT INTO falcon.site_content (section, key, value, updated_at)
                  VALUES ('open_play_schedule', 'closed_for_date', :v, NOW())
@@ -334,7 +342,7 @@ class OpenPlayEngine
                     $this->db,
                     (int)$playerId,
                     '🎲 Open Play cancelled',
-                    'Tonight’s Open Play session was cancelled. The queue has been closed for this date and the schedule will stay off until an admin re-enables it.',
+                    'Tonight’s Open Play session was cancelled. The queue has been closed for this date — the next Open Play will be posted automatically.',
                     null,
                     APP_URL . '/public/open_play.php'
                 );
@@ -357,7 +365,22 @@ class OpenPlayEngine
             "INSERT INTO falcon.site_content (section, key, value, updated_at)
              VALUES ('open_play_schedule', 'closed_for_date', :value, NOW())
              ON CONFLICT (section, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()"
-        )->execute([':value' => date('Y-m-d', strtotime((string)($event['start_date'] ?? 'now')))]);
+        )->execute([':value' => $this->eventScheduleDate($event)]);
+    }
+
+    /**
+     * The date a session belongs to for scheduling purposes: the scheduler's
+     * `scheduled_for` marker when present, else the calendar date of its start.
+     * A cancelled session closes only THIS date — later days keep auto-posting.
+     */
+    private function eventScheduleDate(array $event): string
+    {
+        $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
+        $marker   = $settings['scheduled_for'] ?? null;
+        if (is_string($marker) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $marker)) {
+            return $marker;
+        }
+        return date('Y-m-d', strtotime((string)($event['start_date'] ?? 'now')));
     }
 
     public function getEvent(int $id): ?array
@@ -1913,6 +1936,44 @@ class OpenPlayEngine
         }
     }
 
+    /**
+     * Cancel every unfinished game of an event WITHOUT drawing replacements —
+     * used when a session is being closed out (the 4 AM safety net). Going
+     * through cancelMatch() one game at a time would free the players and
+     * immediately auto-draw fresh games for them, so the event would never
+     * become finalizable. Returns how many games were cancelled.
+     */
+    public function cancelAllOpenMatches(int $tournamentId, int $actorId): int
+    {
+        $this->db->beginTransaction();
+        try {
+            // Same lock as drawRound()/finalizeEvent() — no draw can interleave.
+            $this->db->prepare('SELECT pg_advisory_xact_lock(:key)')->execute([':key' => $tournamentId]);
+
+            $stmt = $this->db->prepare(
+                "UPDATE falcon.open_play_matches SET status = 'cancelled'
+                  WHERE tournament_id = :tid AND status IN ('ready','in_progress','paused')
+                  RETURNING id"
+            );
+            $stmt->execute([':tid' => $tournamentId]);
+            $cancelled = count($stmt->fetchAll(PDO::FETCH_COLUMN));
+
+            if ($cancelled > 0) {
+                $this->db->prepare(
+                    "UPDATE falcon.tournament_players SET queue_status = 'waiting'
+                      WHERE tournament_id = :tid AND queue_status IN ('queued','playing')"
+                )->execute([':tid' => $tournamentId]);
+                $this->logAudit($tournamentId, $actorId, 'cancel_all_open_matches', ['count' => $cancelled]);
+            }
+
+            $this->db->commit();
+            return $cancelled;
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
     private function setPlayersQueueStatus(array $match, string $status): void
     {
         $ids = array_filter([
@@ -1921,8 +1982,8 @@ class OpenPlayEngine
         ]);
         $this->db->prepare(
             "UPDATE falcon.tournament_players
-                SET queue_status = :s,
-                    queued_at = CASE WHEN :s = 'waiting' THEN NOW() ELSE queued_at END
+                SET queue_status = CAST(:s AS varchar),
+                    queued_at = CASE WHEN CAST(:s AS varchar) = 'waiting' THEN NOW() ELSE queued_at END
               WHERE tournament_id = :tid AND player_id = ANY(:ids)"
         )->execute([':s' => $status, ':tid' => $match['tournament_id'], ':ids' => '{' . implode(',', $ids) . '}']);
     }
