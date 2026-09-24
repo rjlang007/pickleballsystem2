@@ -1234,14 +1234,11 @@ class OpenPlayEngine
                         $teamA = [$shuffled[$a], $shuffled[$b]];
                         $teamB = [$shuffled[$c], $shuffled[$d]];
 
-                        // Skill-composition rule: e.g. a beginner+beginner team
-                        // may only face another beginner+beginner team, a
-                        // beginner+advance team may only face beginner+advance
-                        // or average+average, etc. — see COMPOSITION_MATCHUPS.
-                        // Reject this lineup outright rather than merely
-                        // penalizing it, so an unbalanced draw can never win
-                        // on pace/fairness alone.
-                        if (!$this->compositionsCompatible($teamA, $teamB)) continue;
+                        // Prefer the configured skill-composition matchups, but
+                        // never let an unusual waiting group stall the queue.
+                        // A large penalty keeps compatible lineups ahead of a
+                        // fallback whenever one exists.
+                        $compositionPenalty = $this->compositionsCompatible($teamA, $teamB) ? 0 : 1000;
 
                         // Repeating a recent lineup or opponent is heavily
                         // discouraged (see repeatPenalty()/lineupRepeatPenalty()
@@ -1262,7 +1259,7 @@ class OpenPlayEngine
                         $waitTime    = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $all));
                         $arrivalAge  = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $all));
 
-                        $cand = compact('teamA', 'teamB', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge');
+                        $cand = compact('teamA', 'teamB', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge', 'compositionPenalty');
                         $cand['rand'] = mt_rand();
 
                         if ($best === null || $this->betterCandidate($cand, $best)) {
@@ -1319,14 +1316,17 @@ class OpenPlayEngine
         ];
     }
 
-    /** Priority: fairness (pace) > skill balance > freshness (no repeats) > exact lineup repetition > longest wait > earlier arrival > random. */
+    /** Priority: skill balance > fairness (pace) > freshness > waiting time > random. */
     private function betterCandidate(array $cand, array $best, bool $singles = false): bool
     {
+        if (($cand['compositionPenalty'] ?? 0) !== ($best['compositionPenalty'] ?? 0)) {
+            return ($cand['compositionPenalty'] ?? 0) < ($best['compositionPenalty'] ?? 0);
+        }
+        if ($cand['diff']      !== $best['diff'])      return $cand['diff']      < $best['diff'];
         if ($cand['maxPace']   !== $best['maxPace'])   return $cand['maxPace']   < $best['maxPace'];
         if ($cand['totalPace'] !== $best['totalPace']) return $cand['totalPace'] < $best['totalPace'];
         if ($cand['repeat']    !== $best['repeat'])    return $cand['repeat']    < $best['repeat'];
         if (($cand['lineupRepeat'] ?? 0) !== ($best['lineupRepeat'] ?? 0)) return ($cand['lineupRepeat'] ?? 0) < ($best['lineupRepeat'] ?? 0);
-        if ($cand['diff']      !== $best['diff'])      return $cand['diff']      < $best['diff'];
         if ($cand['waitTime']  !== $best['waitTime'])  return $cand['waitTime']  < $best['waitTime'];
         if (($cand['arrivalAge'] ?? 0) !== ($best['arrivalAge'] ?? 0)) return ($cand['arrivalAge'] ?? 0) < ($best['arrivalAge'] ?? 0);
         return $cand['rand'] < $best['rand'];

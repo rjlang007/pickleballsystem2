@@ -1222,7 +1222,7 @@ async function doDraw() {
     if (err) {
         stopSpin(); drawMessage('⚠️ ' + err);
     } else if (!games.length) {
-        stopSpin(); drawMessage('No compatible lineup is available yet. The draw needs enough waiting players, a free court, and a permitted skill combination.');
+        stopSpin(); drawMessage('No complete group is available yet. The draw needs enough approved waiting players and an available court or Up Next slot.');
     } else {
         await ensureSkills(games, []);
         for (const g of games) { await sleep(reduceMotion ? 0 : 1500); drawRows.insertAdjacentHTML('beforeend', drawRow(g)); }
@@ -1235,7 +1235,7 @@ if (drawBtn) drawBtn.addEventListener('click', doDraw);
 $('#drawClose').addEventListener('click', () => { drawPanel.hidden = true; });
 
 // ── Auto-fill: silently draws into any free court as soon as enough
-// compatible waiting players are available — this is what makes a
+// waiting players are available — this is what makes a
 // player added mid-session (or one who just finished and is now
 // waiting again) actually get into a game without staff having to
 // keep mashing the Draw button. Same engine call, same composition
