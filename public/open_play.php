@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               'reference_no' => $_POST['reference_no'] ?? '',
               'proof_path' => 'uploads/open_play_payments/' . $filename,
             ]);
-            setFlash('success', '💳 Payment proof submitted. Staff will review your request before you enter the queue.');
+            setFlash('success', '💳 Payment proof submitted. You are now in the Open Play queue.');
           }
         } elseif ($action === 'leave') {
             $engine->leaveEvent($tid, $myId);

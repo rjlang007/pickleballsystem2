@@ -690,7 +690,7 @@ class OpenPlayEngine
         $pending->execute([':tid' => $tournamentId, ':pid' => $playerId]);
         if ($pending->fetchColumn()) throw new RuntimeException('Your payment request is already awaiting review.');
 
-        $this->joinEventInternal($tournamentId, $playerId, $skillLevel, false);
+        $this->joinEventInternal($tournamentId, $playerId, $skillLevel, true);
         $this->db->prepare(
             "INSERT INTO falcon.open_play_payment_requests
                 (tournament_id, player_id, amount, payment_method, reference_no, proof_path)
@@ -959,6 +959,15 @@ class OpenPlayEngine
 
     public function getRoster(int $tournamentId): array
     {
+        $this->db->prepare(
+            "UPDATE falcon.tournament_players
+                SET status = 'active', queue_status = 'waiting',
+                    arrival_at = COALESCE(arrival_at, arrived_at, NOW()),
+                    queued_at = COALESCE(queued_at, NOW()),
+                    arrived_at = COALESCE(arrived_at, NOW())
+              WHERE tournament_id = :tid AND status = 'pending_approval'"
+        )->execute([':tid' => $tournamentId]);
+
         $stmt = $this->db->prepare(
             "SELECT tp.*, u.display_name, u.full_name, u.username,
                     pr.id AS payment_request_id, pr.amount AS payment_amount,
@@ -1145,6 +1154,18 @@ class OpenPlayEngine
                 "UPDATE falcon.tournaments SET status = 'in_progress' WHERE id = :id"
             )->execute([':id' => $tournamentId]);
         }
+
+        // Existing join requests are admitted when matchmaking runs. New
+        // joins already enter as active; this also clears older pending rows
+        // so a previously registered player cannot remain stuck.
+        $this->db->prepare(
+            "UPDATE falcon.tournament_players
+                SET status = 'active', queue_status = 'waiting',
+                    arrival_at = COALESCE(arrival_at, arrived_at, NOW()),
+                    queued_at = COALESCE(queued_at, NOW()),
+                    arrived_at = COALESCE(arrived_at, NOW())
+              WHERE tournament_id = :tid AND status = 'pending_approval'"
+        )->execute([':tid' => $tournamentId]);
 
         $pool = $this->getWaitingPool($tournamentId);
         $need = $format === 'singles' ? 2 : 4;

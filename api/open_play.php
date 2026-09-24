@@ -113,7 +113,7 @@ try {
                 'reference_no' => $body['reference_no'] ?? '',
                 'proof_path' => 'uploads/open_play_payments/' . $filename,
             ]);
-            apiSuccess(null, 'Payment proof submitted for review.');
+            apiSuccess(null, 'Payment proof submitted. You are now in the Open Play queue.');
 
         case 'leave':
             routeMethod('POST');

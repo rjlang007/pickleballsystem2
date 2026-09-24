@@ -120,7 +120,8 @@ if ($event && !in_array($event['status'], ['completed', 'cancelled', 'paused'], 
     $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
     $playersPerGame = ($settings['format'] ?? 'doubles') === 'singles' ? 2 : 4;
     $waitingPlayers = count(array_filter($roster, static fn($player) =>
-        $player['status'] === 'active' && $player['queue_status'] === 'waiting'
+        in_array($player['status'], ['active', 'pending_approval'], true)
+        && in_array($player['queue_status'], ['waiting', 'pending_approval'], true)
     ));
     if ($waitingPlayers >= $playersPerGame) {
         try {
