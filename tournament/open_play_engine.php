@@ -25,11 +25,10 @@
 //  one hard rule applied before any of it: a team's skill
 //  *composition* (the pair of skill levels making up that team)
 //  restricts which team compositions it's allowed to face at all
-//  — see OpenPlayEngine::COMPOSITION_MATCHUPS. For example, a
-//  beginner+beginner team can only be drawn against another
-//  beginner+beginner team; a beginner+advance team can be drawn
-//  against another beginner+advance team or an average+average
-//  team, and so on. Lineups that break this rule are never
+//  — see OpenPlayEngine::COMPOSITION_MATCHUPS. Each team can only
+//  be drawn against the same two-skill composition on the other
+//  side: beginner+advance against beginner+advance or average+average;
+//  all other compositions only face their exact mirror. Lineups that break this rule are never
 //  candidates, no matter how fair or well-timed they'd otherwise
 //  be — this is what actually keeps a 2v2 balanced, since a raw
 //  "sum of skill scores" comparison alone would happily approve
@@ -83,19 +82,15 @@ class OpenPlayEngine
      *   2-3  average  + advance
      *   3-3  advance  + advance
      *
-     * Rules (as specced by the club):
-     *   - beginner+beginner  only plays beginner+beginner
-     *   - beginner+advance   only plays beginner+advance or average+average
-     *   - average+average    only plays average+average or beginner+advance
-     *   - average+beginner   only plays average+beginner
-     *   - average+advance    only plays average+advance
-     *   - advance+advance    only plays advance+advance
+        * Rules: every composition only plays its mirrored composition, except
+        * beginner+advance may also play average+average. This is the one
+        * approved cross-composition matchup.
      */
     private const COMPOSITION_MATCHUPS = [
         '1-1' => ['1-1'],
+        '1-2' => ['1-2'],
         '1-3' => ['1-3', '2-2'],
         '2-2' => ['2-2', '1-3'],
-        '1-2' => ['1-2'],
         '2-3' => ['2-3'],
         '3-3' => ['3-3'],
     ];
@@ -123,7 +118,7 @@ class OpenPlayEngine
                                     ? ($data['format'] ?? 'doubles') : 'doubles',
             'game_duration'    => max(60, (int)($data['game_duration'] ?? 900)),
             'games_per_hour'   => max(1, (int)($data['games_per_hour'] ?? 4)),
-            'price'            => max(0, round((float)($data['price'] ?? 0), 2)),
+            'price'            => max(0, round((float)($data['price'] ?? 100), 2)),
             'registration_closed' => false,
             'court_scope'      => $this->normalizeCourtScope($data),
             'court_ids'        => $this->normalizeCourtIds($data),
@@ -676,6 +671,7 @@ class OpenPlayEngine
         if ($amount <= 0) {
             $this->joinEventInternal($tournamentId, $playerId, $skillLevel, true);
             notifyOperations($this->db, '🎲 Free Open Play Join', "A player joined '{$event['name']}' and entered the queue.");
+            $this->autoFillQueue($tournamentId, $playerId);
             return;
         }
         if (!in_array($payment['payment_method'] ?? '', ['gcash', 'bank_transfer', 'cash'], true)) {
@@ -959,15 +955,6 @@ class OpenPlayEngine
 
     public function getRoster(int $tournamentId): array
     {
-        $this->db->prepare(
-            "UPDATE falcon.tournament_players
-                SET status = 'active', queue_status = 'waiting',
-                    arrival_at = COALESCE(arrival_at, arrived_at, NOW()),
-                    queued_at = COALESCE(queued_at, NOW()),
-                    arrived_at = COALESCE(arrived_at, NOW())
-              WHERE tournament_id = :tid AND status = 'pending_approval'"
-        )->execute([':tid' => $tournamentId]);
-
         $stmt = $this->db->prepare(
             "SELECT tp.*, u.display_name, u.full_name, u.username,
                     pr.id AS payment_request_id, pr.amount AS payment_amount,
@@ -1020,46 +1007,17 @@ class OpenPlayEngine
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * How many of the most recently finished matches still count as
-     * "recent" for repeat-avoidance purposes, scoped to roughly the last
-     * few times the whole active group has cycled through a game. Without
-     * a window, a small crowd that's been playing for an hour eventually
-     * has *everyone* flagged as having faced everyone else, and — back
-     * when repeat-opponent/lineup checks were hard blocks instead of soft
-     * scoring below — that silently stopped new games from being drawable
-     * at all. The window keeps history proportional to group size (bigger
-     * open plays remember further back) while guaranteeing it ages out.
-     */
-    private function recentHistoryLookback(int $tournamentId, int $perGame): int
-    {
-        $stmt = $this->db->prepare(
-            "SELECT COUNT(*) FROM falcon.tournament_players
-              WHERE tournament_id = :tid AND status = 'active'"
-        );
-        $stmt->execute([':tid' => $tournamentId]);
-        $activeCount = max($perGame, (int)$stmt->fetchColumn());
-        // ~3 full rounds' worth of games for the current group size.
-        return max(6, (int)ceil($activeCount / $perGame) * 3);
-    }
-
-    /** Recent partners/opponents (within recentHistoryLookback()) — used to discourage repeat matchups. */
+    /** Every finished partner/opponent link — repeated matchups are blocked. */
     private function getRecentLinks(int $tournamentId, int $perGame = 4): array
     {
-        $limit = $this->recentHistoryLookback($tournamentId, $perGame);
         $stmt = $this->db->prepare(
             "SELECT team1_player1_id AS a, team1_player2_id AS b,
                     team2_player1_id AS c, team2_player2_id AS d
-               FROM (
-                    SELECT * FROM falcon.open_play_matches
-                     WHERE tournament_id = :tid AND status = 'finished'
-                     ORDER BY finished_at DESC
-                     LIMIT :lim
-               ) recent
+               FROM falcon.open_play_matches
+              WHERE tournament_id = :tid AND status = 'finished'
               ORDER BY finished_at ASC"
         );
         $stmt->bindValue(':tid', $tournamentId, PDO::PARAM_INT);
-        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $partners  = [];
         $opponents = [];
@@ -1080,19 +1038,14 @@ class OpenPlayEngine
 
     private function getRecentLineups(int $tournamentId, int $perGame = 4): array
     {
-        $limit = $this->recentHistoryLookback($tournamentId, $perGame);
         $stmt = $this->db->prepare(
             "SELECT team1_player1_id AS a, team1_player2_id AS b,
                     team2_player1_id AS c, team2_player2_id AS d
-               FROM (
-                    SELECT * FROM falcon.open_play_matches
-                     WHERE tournament_id = :tid AND status = 'finished'
-                     ORDER BY finished_at DESC
-                     LIMIT :lim
-               ) recent"
+               FROM falcon.open_play_matches
+              WHERE tournament_id = :tid AND status = 'finished'
+              ORDER BY finished_at ASC"
         );
         $stmt->bindValue(':tid', $tournamentId, PDO::PARAM_INT);
-        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $lineups = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $m) {
@@ -1176,7 +1129,7 @@ class OpenPlayEngine
         // Keep at least one complete group ready behind the current games so
         // the live board can show who is up next as soon as enough players
         // are waiting. A free court still takes priority over the buffer.
-        $extraBuffer = min(2, intdiv(count($pool), $need));
+        $extraBuffer = min(3, intdiv(count($pool), $need));
         $stmt = $this->db->prepare(
             "SELECT COUNT(*) FROM falcon.open_play_matches
               WHERE tournament_id = :tid AND status = 'ready' AND court_id IS NULL"
@@ -1228,14 +1181,12 @@ class OpenPlayEngine
      * partner/opponent — with genuine randomness breaking any remaining
      * tie. This mirrors the standalone Open Play app's algorithm.
      *
-     * A lineup is only "legal" at all if the two teams' skill compositions
-     * are allowed to face each other (COMPOSITION_MATCHUPS) — e.g. a
-     * beginner+beginner team can never be drawn against a beginner+advance
-     * team. That check happens first and disqualifies the pairing entirely,
-     * so no amount of fairness/pace advantage can push an unbalanced
-     * matchup through. If nothing in the pool satisfies it, this returns
-     * null and the round simply draws fewer games until compatible players
-     * are available.
+      * A lineup is only "legal" at all if the two teams have compatible skill
+      * compositions (COMPOSITION_MATCHUPS). That check happens first and
+      * disqualifies every other pairing entirely, so no amount of fairness/
+      * pace advantage can push an unbalanced matchup through. If nothing in
+      * the pool satisfies it, this returns null and the round simply draws
+      * fewer games until a compatible composition is available.
      */
     private function buildDoublesGame(array $pool, callable $pace, array $partners, array $opponents, array $recentLineups = []): ?array
     {
@@ -1255,21 +1206,13 @@ class OpenPlayEngine
                         $teamA = [$shuffled[$a], $shuffled[$b]];
                         $teamB = [$shuffled[$c], $shuffled[$d]];
 
-                        // Prefer the configured skill-composition matchups, but
-                        // never let an unusual waiting group stall the queue.
-                        // A large penalty keeps compatible lineups ahead of a
-                        // fallback whenever one exists.
-                        $compositionPenalty = $this->compositionsCompatible($teamA, $teamB) ? 0 : 1000;
+                        // Composition matching is a hard rule. If the current
+                        // waiting pool cannot form a mirrored matchup yet,
+                        // leave those players waiting instead of creating an
+                        // unbalanced game.
+                        if (!$this->compositionsCompatible($teamA, $teamB)) continue;
+                        $compositionPenalty = 0;
 
-                        // Repeating a recent lineup or opponent is heavily
-                        // discouraged (see repeatPenalty()/lineupRepeatPenalty()
-                        // below, weighted into betterCandidate()) but never a
-                        // hard block here — only the composition rule above is.
-                        // With a small crowd, everyone eventually faces
-                        // everyone else; a hard "never again" rule would run
-                        // out of legal lineups and silently stop drawing new
-                        // games, stalling rotation instead of just picking the
-                        // freshest option still available.
                         $all   = array_merge($teamA, $teamB);
 
                         $maxPace     = max(array_map($pace, $all));
@@ -1277,6 +1220,7 @@ class OpenPlayEngine
                         $diff        = abs($this->teamSkill($teamA) - $this->teamSkill($teamB));
                         $repeat      = $this->repeatPenalty($teamA, $teamB, $partners, $opponents);
                         $lineupRepeat = $this->lineupRepeatPenalty($teamA, $teamB, $recentLineups);
+                        if ($repeat > 0 || $lineupRepeat > 0) continue;
                         $waitTime    = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $all));
                         $arrivalAge  = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $all));
 
@@ -1317,9 +1261,7 @@ class OpenPlayEngine
                 $diff       = abs(self::SKILL_SCORE[$pair[0]['skill_level']] - self::SKILL_SCORE[$pair[1]['skill_level']]);
                 $repeat     = isset($opponents[$pair[0]['player_id']][$pair[1]['player_id']]) ? 1 : 0;
                 $lineupRepeat = $this->lineupRepeatPenalty($pair, [], $recentLineups);
-                // Same reasoning as buildDoublesGame(): a recent repeat is
-                // penalized via $repeat/$lineupRepeat below, not hard-blocked,
-                // so singles never stalls once everyone's played everyone.
+                if ($repeat > 0 || $lineupRepeat > 0) continue;
                 $waitTime   = max(array_map(fn($p) => (float)($p['queued_epoch'] ?? $p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
                 $arrivalAge = min(array_map(fn($p) => (float)($p['arrival_epoch'] ?? $p['arrived_epoch'] ?? time()), $pair));
                 $cand = compact('pair', 'maxPace', 'totalPace', 'diff', 'repeat', 'lineupRepeat', 'waitTime', 'arrivalAge');

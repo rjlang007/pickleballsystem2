@@ -116,23 +116,6 @@ if (!$selected) {
 }
 $event    = $selected ? $engine->getEvent($selected) : null;
 $roster   = $event ? $engine->getRoster($selected) : [];
-if ($event && !in_array($event['status'], ['completed', 'cancelled', 'paused'], true)) {
-    $settings = json_decode($event['settings'] ?? '{}', true) ?: [];
-    $playersPerGame = ($settings['format'] ?? 'doubles') === 'singles' ? 2 : 4;
-    $waitingPlayers = count(array_filter($roster, static fn($player) =>
-        in_array($player['status'], ['active', 'pending_approval'], true)
-        && in_array($player['queue_status'], ['waiting', 'pending_approval'], true)
-    ));
-    if ($waitingPlayers >= $playersPerGame) {
-        try {
-            $engine->drawRound($selected, (int)$user['id']);
-            $event  = $engine->getEvent($selected);
-            $roster = $engine->getRoster($selected);
-        } catch (Throwable $e) {
-            error_log('[OpenPlayControl] initial queue refresh failed: ' . $e->getMessage());
-        }
-    }
-}
 $standings= $event ? $engine->computeLeaderboard($selected) : [];
 $ties     = $event ? $engine->detectPodiumTies($standings) : [];
 $db       = getDB();
@@ -307,6 +290,8 @@ require_once __DIR__ . '/../includes/header.php';
 
 /* notices */
 .opc-notice { border-radius: 16px; border: 1px solid rgba(147,197,253,.3); background: rgba(96,165,250,.10); color: #bfdbfe; padding: 12px 16px; font-size: 14px; margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.opc-notice > summary { cursor: pointer; list-style-position: outside; display: flex; justify-content: space-between; gap: 12px; width: 100%; }
+.opc-notice > summary .opc-sub { margin-left: auto; }
 .opc-notice a { color: inherit; font-weight: 600; }
 .opc-notice-warn { border-color: rgba(253,186,116,.3); background: rgba(251,146,60,.10); color: #fed7aa; }
 
@@ -550,10 +535,11 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
     <?php endif; ?>
 
-    <div class="opc-notice" role="note">
-        <span><strong>Balanced draw rules:</strong> Beginner + Beginner plays only Beginner + Beginner · Beginner + Advance plays Beginner + Advance or Average + Average · Average + Average plays Average + Average or Beginner + Advance · Average + Beginner plays only Average + Beginner · Average + Advance plays only Average + Advance · Advance + Advance plays only Advance + Advance.</span>
+    <details class="opc-notice" role="note">
+        <summary><strong>Balanced draw rules</strong><span class="opc-sub">Show matchmaking rules</span></summary>
+        <div style="margin-top:8px;">Beginner + Beginner plays only Beginner + Beginner · Beginner + Advance plays Beginner + Advance or Average + Average · Average + Average plays Average + Average or Beginner + Advance · Average + Beginner plays only Average + Beginner · Average + Advance plays only Average + Advance · Advance + Advance plays only Advance + Advance.</div>
         <span class="opc-sub">Players rotate by waiting time, games played, and recent partner/opponent history. Unlisted matchups are blocked.</span>
-    </div>
+    </details>
 
     <!-- ── Bunot-bunot draw reveal ── -->
     <div class="opc-draw" id="drawPanel" aria-live="polite" hidden>
@@ -906,6 +892,7 @@ if (lookup) {
 
 // ── Live board ─────────────────────────────────────────────
 let live = null, fetchedAt = 0, lastSig = '';
+let liveLoadInFlight = false, liveLoadQueued = false, queuedLoadForce = false;
 const matchById = {};
 const skillTried = new Set();
 
@@ -1038,6 +1025,12 @@ async function ensureSkills(matches, pool) {
 }
 
 async function loadLive(force) {
+    if (liveLoadInFlight) {
+        liveLoadQueued = true;
+        queuedLoadForce = queuedLoadForce || !!force;
+        return;
+    }
+    liveLoadInFlight = true;
     try {
         const res = await fetch(`${APP_URL}/api/open_play_kiosk.php?tournament_id=${TID}`, { credentials: 'same-origin', cache: 'no-store' });
         const data = await res.json();
@@ -1055,6 +1048,14 @@ async function loadLive(force) {
         tick();
     } catch (e) {
         if (!live) $('#courtGrid').innerHTML = '<p class="opc-row-empty" style="grid-column:1/-1">Couldn\'t load the live board — retrying…</p>';
+    } finally {
+        liveLoadInFlight = false;
+        if (liveLoadQueued) {
+            const nextForce = queuedLoadForce;
+            liveLoadQueued = false;
+            queuedLoadForce = false;
+            loadLive(nextForce);
+        }
     }
 }
 
@@ -1251,7 +1252,7 @@ $('#drawClose').addEventListener('click', () => { drawPanel.hidden = true; });
 // in the background. Preference is remembered per event/browser. ──
 const autoDrawToggle = $('#autoDrawToggle');
 const autoDrawKey = `opc_auto_draw_${TID}`;
-let autoDrawOn = autoDrawToggle ? localStorage.getItem(autoDrawKey) === '1' : false;
+let autoDrawOn = autoDrawToggle ? localStorage.getItem(autoDrawKey) !== '0' : false;
 if (autoDrawToggle) {
     autoDrawToggle.checked = autoDrawOn;
     autoDrawToggle.addEventListener('change', () => {

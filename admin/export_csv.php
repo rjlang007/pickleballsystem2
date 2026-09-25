@@ -105,6 +105,29 @@ if (isset($_GET['export'])) {
             $rows->execute([':from' => $dateFrom, ':to' => $dateTo]);
             $rows = $rows->fetchAll();
             break;
+
+                case 'open_play_leaderboard':
+                        $rows = $db->prepare(
+                                "SELECT t.id AS tournament_id, t.name AS event_name,
+                                                COALESCE(t.end_date, t.start_date) AS event_date,
+                                                ts.player_id,
+                                                COALESCE(u.display_name, u.full_name, u.username) AS player,
+                                                ts.placement, ts.points,
+                                                CASE WHEN ex.player_id IS NULL THEN 'visible' ELSE 'hidden' END AS standing_status
+                                     FROM falcon.tournament_scores ts
+                                     JOIN falcon.tournaments t ON t.id = ts.tournament_id
+                                     JOIN falcon.users u ON u.id = ts.player_id
+                            LEFT JOIN falcon.open_play_leaderboard_exclusions ex
+                                         ON ex.player_id = ts.player_id
+                                        AND ex.season = EXTRACT(YEAR FROM COALESCE(t.end_date, t.start_date))::int
+                                    WHERE t.bracket_type = 'open_play'
+                                        AND t.status = 'completed'
+                                        AND DATE(COALESCE(t.end_date, t.start_date)) BETWEEN :from AND :to
+                                    ORDER BY event_date DESC, player"
+                        );
+                        $rows->execute([':from' => $dateFrom, ':to' => $dateTo]);
+                        $rows = $rows->fetchAll();
+                        break;
     }
 
     if (!empty($rows)) {
@@ -148,6 +171,11 @@ try {
         'topups'   => $topupsCountStmt->fetchColumn(),
         'players'  => $db->query("SELECT COUNT(*) FROM falcon.users WHERE role='player'")->fetchColumn(),
         'food'     => $foodCountStmt->fetchColumn(),
+                'open_play_leaderboard' => $db->query(
+                        "SELECT COUNT(*) FROM falcon.tournament_scores ts
+                            JOIN falcon.tournaments t ON t.id = ts.tournament_id
+                         WHERE t.bracket_type = 'open_play' AND t.status = 'completed'"
+                )->fetchColumn(),
     ];
     $revenueStmt = $db->prepare("
         SELECT COALESCE(SUM(gp.credits_charged),0)
@@ -158,7 +186,7 @@ try {
     $revenueStmt->execute([$dateFrom, $dateTo]);
     $revenueTotal = $revenueStmt->fetchColumn();
 } catch (PDOException $e) {
-    $counts = ['sessions'=>0,'topups'=>0,'players'=>0,'food'=>0];
+    $counts = ['sessions'=>0,'topups'=>0,'players'=>0,'food'=>0,'open_play_leaderboard'=>0];
     $revenueTotal = 0;
 }
 
@@ -264,6 +292,7 @@ require_once __DIR__ . '/../includes/header.php';
         'topups'   => ['💳', 'Top-Up Requests',    'All credit top-up submissions and their approval status.',    $counts['topups'].' requests'],
         'players'  => ['👥', 'Player Activity',    'All player accounts with game counts and credit balances.',   $counts['players'].' players'],
         'food'     => ['🍔', 'Food Orders',        'All food/drink orders with items, payment and fulfillment.',  $counts['food'].' orders'],
+        'open_play_leaderboard' => ['🏆', 'Open Play Leaderboard', 'Season scores with visible/hidden status for backup and review.', $counts['open_play_leaderboard'].' score rows'],
     ];
     foreach ($exports as $key => [$icon, $title, $desc, $count]):
     ?>

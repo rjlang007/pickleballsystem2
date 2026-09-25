@@ -74,7 +74,7 @@ function openPlayScheduleDefaults(): array
         'start_time'   => '18:00',   // 6:00 PM
         'end_time'     => '00:00',   // 12:00 AM (midnight — spans past the start time)
         'max_players'  => '24',
-        'price'        => '0',       // registration fee charged for each auto-posted event
+        'price'        => '100',     // registration fee charged for each auto-posted event
         'format'       => 'doubles',
         'court_scope'  => 'all',
         'court_ids'    => '[]',      // JSON-encoded list, same shape saveOpenPlaySchedule() stores
@@ -173,7 +173,7 @@ function saveOpenPlaySchedule(PDO $db, array $data, int $actorId): array
         throw new RuntimeException('Capacity must be between 4 and 200 players.');
     }
 
-    $price = round((float)($data['price'] ?? 0), 2);
+    $price = round((float)($data['price'] ?? 100), 2);
     if ($price < 0 || $price > 100000) {
         throw new RuntimeException('Registration fee must be between 0 and 100,000.');
     }

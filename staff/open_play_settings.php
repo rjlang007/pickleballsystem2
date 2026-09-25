@@ -99,7 +99,7 @@ require_once __DIR__ . '/../includes/header.php';
         <input type="datetime-local" name="start_date" required/>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
             <div><label>Maximum players</label><input type="number" name="max_players" min="4" value="32" required/><p class="field-help">Sign-ups close at this number.</p></div>
-            <div><label>Registration fee (PHP)</label><input type="number" name="price" min="0" step="0.01" value="0" required/><p class="field-help">Enter 0 for free entry.</p></div>
+            <div><label>Registration fee (PHP)</label><input type="number" name="price" min="0" step="0.01" value="100" required/><p class="field-help">Default is ₱100. Admins can change this amount.</p></div>
         </div>
         <label>Game format</label>
         <select name="format"><option value="doubles">Doubles</option><option value="singles">Singles</option></select>

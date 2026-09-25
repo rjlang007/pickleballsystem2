@@ -329,12 +329,23 @@ class LeaderboardEngine
                   WHERE t.bracket_type = 'open_play'
                     AND t.status = 'completed'
                     AND EXTRACT(YEAR FROM COALESCE(t.end_date, t.start_date)) = :season
+                                     AND NOT EXISTS (
+                                             SELECT 1
+                                                 FROM falcon.open_play_leaderboard_exclusions ex
+                                                WHERE ex.player_id = ts.player_id AND ex.season = :season3
+                                     )
                   GROUP BY ts.player_id
              ),
              adj AS (
                  SELECT player_id, SUM(points_delta)::int AS adj_points
                    FROM falcon.open_play_leaderboard_adjustments
                   WHERE season = :season2
+                                        AND NOT EXISTS (
+                                                SELECT 1
+                                                    FROM falcon.open_play_leaderboard_exclusions ex
+                                                 WHERE ex.player_id = falcon.open_play_leaderboard_adjustments.player_id
+                                                     AND ex.season = :season4
+                                        )
                   GROUP BY player_id
              )
              SELECT COALESCE(op.player_id, adj.player_id)                  AS player_id,
@@ -348,7 +359,12 @@ class LeaderboardEngine
                FROM op_scores op
                FULL OUTER JOIN adj ON adj.player_id = op.player_id"
         );
-        $stmt->execute([':season' => $season, ':season2' => $season]);
+        $stmt->execute([
+            ':season'  => $season,
+            ':season2' => $season,
+            ':season3' => $season,
+            ':season4' => $season,
+        ]);
         $rows = $stmt->fetchAll();
 
         $byRank = [];

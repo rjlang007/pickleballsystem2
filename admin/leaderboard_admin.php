@@ -122,6 +122,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjus
     }
 }
 
+// ── Hide/restore a season standing ─────────────────────────
+// This is intentionally reversible and leaves finalized tournament
+// scores untouched, which keeps historical match results intact.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['remove_from_leaderboard', 'restore_leaderboard'], true)) {
+    verifyCsrf();
+
+    if (!checkRateLimit('leaderboard_admin_' . $adminId, 30, 60)) {
+        $message      = 'Too many requests. Please slow down.';
+        $message_type = 'error';
+    } else {
+        $playerId  = (int) ($_POST['player_id'] ?? 0);
+        $targetSeason = (int) ($_POST['season'] ?? $season);
+        $reason    = trim($_POST['reason'] ?? '');
+
+        if ($playerId <= 0 || $targetSeason < 2000 || $targetSeason > $currentYear + 1) {
+            $message = 'Invalid leaderboard entry.';
+            $message_type = 'error';
+        } elseif ($_POST['action'] === 'remove_from_leaderboard' && $reason === '') {
+            $message = 'Enter a reason before removing a standing.';
+            $message_type = 'error';
+        } elseif ($_POST['action'] === 'remove_from_leaderboard') {
+            $db->prepare(
+                "INSERT INTO falcon.open_play_leaderboard_exclusions
+                    (player_id, season, reason, excluded_by)
+                 VALUES (:pid, :season, :reason, :admin)
+                 ON CONFLICT (player_id, season) DO UPDATE SET
+                    reason = EXCLUDED.reason, excluded_by = EXCLUDED.excluded_by,
+                    created_at = NOW()"
+            )->execute([
+                ':pid' => $playerId, ':season' => $targetSeason,
+                ':reason' => $reason, ':admin' => $adminId,
+            ]);
+            logActivity(
+                'Open Play Leaderboard Entry Removed',
+                'admin',
+                'normal',
+                "Player #{$playerId} hidden from Open Play season {$targetSeason}: {$reason}"
+            );
+            $message = 'Standing removed from the selected season.';
+            $message_type = 'success';
+        } else {
+            $db->prepare(
+                "DELETE FROM falcon.open_play_leaderboard_exclusions
+                  WHERE player_id = :pid AND season = :season"
+            )->execute([':pid' => $playerId, ':season' => $targetSeason]);
+            logActivity(
+                'Open Play Leaderboard Entry Restored',
+                'admin',
+                'normal',
+                "Player #{$playerId} restored to Open Play season {$targetSeason}"
+            );
+            $message = 'Standing restored to the selected season.';
+            $message_type = 'success';
+        }
+    }
+}
+
 // ── Load the Open Play leaderboard for the selected season ──
 // Every participant of a finalized Open Play event has a row in
 // tournament_scores (even 0-point ones), so this naturally lists
@@ -132,6 +189,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjus
 // always shows the exact same numbers.
 $lbResult    = $engine->getOpenPlayLeaderboard($season, 200, 0, $search);
 $leaderboard = $lbResult['players'];
+$hiddenStmt = $db->prepare(
+    "SELECT ex.player_id, ex.season, ex.reason,
+            COALESCE(u.display_name, u.full_name, u.username) AS name
+       FROM falcon.open_play_leaderboard_exclusions ex
+       JOIN falcon.users u ON u.id = ex.player_id
+      WHERE ex.season = :season
+      ORDER BY name"
+);
+$hiddenStmt->execute([':season' => $season]);
+$hiddenEntries = $hiddenStmt->fetchAll();
 
 $pageTitle = 'Leaderboard Admin';
 require_once __DIR__ . '/../includes/header.php';
@@ -242,8 +309,16 @@ require_once __DIR__ . '/../includes/header.php';
                                 <button type="button" class="btn-secondary btn-sm lb-adjust-btn"
                                     data-player-id="<?= (int)$entry['player_id'] ?>"
                                     data-player-name="<?= clean($entry['name']) ?>">
-                                    ⚙️ Adjust
+                                    ✏️ Edit points
                                 </button>
+                                <form method="POST" style="display:inline-flex;margin-left:6px;" data-confirm="Remove this player from season <?= $season ?>? Finalized match history will be kept.">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="remove_from_leaderboard">
+                                    <input type="hidden" name="player_id" value="<?= (int)$entry['player_id'] ?>">
+                                    <input type="hidden" name="season" value="<?= $season ?>">
+                                    <input type="hidden" name="reason" value="Admin removed this leaderboard entry">
+                                    <button type="submit" class="btn-secondary btn-sm">🗑️ Remove</button>
+                                </form>
                             </td>
                         </tr>
                     <?php endforeach; endif; ?>
@@ -252,6 +327,25 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+
+<?php if ($hiddenEntries): ?>
+<div class="card" style="margin-top:16px;">
+    <h2 style="margin:0 0 10px;font-size:18px;">Removed from Season <?= $season ?></h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">These entries are hidden only from this season's Open Play standings. Their finalized match history is preserved.</p>
+    <?php foreach ($hiddenEntries as $hidden): ?>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--border);">
+            <span><strong><?= clean($hidden['name']) ?></strong><small style="display:block;color:var(--muted);"> <?= clean($hidden['reason']) ?></small></span>
+            <form method="POST" data-confirm="Restore this player to season <?= $season ?>?">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="restore_leaderboard">
+                <input type="hidden" name="player_id" value="<?= (int)$hidden['player_id'] ?>">
+                <input type="hidden" name="season" value="<?= $season ?>">
+                <button type="submit" class="btn-secondary btn-sm">↩ Restore</button>
+            </form>
+        </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <div class="lb-modal-backdrop" id="lbAdjustModal">
     <div class="lb-modal" role="dialog" aria-modal="true" aria-labelledby="lbModalTitle">
